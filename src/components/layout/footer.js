@@ -146,7 +146,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Catégories - Partie 2 */}
+          {/* Catégories Partie 2 */}
           <div>
             <h3 className="text-lg font-bold mb-4 border-b border-white/20 pb-2">
               Secteurs d’activités 2/2 :

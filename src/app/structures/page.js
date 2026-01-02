@@ -1,6 +1,6 @@
 // src/app/structures/page.js 
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { structuresAPI, categoriesAPI, paysAPI, villesAPI } from '@/lib/api';
@@ -9,7 +9,8 @@ import StarRating from '@/components/ui/StarRating';
 const STRUCTURES_PAR_PAGE = 12;
 const CATEGORIES_VISIBLES = 5;
 
-export default function StructuresPage() {
+// Composant interne qui utilise useSearchParams
+function StructuresContent() {
   const searchParams = useSearchParams();
   const [structures, setStructures] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -26,10 +27,8 @@ export default function StructuresPage() {
   const [loading, setLoading] = useState(true);
   const [groupeActif, setGroupeActif] = useState(null);
 
-  // Référence pour le conteneur de catégories avec défilement
   const categoriesScrollRef = useRef(null);
 
-  // Groupes de catégories (même structure que le footer)
   const groupesCategories = {
     'production': {
       titre: "Production & Industries",
@@ -67,7 +66,6 @@ export default function StructuresPage() {
     chargerDonnees();
   }, []);
 
-  // Gérer les paramètres URL au chargement
   useEffect(() => {
     const groupe = searchParams.get('groupe');
     if (groupe) {
@@ -121,17 +119,15 @@ export default function StructuresPage() {
 
   const choisirPays = (paysId) => {
     setPaysFiltre(paysId);
-    localStorage.setItem('paysPreference', paysId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('paysPreference', paysId);
+    }
     setShowModalPays(false);
   };
 
-  // Filtrage des structures
   const structuresFiltrees = structures.filter(s => {
     const matchCategorie = categorieFiltre === 'tous' || s.categorie_id === categorieFiltre;
-    
-    // Si un groupe est actif, filtrer par les catégories du groupe
     const matchGroupe = !groupeActif || groupeActif.includes(s.categorie_id);
-    
     const matchPays = !paysFiltre || paysFiltre === '' || s.pays_id === paysFiltre;
     const matchVille = !villeFiltre || s.ville_id === villeFiltre;
     const matchRecherche = !recherche ||
@@ -141,18 +137,15 @@ export default function StructuresPage() {
     return matchCategorie && matchGroupe && matchPays && matchVille && matchRecherche;
   });
 
-  // Pagination
   const totalPages = Math.ceil(structuresFiltrees.length / STRUCTURES_PAR_PAGE);
   const indexDebut = (pageActuelle - 1) * STRUCTURES_PAR_PAGE;
   const indexFin = indexDebut + STRUCTURES_PAR_PAGE;
   const structuresPage = structuresFiltrees.slice(indexDebut, indexFin);
 
-  // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPageActuelle(1);
   }, [categorieFiltre, paysFiltre, villeFiltre, recherche, groupeActif]);
 
-  // Fonction de défilement des catégories
   const scrollCategories = (direction) => {
     if (categoriesScrollRef.current) {
       const scrollAmount = 200;
@@ -169,8 +162,9 @@ export default function StructuresPage() {
     setVilleFiltre('');
     setRecherche('');
     setGroupeActif(null);
-    // Effacer les paramètres URL
-    window.history.pushState({}, '', '/structures');
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/structures');
+    }
   };
 
   if (loading) {
@@ -184,14 +178,12 @@ export default function StructuresPage() {
     );
   }
 
-  // Trouver le groupe actif pour afficher son titre
   const groupeInfo = groupeActif ? Object.values(groupesCategories).find(g => 
     g.categories.some(cat => groupeActif.includes(cat))
   ) : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Modal sélection pays première visite */}
       {showModalPays && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -244,7 +236,6 @@ export default function StructuresPage() {
         </div>
       )}
 
-      {/* Header de la page */}
       <div className="bg-gradient-to-r from-primary via-primary-dark to-primary-light text-white py-12">
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-4xl md:text-5xl font-bold mb-3">🏪 Toutes les Structures</h1>
@@ -270,10 +261,8 @@ export default function StructuresPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Barre de filtres */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Recherche */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 🔍 Rechercher
@@ -292,7 +281,6 @@ export default function StructuresPage() {
               </div>
             </div>
 
-            {/* Pays */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 🌍 Pays
@@ -309,7 +297,6 @@ export default function StructuresPage() {
               </select>
             </div>
 
-            {/* Ville */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 📍 Ville
@@ -329,11 +316,9 @@ export default function StructuresPage() {
           </div>
         </div>
 
-        {/* Catégories avec défilement horizontal */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <h3 className="text-lg font-bold mb-4 text-gray-800">Filtrer par catégorie</h3>
           <div className="relative">
-            {/* Bouton scroll gauche */}
             {categories.length > CATEGORIES_VISIBLES && (
               <button
                 onClick={() => scrollCategories('left')}
@@ -345,7 +330,6 @@ export default function StructuresPage() {
               </button>
             )}
 
-            {/* Conteneur de catégories avec scroll */}
             <div
               ref={categoriesScrollRef}
               className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-12"
@@ -396,7 +380,6 @@ export default function StructuresPage() {
               })}
             </div>
 
-            {/* Bouton scroll droite */}
             {categories.length > CATEGORIES_VISIBLES && (
               <button
                 onClick={() => scrollCategories('right')}
@@ -410,7 +393,6 @@ export default function StructuresPage() {
           </div>
         </div>
 
-        {/* Liste des structures */}
         {structuresFiltrees.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl shadow">
             <div className="text-6xl mb-4">🔍</div>
@@ -425,7 +407,6 @@ export default function StructuresPage() {
           </div>
         ) : (
           <>
-            {/* Grille de structures */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {structuresPage.map(structure => {
                 const categorie = categories.find(c => c.id === structure.categorie_id);
@@ -474,7 +455,6 @@ export default function StructuresPage() {
               })}
             </div>
 
-            {/* Pagination structure */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 mt-8">
                 <button
@@ -505,7 +485,7 @@ export default function StructuresPage() {
                             pageActuelle === numPage
                               ? 'bg-primary text-white shadow-md'
                               : 'bg-white text-gray-700 hover:bg-gray-100'
-                          }` }
+                          }`}
                         >
                           {numPage}
                         </button>
@@ -547,5 +527,21 @@ export default function StructuresPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Composant principal avec Suspense
+export default function StructuresPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des structures...</p>
+        </div>
+      </div>
+    }>
+      <StructuresContent />
+    </Suspense>
   );
 }
