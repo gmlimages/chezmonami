@@ -177,7 +177,7 @@ export default function StructuresPage() {
               }}
               className="mt-6 w-full py-3 text-gray-600 hover:text-gray-800 font-medium"
             >
-              Voir toutes les structures (tous les pays)
+              Voir toutes les entreprises (tous les pays)
             </button>
           </div>
         </div>
@@ -186,9 +186,9 @@ export default function StructuresPage() {
       {/* Header de la page */}
       <div className="bg-gradient-to-r from-primary via-primary-dark to-primary-light text-white py-12">
         <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">🏪 Toutes les Structures</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-3">🏪 Toutes les Entreprises</h1>
           <p className="text-xl text-green-100">
-            Découvrez {structures.length} structures à travers l'Afrique
+            Découvrez {structures.length} entreprises à travers l'Afrique
           </p>
         </div>
       </div>
@@ -255,7 +255,7 @@ export default function StructuresPage() {
 
         {/* Catégories avec défilement horizontal */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h3 className="text-lg font-bold mb-4 text-gray-800">Filtrer par catégorie</h3>
+          <h3 className="text-lg font-bold mb-4 text-gray-800">Filtrer par entreprise</h3>
           <div className="relative">
             {/* Bouton scroll gauche */}
             {categories.length > CATEGORIES_VISIBLES && (

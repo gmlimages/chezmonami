@@ -196,7 +196,7 @@ export default function AnnoncesPage() {
                   : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
               }`}
             >
-              ✈️ Voyages ({annonces.filter(a => a.type === 'Voyage d\'affaires').length})
+              ✈️ Voyages d'affaires ({annonces.filter(a => a.type === 'Voyage d\'affaires').length})
             </button>
             <button
               onClick={() => setTypeFiltre('Partenariat')}

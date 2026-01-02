@@ -7,9 +7,10 @@ import { categoriesAPI } from '@/lib/api';
 export default function AdminCategories() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modeAjout, setModeAjout] = useState(false);
+  const [modeFormulaire, setModeFormulaire] = useState(false); // false, 'ajout', 'edition'
+  const [categorieEnCours, setCategorieEnCours] = useState(null);
   
-  const [nouvelleCategorie, setNouvelleCategorie] = useState({
+  const [formData, setFormData] = useState({
     id: '',
     nom: '',
     icon: '',
@@ -46,20 +47,54 @@ export default function AdminCategories() {
     }
   };
 
-  const ajouterCategorie = async () => {
-    if (!nouvelleCategorie.id || !nouvelleCategorie.nom || !nouvelleCategorie.icon) {
+  const ouvrirFormulaireAjout = () => {
+    setModeFormulaire('ajout');
+    setCategorieEnCours(null);
+    setFormData({ id: '', nom: '', icon: '', color: 'bg-blue-500' });
+  };
+
+  const ouvrirFormulaireEdition = (categorie) => {
+    setModeFormulaire('edition');
+    setCategorieEnCours(categorie);
+    setFormData({
+      id: categorie.id,
+      nom: categorie.nom,
+      icon: categorie.icon,
+      color: categorie.color
+    });
+  };
+
+  const fermerFormulaire = () => {
+    setModeFormulaire(false);
+    setCategorieEnCours(null);
+    setFormData({ id: '', nom: '', icon: '', color: 'bg-blue-500' });
+  };
+
+  const sauvegarderCategorie = async () => {
+    if (!formData.id || !formData.nom || !formData.icon) {
       alert('⚠️ Veuillez remplir tous les champs');
       return;
     }
 
     try {
-      await categoriesAPI.create(nouvelleCategorie);
-      alert('✅ Catégorie ajoutée avec succès !');
-      setNouvelleCategorie({ id: '', nom: '', icon: '', color: 'bg-blue-500' });
-      setModeAjout(false);
+      if (modeFormulaire === 'edition') {
+        // Modification
+        await categoriesAPI.update(categorieEnCours.id, {
+          nom: formData.nom,
+          icon: formData.icon,
+          color: formData.color
+        });
+        alert('✅ Catégorie modifiée avec succès !');
+      } else {
+        // Ajout
+        await categoriesAPI.create(formData);
+        alert('✅ Catégorie ajoutée avec succès !');
+      }
+      
+      fermerFormulaire();
       chargerCategories();
     } catch (error) {
-      console.error('Erreur ajout:', error);
+      console.error('Erreur sauvegarde:', error);
       alert('❌ Erreur: ' + error.message);
     }
   };
@@ -94,20 +129,22 @@ export default function AdminCategories() {
     <AdminLayout titre="Gestion des Catégories" sousTitre={`${categories.length} catégories configurées`}>
       <div className="mb-6">
         <button 
-          onClick={() => setModeAjout(!modeAjout)} 
+          onClick={() => modeFormulaire ? fermerFormulaire() : ouvrirFormulaireAjout()} 
           className="btn-primary flex items-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={modeFormulaire ? "M6 18L18 6M6 6l12 12" : "M12 4v16m8-8H4"} />
           </svg>
-          {modeAjout ? 'Annuler' : 'Ajouter une catégorie'}
+          {modeFormulaire ? 'Annuler' : 'Ajouter une catégorie'}
         </button>
       </div>
 
-      {/* Formulaire d'ajout */}
-      {modeAjout && (
+      {/* Formulaire (Ajout ou Édition) */}
+      {modeFormulaire && (
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Nouvelle catégorie</h3>
+          <h3 className="text-xl font-bold text-gray-800 mb-4">
+            {modeFormulaire === 'edition' ? '✏️ Modifier la catégorie' : '➕ Nouvelle catégorie'}
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">ID de la catégorie *</label>
@@ -115,10 +152,15 @@ export default function AdminCategories() {
                 type="text" 
                 placeholder="Ex: coiffure" 
                 className="input-field"
-                value={nouvelleCategorie.id}
-                onChange={(e) => setNouvelleCategorie({...nouvelleCategorie, id: e.target.value.toLowerCase().replace(/\s+/g, '_')})}
+                value={formData.id}
+                onChange={(e) => setFormData({...formData, id: e.target.value.toLowerCase().replace(/\s+/g, '_')})}
+                disabled={modeFormulaire === 'edition'}
               />
-              <p className="text-xs text-gray-500 mt-1">Minuscules, sans espaces (utilisez _ pour séparer)</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {modeFormulaire === 'edition' 
+                  ? "L'ID ne peut pas être modifié" 
+                  : "Minuscules, sans espaces (utilisez _ pour séparer)"}
+              </p>
             </div>
 
             <div>
@@ -127,8 +169,8 @@ export default function AdminCategories() {
                 type="text" 
                 placeholder="Ex: Coiffure" 
                 className="input-field"
-                value={nouvelleCategorie.nom}
-                onChange={(e) => setNouvelleCategorie({...nouvelleCategorie, nom: e.target.value})}
+                value={formData.nom}
+                onChange={(e) => setFormData({...formData, nom: e.target.value})}
               />
             </div>
 
@@ -139,8 +181,8 @@ export default function AdminCategories() {
                 placeholder="Ex: 💇" 
                 className="input-field text-2xl"
                 maxLength="2"
-                value={nouvelleCategorie.icon}
-                onChange={(e) => setNouvelleCategorie({...nouvelleCategorie, icon: e.target.value})}
+                value={formData.icon}
+                onChange={(e) => setFormData({...formData, icon: e.target.value})}
               />
               <p className="text-xs text-gray-500 mt-1">Utilisez un emoji (Windows: Win + . / Mac: Cmd + Ctrl + Espace)</p>
             </div>
@@ -149,8 +191,8 @@ export default function AdminCategories() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Couleur *</label>
               <select 
                 className="input-field"
-                value={nouvelleCategorie.color}
-                onChange={(e) => setNouvelleCategorie({...nouvelleCategorie, color: e.target.value})}
+                value={formData.color}
+                onChange={(e) => setFormData({...formData, color: e.target.value})}
               >
                 {couleursDisponibles.map(c => (
                   <option key={c.value} value={c.value}>{c.label}</option>
@@ -162,21 +204,18 @@ export default function AdminCategories() {
           {/* Aperçu */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700 mb-3">Aperçu :</p>
-            <div className={`inline-block px-4 py-2 rounded-full text-white ${nouvelleCategorie.color}`}>
-              <span className="text-xl mr-2">{nouvelleCategorie.icon || '❓'}</span>
-              <span className="font-semibold">{nouvelleCategorie.nom || 'Nom de catégorie'}</span>
+            <div className={`inline-block px-4 py-2 rounded-full text-white ${formData.color}`}>
+              <span className="text-xl mr-2">{formData.icon || '❓'}</span>
+              <span className="font-semibold">{formData.nom || 'Nom de catégorie'}</span>
             </div>
           </div>
 
           <div className="flex gap-4 mt-6">
-            <button onClick={ajouterCategorie} className="btn-primary flex-1">
-              Ajouter la catégorie
+            <button onClick={sauvegarderCategorie} className="btn-primary flex-1">
+              {modeFormulaire === 'edition' ? '💾 Enregistrer' : '➕ Ajouter'}
             </button>
             <button 
-              onClick={() => {
-                setModeAjout(false);
-                setNouvelleCategorie({ id: '', nom: '', icon: '', color: 'bg-blue-500' });
-              }} 
+              onClick={fermerFormulaire} 
               className="px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50"
             >
               Annuler
@@ -194,19 +233,30 @@ export default function AdminCategories() {
                 <span className="text-2xl mr-2">{categorie.icon}</span>
                 <span className="font-bold">{categorie.nom}</span>
               </div>
-              <button 
-                onClick={() => supprimerCategorie(categorie.id)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
             </div>
 
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 mb-4">
               <p><strong>ID :</strong> {categorie.id}</p>
               <p><strong>Classe CSS :</strong> {categorie.color}</p>
+            </div>
+
+            {/* Boutons d'action */}
+            <div className="flex gap-2">
+              <button 
+                onClick={() => ouvrirFormulaireEdition(categorie)}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-semibold flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Modifier
+              </button>
+              <button 
+                onClick={() => supprimerCategorie(categorie.id)}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-semibold"
+              >
+                🗑️
+              </button>
             </div>
           </div>
         ))}
@@ -223,6 +273,10 @@ export default function AdminCategories() {
           <li className="flex items-start gap-2">
             <span>•</span>
             <span>L'ID de catégorie ne peut pas être modifié après création (limitation de sécurité).</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span>•</span>
+            <span>Vous pouvez modifier le nom, l'icône et la couleur à tout moment.</span>
           </li>
           <li className="flex items-start gap-2">
             <span>•</span>
