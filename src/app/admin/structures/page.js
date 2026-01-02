@@ -1,9 +1,36 @@
-// src/app/admin/structures/page.js - PARTIE 1/2
+// src/app/admin/structures/page.js - VERSION COMPLÈTE FINALE
+// ✅ Images séparées + CTA + Services
+
 'use client';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import ImageUploader from '@/components/ImageUploader';
 import { structuresAPI, categoriesAPI, paysAPI, villesAPI } from '@/lib/api';
+
+// Types de CTA disponibles
+const CTA_TYPES = [
+  { value: 'rdv', label: 'Prendre rendez-vous', icon: '📅' },
+  { value: 'reserver_table', label: 'Réserver une table', icon: '🍽️' },
+  { value: 'reserver_chambre', label: 'Réserver une chambre', icon: '🏩' },
+  { value: 'commander', label: 'Passer commande', icon: '🛍️' },
+  { value: 'devis', label: 'Demander un devis', icon: '📋' },
+  { value: 'contact', label: 'Nous contacter', icon: '📞' }
+  
+];
+
+// Services pour hôtels/appartements
+const SERVICES_DISPONIBLES = [
+  { value: 'wifi', label: 'WiFi gratuit', icon: '📶' },
+  { value: 'piscine', label: 'Piscine', icon: '🏊' },
+  { value: 'parking', label: 'Parking', icon: '🅿️' },
+  { value: 'restaurant', label: 'Restaurant', icon: '🍽️' },
+  { value: 'climatisation', label: 'Climatisation', icon: '❄️' },
+  { value: 'room_service', label: 'Room Service', icon: '🛎️' },
+  { value: 'gym', label: 'Salle de sport', icon: '🏋️' },
+  { value: 'spa', label: 'Spa', icon: '💆' },
+  { value: 'petit_dejeuner', label: 'Petit-déjeuner', icon: '🥐' },
+  { value: 'blanchisserie', label: 'Blanchisserie', icon: '👔' }
+];
 
 export default function AdminStructures() {
   const [mode, setMode] = useState('liste');
@@ -25,7 +52,14 @@ export default function AdminStructures() {
     telephone: '',
     email: '',
     horaires: '',
-    images: []
+    adresse: '',
+    images: [],
+    galerie: [],
+    cta_principal: '',
+    cta_secondaire: '',
+    canaux_contact: [],
+    services_inclus: [],
+    politique_annulation: ''
   });
 
   useEffect(() => {
@@ -78,7 +112,14 @@ export default function AdminStructures() {
       telephone: '',
       email: '',
       horaires: '',
-      images: []
+      adresse: '',
+      images: [],
+      galerie: [],
+      cta_principal: '',
+      cta_secondaire: '',
+      canaux_contact: [],
+      services_inclus: [],
+      politique_annulation: ''
     });
     setVilles([]);
     setMode('formulaire');
@@ -87,9 +128,19 @@ export default function AdminStructures() {
   const modifierStructure = async (structure) => {
     setStructureEnCours(structure);
     
-    // Charger les villes du pays de la structure
     if (structure.pays?.id) {
       await chargerVilles(structure.pays.id);
+    }
+    
+    let galerieNormalisee = [];
+    if (structure.galerie) {
+      if (Array.isArray(structure.galerie)) {
+        galerieNormalisee = structure.galerie.map(item => 
+          typeof item === 'string' ? item : item.url
+        );
+      } else if (typeof structure.galerie === 'object') {
+        galerieNormalisee = Object.values(structure.galerie).filter(v => typeof v === 'string');
+      }
     }
     
     setFormData({
@@ -102,7 +153,14 @@ export default function AdminStructures() {
       telephone: structure.telephone,
       email: structure.email,
       horaires: structure.horaires,
-      images: structure.images || []
+      adresse: structure.adresse || '',
+      images: structure.images || [],
+      galerie: galerieNormalisee,
+      cta_principal: structure.cta_principal || '',
+      cta_secondaire: structure.cta_secondaire || '',
+      canaux_contact: structure.canaux_contact || [],
+      services_inclus: structure.services_inclus || [],
+      politique_annulation: structure.politique_annulation || ''
     });
     setMode('formulaire');
   };
@@ -127,6 +185,11 @@ export default function AdminStructures() {
     }
 
     try {
+      const galerieFormatee = formData.galerie.map((url, index) => ({
+        url: url,
+        alt: `${formData.nom} - Photo ${index + 1}`
+      }));
+
       const dataToSave = {
         nom: formData.nom,
         categorie_id: formData.categorie_id,
@@ -137,7 +200,14 @@ export default function AdminStructures() {
         telephone: formData.telephone,
         email: formData.email,
         horaires: formData.horaires,
-        images: formData.images
+        adresse: formData.adresse,
+        images: formData.images,
+        galerie: galerieFormatee,
+        cta_principal: formData.cta_principal,
+        cta_secondaire: formData.cta_secondaire,
+        canaux_contact: formData.canaux_contact,
+        services_inclus: formData.services_inclus,
+        politique_annulation: formData.politique_annulation
       };
 
       if (structureEnCours) {
@@ -156,7 +226,6 @@ export default function AdminStructures() {
     }
   };
 
-  // Filtrage avec recherche
   const structuresFiltrees = structures.filter(s => {
     if (!recherche) return true;
     const searchLower = recherche.toLowerCase();
@@ -239,18 +308,17 @@ export default function AdminStructures() {
                 <input type="email" className="input-field" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
               </div>
             </div>
+
             <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Adresse complète
-            </label>
-            <textarea
-              rows="2"
-              placeholder="Ex: Rue de la liberté, Immeuble ABC, Quartier Bonanjo"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-              value={formData.adresse}
-              onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
-            />
-          </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Adresse complète</label>
+              <textarea
+                rows="2"
+                placeholder="Ex: Rue de la liberté, Immeuble ABC, Quartier Bonanjo"
+                className="input-field"
+                value={formData.adresse}
+                onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+              />
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Horaires *</label>
@@ -267,13 +335,222 @@ export default function AdminStructures() {
               <textarea rows="6" className="input-field" value={formData.description_longue} onChange={(e) => setFormData({...formData, description_longue: e.target.value})} />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Images</label>
+            {/* SECTION 1 : IMAGES DE COUVERTURE */}
+            <div className="border-t-2 border-gray-200 pt-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  🖼️ Images de couverture
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  La première image sera affichée comme image principale
+                </p>
+              </div>
               <ImageUploader
                 images={formData.images}
                 onChange={(newImages) => setFormData({...formData, images: newImages})}
-                maxImages={10}
+                maxImages={null}
+                label="Couverture"
               />
+            </div>
+
+            {/* SECTION 2 : GALERIE SUPPLÉMENTAIRE */}
+            <div className="border-t-2 border-gray-200 pt-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  📸 Galerie photos supplémentaires
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Photos additionnelles qui seront affichées dans une galerie cliquable
+                </p>
+              </div>
+              <ImageUploader
+                images={formData.galerie}
+                onChange={(newImages) => setFormData({...formData, galerie: newImages})}
+                maxImages={null}
+                label="Galerie"
+              />
+            </div>
+
+            {/* SECTION 3 : CALL-TO-ACTION (CTA) */}
+            <div className="border-t-2 border-gray-200 pt-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  🎯 Boutons d'action (CTA)
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Configurez les boutons qui apparaîtront sur la page de la structure
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* CTA Principal */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Action principale *
+                  </label>
+                  <select 
+                    className="input-field"
+                    value={formData.cta_principal}
+                    onChange={(e) => setFormData({...formData, cta_principal: e.target.value})}
+                  >
+                    <option value="">Sélectionner une action</option>
+                    {CTA_TYPES.map(cta => (
+                      <option key={cta.value} value={cta.value}>
+                        {cta.icon} {cta.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* CTA Secondaire */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Action secondaire (optionnel)
+                  </label>
+                  <select 
+                    className="input-field"
+                    value={formData.cta_secondaire}
+                    onChange={(e) => setFormData({...formData, cta_secondaire: e.target.value})}
+                  >
+                    <option value="">Aucune action secondaire</option>
+                    {CTA_TYPES.filter(cta => cta.value !== formData.cta_principal).map(cta => (
+                      <option key={cta.value} value={cta.value}>
+                        {cta.icon} {cta.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Canaux de contact */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Canaux de contact disponibles *
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.canaux_contact.includes('whatsapp')}
+                        onChange={(e) => {
+                          const newCanaux = e.target.checked
+                            ? [...formData.canaux_contact, 'whatsapp']
+                            : formData.canaux_contact.filter(c => c !== 'whatsapp');
+                          setFormData({...formData, canaux_contact: newCanaux});
+                        }}
+                        className="w-5 h-5 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm font-medium text-gray-700">📱 WhatsApp</span>
+                    </label>
+                    
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.canaux_contact.includes('email')}
+                        onChange={(e) => {
+                          const newCanaux = e.target.checked
+                            ? [...formData.canaux_contact, 'email']
+                            : formData.canaux_contact.filter(c => c !== 'email');
+                          setFormData({...formData, canaux_contact: newCanaux});
+                        }}
+                        className="w-5 h-5 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm font-medium text-gray-700">📧 Email</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Aperçu CTA */}
+                {formData.cta_principal && formData.canaux_contact.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-blue-800 mb-2">
+                      📱 Aperçu des boutons :
+                    </p>
+                    <div className="flex gap-2">
+                      {formData.canaux_contact.includes('whatsapp') && (
+                        <div className="px-4 py-2 bg-green-500 text-white text-sm rounded-lg">
+                          {CTA_TYPES.find(c => c.value === formData.cta_principal)?.icon} WhatsApp
+                        </div>
+                      )}
+                      {formData.canaux_contact.includes('email') && (
+                        <div className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg">
+                          {CTA_TYPES.find(c => c.value === formData.cta_principal)?.icon} Email
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* SECTION 4 : SERVICES (Hôtels/Appartements) */}
+            <div className="border-t-2 border-gray-200 pt-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  🏨 Services & équipements
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Cochez les services disponibles (pour hôtels, appartements, etc.)
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Grid services */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {SERVICES_DISPONIBLES.map(service => (
+                    <label 
+                      key={service.value}
+                      className="flex items-center gap-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary cursor-pointer transition"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.services_inclus.includes(service.value)}
+                        onChange={(e) => {
+                          const newServices = e.target.checked
+                            ? [...formData.services_inclus, service.value]
+                            : formData.services_inclus.filter(s => s !== service.value);
+                          setFormData({...formData, services_inclus: newServices});
+                        }}
+                        className="w-5 h-5 text-primary focus:ring-primary"
+                      />
+                      <span className="text-2xl">{service.icon}</span>
+                      <span className="text-sm font-medium text-gray-700">{service.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Politique d'annulation */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Politique d'annulation
+                  </label>
+                  <textarea
+                    rows="3"
+                    placeholder="Ex: Annulation gratuite jusqu'à 48h avant l'arrivée. Au-delà, première nuit facturée."
+                    className="input-field"
+                    value={formData.politique_annulation}
+                    onChange={(e) => setFormData({...formData, politique_annulation: e.target.value})}
+                  />
+                </div>
+
+                {/* Aperçu services */}
+                {formData.services_inclus.length > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-green-800 mb-2">
+                      ✅ {formData.services_inclus.length} service{formData.services_inclus.length > 1 ? 's' : ''} sélectionné{formData.services_inclus.length > 1 ? 's' : ''} :
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.services_inclus.map(serviceValue => {
+                        const service = SERVICES_DISPONIBLES.find(s => s.value === serviceValue);
+                        return (
+                          <span key={serviceValue} className="px-3 py-1 bg-white border border-green-300 rounded-full text-sm">
+                            {service?.icon} {service?.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-4 pt-6">
@@ -323,6 +600,8 @@ export default function AdminStructures() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Catégorie</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Localisation</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Contact</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">CTA</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Photos</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
@@ -352,6 +631,27 @@ export default function AdminStructures() {
                   <td className="px-6 py-4">
                     <p className="text-sm text-gray-800">{structure.telephone}</p>
                     <p className="text-xs text-gray-500">{structure.email}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-xs text-gray-600">
+                      {structure.cta_principal && (
+                        <div className="flex items-center gap-1">
+                          <span>{CTA_TYPES.find(c => c.value === structure.cta_principal)?.icon}</span>
+                          <span>{structure.canaux_contact?.length || 0} canaux</span>
+                        </div>
+                      )}
+                      {structure.services_inclus?.length > 0 && (
+                        <div className="text-xs text-green-600 mt-1">
+                          {structure.services_inclus.length} services
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-xs text-gray-600">
+                      <div>Couverture: {structure.images?.length || 0}</div>
+                      <div>Galerie: {Array.isArray(structure.galerie) ? structure.galerie.length : 0}</div>
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-center gap-2">

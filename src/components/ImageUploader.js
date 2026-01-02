@@ -1,19 +1,24 @@
-// components/ImageUploader.js
-// Composant réutilisable pour uploader des images
+// components/ImageUploader.js - VERSION CORRIGÉE
+// ✅ Synchronisation automatique avec les props
 
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { uploadImages } from '@/lib/imageUpload'
 import { supabase } from '@/lib/supabase'
 
-export default function ImageUploader({ images = [], onChange, maxImages = 5 }) {
+export default function ImageUploader({ images = [], onChange, maxImages = 100, label = "Images" }) {
   const [uploading, setUploading] = useState(false)
   const [previewUrls, setPreviewUrls] = useState(images)
+
+  // 🎯 CORRECTION : Synchroniser previewUrls avec images quand elles changent
+  useEffect(() => {
+    setPreviewUrls(images)
+  }, [images])
 
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files)
     
-    if (previewUrls.length + files.length > maxImages) {
+    if (maxImages && previewUrls.length + files.length > maxImages) {
       alert(`❌ Vous ne pouvez ajouter que ${maxImages} images maximum`)
       return
     }
@@ -33,39 +38,39 @@ export default function ImageUploader({ images = [], onChange, maxImages = 5 }) 
   }
 
   const handleDeleteImage = async (index, imageUrl) => {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) return;
 
-  try {
-    // Extraction + suppression INLINE (comme fichiers)
-    if (imageUrl.includes('supabase')) {
-      const fileName = imageUrl.split('/').pop();
-      
-      console.log('🗑️ Suppression:', fileName); // Debug
-      
-      const { data, error } = await supabase.storage
-        .from('images')
-        .remove([fileName]);
-      
-      if (error) {
-        console.error('Erreur Supabase:', error);
-      } else {
-        console.log('✅ Supprimé:', data);
+    try {
+      // Extraction + suppression INLINE (comme fichiers)
+      if (imageUrl.includes('supabase')) {
+        const fileName = imageUrl.split('/').pop();
+        
+        console.log('🗑️ Suppression:', fileName);
+        
+        const { data, error } = await supabase.storage
+          .from('images')
+          .remove([fileName]);
+        
+        if (error) {
+          console.error('Erreur Supabase:', error);
+        } else {
+          console.log('✅ Supprimé:', data);
+        }
       }
-    }
 
-    // Retrait local (TOUJOURS exécuté)
-    const newImages = previewUrls.filter((_, i) => i !== index);
-    setPreviewUrls(newImages);
-    onChange(newImages);
-    
-  } catch (error) {
-    console.error('Erreur suppression:', error);
-    // Retirer quand même
-    const newImages = previewUrls.filter((_, i) => i !== index);
-    setPreviewUrls(newImages);
-    onChange(newImages);
-  }
-};
+      // Retrait local (TOUJOURS exécuté)
+      const newImages = previewUrls.filter((_, i) => i !== index);
+      setPreviewUrls(newImages);
+      onChange(newImages);
+      
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+      // Retirer quand même
+      const newImages = previewUrls.filter((_, i) => i !== index);
+      setPreviewUrls(newImages);
+      onChange(newImages);
+    }
+  };
 
   const handleDragStart = (e, index) => {
     e.dataTransfer.setData('text/plain', index)
@@ -99,14 +104,14 @@ export default function ImageUploader({ images = [], onChange, maxImages = 5 }) 
           accept="image/jpeg,image/png,image/webp"
           multiple
           onChange={handleFileSelect}
-          disabled={uploading || previewUrls.length >= maxImages}
+          disabled={uploading || (maxImages && previewUrls.length >= maxImages)}
           className="hidden"
-          id="image-upload"
+          id={`image-upload-${label.replace(/\s/g, '-')}`}
         />
         <label
-          htmlFor="image-upload"
+          htmlFor={`image-upload-${label.replace(/\s/g, '-')}`}
           className={`block w-full p-8 border-2 border-dashed rounded-lg text-center cursor-pointer transition ${
-            uploading || previewUrls.length >= maxImages
+            uploading || (maxImages && previewUrls.length >= maxImages)
               ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
               : 'border-primary bg-primary/5 hover:bg-primary/10'
           }`}
@@ -116,7 +121,7 @@ export default function ImageUploader({ images = [], onChange, maxImages = 5 }) 
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
               <p className="text-sm text-gray-600">Upload en cours...</p>
             </div>
-          ) : previewUrls.length >= maxImages ? (
+          ) : (maxImages && previewUrls.length >= maxImages) ? (
             <div className="flex flex-col items-center gap-2">
               <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -134,7 +139,7 @@ export default function ImageUploader({ images = [], onChange, maxImages = 5 }) 
                 Cliquez pour sélectionner des images
               </p>
               <p className="text-xs text-gray-500">
-                PNG, JPG, WEBP • Max {maxImages} images • Max 5MB par image
+                PNG, JPG, WEBP • {maxImages ? `Max ${maxImages} images • ` : ''}Max 5MB par image
               </p>
             </div>
           )}
@@ -156,7 +161,7 @@ export default function ImageUploader({ images = [], onChange, maxImages = 5 }) 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {previewUrls.map((url, index) => (
               <div
-                key={index}
+                key={`${url}-${index}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDrop={(e) => handleDrop(e, index)}
@@ -166,7 +171,7 @@ export default function ImageUploader({ images = [], onChange, maxImages = 5 }) 
                 <div className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 group-hover:border-primary transition">
                   <img
                     src={url}
-                    alt={`Image ${index + 1}`}
+                    alt={`${label} ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
                   

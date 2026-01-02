@@ -196,7 +196,7 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 max-w-4xl mx-auto">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition">
               <div className="text-3xl font-bold text-white">{statsGlobales.structures}</div>
-              <div className="text-sm text-green-100">Structures</div>
+              <div className="text-sm text-green-100">Entreprises</div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition">
               <div className="text-3xl font-bold text-white">{statsGlobales.villes}</div>
@@ -228,7 +228,7 @@ export default function Home() {
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              🏪 Structures & Produits
+              🏪 Entreprises & Produits
             </button>
             <button
               onClick={() => setOngletActif('annonces')}
@@ -250,14 +250,14 @@ export default function Home() {
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-3xl font-bold text-gray-800">
-                  🏪 Nos Structures
+                  🏪 Nos Entreprises
                 </h2>
               </div>
 
               {structuresCombinees.length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-xl shadow">
                   <div className="text-6xl mb-4">🏪</div>
-                  <p className="text-xl text-gray-600 mb-2">Aucune structure disponible</p>
+                  <p className="text-xl text-gray-600 mb-2">Aucune entreprise disponible</p>
                 </div>
               ) : (
                 <>

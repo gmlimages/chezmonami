@@ -90,22 +90,22 @@ export default function Footer() {
             </h3>
             <ul className="space-y-2 text-sm">
               <li className="text-green-100 hover:text-white transition flex items-center gap-2">
-                <span>🍽️</span> Restaurants
+                <span>🍽️</span> Production & Industries
               </li>
               <li className="text-green-100 hover:text-white transition flex items-center gap-2">
-                <span>💇</span> Salons de beauté
+                <span>💇</span> Commerce & Distribution
               </li>
               <li className="text-green-100 hover:text-white transition flex items-center gap-2">
-                <span>🛒</span> Supermarchés
+                <span>🛒</span> Bâtiment, Énergie & Environnement
               </li>
               <li className="text-green-100 hover:text-white transition flex items-center gap-2">
-                <span>🏥</span> Services de santé
+                <span>🏥</span> Santé, Éducation & Formation
               </li>
               <li className="text-green-100 hover:text-white transition flex items-center gap-2">
-                <span>🎓</span> Formations
+                <span>🎓</span> Services aux Entreprises
               </li>
               <li className="text-green-100 hover:text-white transition flex items-center gap-2">
-                <span>💼</span> Emplois
+                <span>💼</span> Finance, Tourisme & Services aux Particuliers
               </li>
             </ul>
           </div>
