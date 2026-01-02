@@ -2,6 +2,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { structuresAPI, categoriesAPI, paysAPI, villesAPI } from '@/lib/api';
 import StarRating from '@/components/ui/StarRating';
 
@@ -9,6 +10,7 @@ const STRUCTURES_PAR_PAGE = 12;
 const CATEGORIES_VISIBLES = 5;
 
 export default function StructuresPage() {
+  const searchParams = useSearchParams();
   const [structures, setStructures] = useState([]);
   const [categories, setCategories] = useState([]);
   const [pays, setPays] = useState([]);
@@ -22,13 +24,57 @@ export default function StructuresPage() {
   const [showModalPays, setShowModalPays] = useState(false);
   const [villesDisponibles, setVillesDisponibles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [groupeActif, setGroupeActif] = useState(null);
 
   // Référence pour le conteneur de catégories avec défilement
   const categoriesScrollRef = useRef(null);
 
+  // Groupes de catégories (même structure que le footer)
+  const groupesCategories = {
+    'production': {
+      titre: "Production & Industries",
+      icon: "🏭",
+      categories: ['producteurs', 'usines', 'laboratoires', 'agriculture', 'mines', 'artisanat', 'bois', 'textile', 'conserves', 'miel', 'terroir']
+    },
+    'commerce': {
+      titre: "Commerce & Distribution",
+      icon: "🛒",
+      categories: ['importateurs', 'exportateurs', 'distribution', 'grossistes', 'commercants', 'franchises', 'commercial', 'apporteurs']
+    },
+    'batiment': {
+      titre: "Bâtiment & Environnement",
+      icon: "🏗️",
+      categories: ['gros_oeuvre', 'batiment', 'immobilier', 'energies_renouvelables', 'eau', 'jardinage']
+    },
+    'services': {
+      titre: "Services aux Entreprises",
+      icon: "💼",
+      categories: ['prestataires', 'comptable', 'conseil', 'archivage', 'digitalisation', 'conciergerie', 'securite', 'transporteurs', 'main_oeuvre']
+    },
+    'sante': {
+      titre: "Santé & Éducation",
+      icon: "🎓",
+      categories: ['clinique', 'paramedical', 'laboratoire_medical', 'ecole', 'lycee', 'formation']
+    },
+    'finance': {
+      titre: "Finance & Tourisme",
+      icon: "🏦",
+      categories: ['banques', 'assurances', 'location_voiture', 'hotel', 'restaurant']
+    }
+  };
+
   useEffect(() => {
     chargerDonnees();
   }, []);
+
+  // Gérer les paramètres URL au chargement
+  useEffect(() => {
+    const groupe = searchParams.get('groupe');
+    if (groupe) {
+      const categoriesGroupe = groupe.split(',');
+      setGroupeActif(categoriesGroupe);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (paysFiltre) {
@@ -57,10 +103,6 @@ export default function StructuresPage() {
       setCategories(categoriesData);
       setPays(paysData);
 
-      // PAS de filtre automatique
-      // L'utilisateur verra TOUTES les structures par défaut
-      // Le filtre s'applique uniquement quand il sélectionne un pays
-
     } catch (error) {
       console.error('Erreur chargement données:', error);
     } finally {
@@ -86,13 +128,17 @@ export default function StructuresPage() {
   // Filtrage des structures
   const structuresFiltrees = structures.filter(s => {
     const matchCategorie = categorieFiltre === 'tous' || s.categorie_id === categorieFiltre;
+    
+    // Si un groupe est actif, filtrer par les catégories du groupe
+    const matchGroupe = !groupeActif || groupeActif.includes(s.categorie_id);
+    
     const matchPays = !paysFiltre || paysFiltre === '' || s.pays_id === paysFiltre;
     const matchVille = !villeFiltre || s.ville_id === villeFiltre;
     const matchRecherche = !recherche ||
       s.nom.toLowerCase().includes(recherche.toLowerCase()) ||
       (s.description && s.description.toLowerCase().includes(recherche.toLowerCase())) ||
       (s.ville?.nom && s.ville.nom.toLowerCase().includes(recherche.toLowerCase()));
-    return matchCategorie && matchPays && matchVille && matchRecherche;
+    return matchCategorie && matchGroupe && matchPays && matchVille && matchRecherche;
   });
 
   // Pagination
@@ -104,7 +150,7 @@ export default function StructuresPage() {
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPageActuelle(1);
-  }, [categorieFiltre, paysFiltre, villeFiltre, recherche]);
+  }, [categorieFiltre, paysFiltre, villeFiltre, recherche, groupeActif]);
 
   // Fonction de défilement des catégories
   const scrollCategories = (direction) => {
@@ -117,6 +163,16 @@ export default function StructuresPage() {
     }
   };
 
+  const reinitialiserFiltres = () => {
+    setCategorieFiltre('tous');
+    setPaysFiltre('');
+    setVilleFiltre('');
+    setRecherche('');
+    setGroupeActif(null);
+    // Effacer les paramètres URL
+    window.history.pushState({}, '', '/structures');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -127,6 +183,11 @@ export default function StructuresPage() {
       </div>
     );
   }
+
+  // Trouver le groupe actif pour afficher son titre
+  const groupeInfo = groupeActif ? Object.values(groupesCategories).find(g => 
+    g.categories.some(cat => groupeActif.includes(cat))
+  ) : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -177,7 +238,7 @@ export default function StructuresPage() {
               }}
               className="mt-6 w-full py-3 text-gray-600 hover:text-gray-800 font-medium"
             >
-              Voir toutes les entreprises (tous les pays)
+              Voir toutes les structures (tous les pays)
             </button>
           </div>
         </div>
@@ -186,10 +247,25 @@ export default function StructuresPage() {
       {/* Header de la page */}
       <div className="bg-gradient-to-r from-primary via-primary-dark to-primary-light text-white py-12">
         <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">🏪 Toutes les Entreprises</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-3">🏪 Toutes les Structures</h1>
           <p className="text-xl text-green-100">
-            Découvrez {structures.length} entreprises à travers l'Afrique
+            Découvrez {structures.length} structures à travers l'Afrique
           </p>
+          {groupeInfo && (
+            <div className="mt-4 inline-flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+              <span className="text-2xl">{groupeInfo.icon}</span>
+              <span className="font-semibold">Filtré par: {groupeInfo.titre}</span>
+              <button 
+                onClick={reinitialiserFiltres}
+                className="ml-2 hover:bg-white/20 rounded-full p-1"
+                title="Retirer le filtre"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -255,7 +331,7 @@ export default function StructuresPage() {
 
         {/* Catégories avec défilement horizontal */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h3 className="text-lg font-bold mb-4 text-gray-800">Filtrer par entreprise</h3>
+          <h3 className="text-lg font-bold mb-4 text-gray-800">Filtrer par catégorie</h3>
           <div className="relative">
             {/* Bouton scroll gauche */}
             {categories.length > CATEGORIES_VISIBLES && (
@@ -276,9 +352,12 @@ export default function StructuresPage() {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               <button
-                onClick={() => setCategorieFiltre('tous')}
+                onClick={() => {
+                  setCategorieFiltre('tous');
+                  setGroupeActif(null);
+                }}
                 className={`flex-shrink-0 card p-6 text-center font-semibold transition-all min-w-[140px] ${
-                  categorieFiltre === 'tous' 
+                  categorieFiltre === 'tous' && !groupeActif
                     ? 'bg-primary text-white shadow-xl scale-105' 
                     : 'hover:bg-gray-50 hover:scale-105'
                 }`}
@@ -291,13 +370,19 @@ export default function StructuresPage() {
               </button>
               {categories.map(cat => {
                 const nbStructures = structures.filter(s => s.categorie_id === cat.id).length;
+                const estDansGroupe = groupeActif && groupeActif.includes(cat.id);
                 return (
                   <button
                     key={cat.id}
-                    onClick={() => setCategorieFiltre(cat.id)}
+                    onClick={() => {
+                      setCategorieFiltre(cat.id);
+                      setGroupeActif(null);
+                    }}
                     className={`flex-shrink-0 card p-6 text-center font-semibold transition-all min-w-[140px] ${
                       categorieFiltre === cat.id 
                         ? `bg-primary text-white shadow-xl scale-105` 
+                        : estDansGroupe
+                        ? 'bg-primary/20 border-2 border-primary hover:scale-105'
                         : 'hover:bg-gray-50 hover:scale-105'
                     }`}
                   >
@@ -332,12 +417,7 @@ export default function StructuresPage() {
             <p className="text-xl text-gray-600 mb-2">Aucune structure trouvée</p>
             <p className="text-gray-500 mb-6">Essayez de modifier vos critères de recherche</p>
             <button
-              onClick={() => {
-                setCategorieFiltre('tous');
-                setPaysFiltre('');
-                setVilleFiltre('');
-                setRecherche('');
-              }}
+              onClick={reinitialiserFiltres}
               className="btn-primary"
             >
               Réinitialiser les filtres
@@ -396,7 +476,7 @@ export default function StructuresPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-2 mt-8">
                 <button
                   onClick={() => setPageActuelle(Math.max(1, pageActuelle - 1))}
                   disabled={pageActuelle === 1}
@@ -425,7 +505,7 @@ export default function StructuresPage() {
                             pageActuelle === numPage
                               ? 'bg-primary text-white shadow-md'
                               : 'bg-white text-gray-700 hover:bg-gray-100'
-                          }`}
+                          }` }
                         >
                           {numPage}
                         </button>
