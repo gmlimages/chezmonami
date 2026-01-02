@@ -11,7 +11,7 @@ export default function Header() {
 
   const menuItems = [
     { nom: 'Accueil', href: '/', icon: '🏠' },
-    { nom: 'Structures', href: '/structures', icon: '🏪' },
+    { nom: 'Entreprises', href: '/structures', icon: '🏪' },
     { nom: 'Boutiques', href: '/boutique', icon: '🛍️' },
     { nom: 'Annonces', href: '/annonces', icon: '📢' },
     { nom: 'Contact', href: '/contact', icon: '📞' }
@@ -39,7 +39,7 @@ export default function Header() {
             </div>
             <div>
               <h1 className="text-2xl font-bold">Chez Mon Ami</h1>
-              <p className="text-xs text-green-200">Votre plateforme de proximité</p>
+              <p className="text-xs text-green-200">Trouves ton partenaire panafricain en toute confiance</p>
             </div>
           </Link>
           

@@ -53,7 +53,7 @@ export default function Footer() {
                   href="/structures" 
                   className="text-green-100 hover:text-white hover:pl-2 transition-all flex items-center gap-2 text-sm"
                 >
-                  <span>🏪</span> Structures
+                  <span>🏪</span> Entreprises
                 </Link>
               </li>
               <li>

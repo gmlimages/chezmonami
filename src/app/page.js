@@ -185,10 +185,10 @@ export default function Home() {
               Bienvenue chez Mon Ami 🏪
             </h1>
             <p className="text-xl md:text-2xl text-green-100 mb-2">
-              Votre plateforme de proximité en Afrique
+              Votre marketplace de proximité en Afrique
             </p>
             <p className="text-lg text-green-200">
-              Découvrez les meilleurs restaurants, salons, boutiques, services et annonces
+              Découvrez les meilleurs partenaires, clients, fournisseurs, prospects, services, annonces et opportunités d'affaires du continent.
             </p>
           </div>
 

@@ -69,7 +69,7 @@ export default function AnnoncesPage() {
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-4xl md:text-5xl font-bold mb-3">📢 Toutes les Annonces</h1>
           <p className="text-xl text-orange-100">
-            Découvrez {annonces.length} opportunités : financements, appels d'offres et emplois
+            Découvrez {annonces.length} opportunités : financements, appels d'offres, emplois et plus
           </p>
         </div>
       </div>
@@ -97,7 +97,7 @@ export default function AnnoncesPage() {
               </div>
             </div>
 
-            {/* Type */}
+            {/* Type - MODIFIÉ avec nouveaux types */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 📋 Type
@@ -111,6 +111,9 @@ export default function AnnoncesPage() {
                 <option value="Financement">💰 Financement</option>
                 <option value="Appel d'offres">📄 Appel d'offres</option>
                 <option value="Emploi">💼 Emploi</option>
+                <option value="Salon BtoB">🏢 Salon BtoB</option>
+                <option value="Voyage d'affaires">✈️ Voyage d'affaires</option>
+                <option value="Partenariat">🤝 Partenariat</option>
               </select>
             </div>
 
@@ -132,7 +135,7 @@ export default function AnnoncesPage() {
             </div>
           </div>
 
-          {/* Badges types */}
+          {/* Badges types - MODIFIÉ avec nouveaux types */}
           <div className="flex flex-wrap gap-2 mt-4">
             <button
               onClick={() => setTypeFiltre('tous')}
@@ -174,6 +177,37 @@ export default function AnnoncesPage() {
             >
               💼 Emploi ({annonces.filter(a => a.type === 'Emploi').length})
             </button>
+            {/* NOUVEAUX badges */}
+            <button
+              onClick={() => setTypeFiltre('Salon BtoB')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                typeFiltre === 'Salon BtoB'
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+              }`}
+            >
+              🏢 Salons BtoB ({annonces.filter(a => a.type === 'Salon BtoB').length})
+            </button>
+            <button
+              onClick={() => setTypeFiltre('Voyage d\'affaires')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                typeFiltre === 'Voyage d\'affaires'
+                  ? 'bg-cyan-500 text-white'
+                  : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
+              }`}
+            >
+              ✈️ Voyages ({annonces.filter(a => a.type === 'Voyage d\'affaires').length})
+            </button>
+            <button
+              onClick={() => setTypeFiltre('Partenariat')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                typeFiltre === 'Partenariat'
+                  ? 'bg-pink-500 text-white'
+                  : 'bg-pink-100 text-pink-700 hover:bg-pink-200'
+              }`}
+            >
+              🤝 Partenariats ({annonces.filter(a => a.type === 'Partenariat').length})
+            </button>
           </div>
         </div>
 
@@ -210,6 +244,28 @@ export default function AnnoncesPage() {
                 const estUrgent = joursRestants <= 7;
                 const estExpire = joursRestants < 0;
 
+                // MODIFIÉ : Gestion des couleurs pour tous les types
+                const getTypeConfig = (type) => {
+                  switch(type) {
+                    case 'Financement':
+                      return { icon: '💰', bg: 'bg-blue-100', badge: 'bg-blue-100 text-blue-700' };
+                    case 'Appel d\'offres':
+                      return { icon: '📄', bg: 'bg-green-100', badge: 'bg-green-100 text-green-700' };
+                    case 'Emploi':
+                      return { icon: '💼', bg: 'bg-purple-100', badge: 'bg-purple-100 text-purple-700' };
+                    case 'Salon BtoB':
+                      return { icon: '🏢', bg: 'bg-indigo-100', badge: 'bg-indigo-100 text-indigo-700' };
+                    case 'Voyage d\'affaires':
+                      return { icon: '✈️', bg: 'bg-cyan-100', badge: 'bg-cyan-100 text-cyan-700' };
+                    case 'Partenariat':
+                      return { icon: '🤝', bg: 'bg-pink-100', badge: 'bg-pink-100 text-pink-700' };
+                    default:
+                      return { icon: '📢', bg: 'bg-gray-100', badge: 'bg-gray-100 text-gray-700' };
+                  }
+                };
+
+                const typeConfig = getTypeConfig(annonce.type);
+
                 return (
                   <Link
                     key={annonce.id}
@@ -219,13 +275,8 @@ export default function AnnoncesPage() {
                     <div className="flex flex-col md:flex-row gap-4">
                       {/* Badge type */}
                       <div className="flex-shrink-0">
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl ${
-                          annonce.type === 'Financement' ? 'bg-blue-100' :
-                          annonce.type === 'Appel d\'offres' ? 'bg-green-100' :
-                          'bg-purple-100'
-                        }`}>
-                          {annonce.type === 'Financement' ? '💰' :
-                           annonce.type === 'Appel d\'offres' ? '📄' : '💼'}
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl ${typeConfig.bg}`}>
+                          {typeConfig.icon}
                         </div>
                       </div>
 
@@ -279,14 +330,17 @@ export default function AnnoncesPage() {
                           )}
                         </div>
 
-                        <div className="mt-3 flex items-center gap-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            annonce.type === 'Financement' ? 'bg-blue-100 text-blue-700' :
-                            annonce.type === 'Appel d\'offres' ? 'bg-green-100 text-green-700' :
-                            'bg-purple-100 text-purple-700'
-                          }`}>
+                        {/* MODIFIÉ : Affichage du type et sous-type */}
+                        <div className="mt-3 flex items-center gap-2 flex-wrap">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${typeConfig.badge}`}>
                             {annonce.type}
                           </span>
+                          {/* NOUVEAU : Badge sous-type pour Emploi */}
+                          {annonce.type === 'Emploi' && annonce.sous_type && (
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              {annonce.sous_type}
+                            </span>
+                          )}
                           <span className="text-accent font-semibold text-sm">
                             Voir les détails →
                           </span>

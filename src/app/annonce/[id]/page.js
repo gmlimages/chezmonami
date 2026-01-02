@@ -78,10 +78,44 @@ export default function AnnonceDetail() {
   const estUrgent = joursRestants <= 7;
   const estExpire = joursRestants < 0;
 
+  // MODIFIÉ : Configuration pour tous les types
   const typeConfig = {
-    'Financement': { icon: '💰', color: 'bg-blue-500', lightColor: 'bg-blue-50', textColor: 'text-blue-700' },
-    'Appel d\'offres': { icon: '📄', color: 'bg-green-500', lightColor: 'bg-green-50', textColor: 'text-green-700' },
-    'Emploi': { icon: '💼', color: 'bg-purple-500', lightColor: 'bg-purple-50', textColor: 'text-purple-700' }
+    'Financement': { 
+      icon: '💰', 
+      color: 'bg-blue-500', 
+      lightColor: 'bg-blue-50', 
+      textColor: 'text-blue-700' 
+    },
+    'Appel d\'offres': { 
+      icon: '📄', 
+      color: 'bg-green-500', 
+      lightColor: 'bg-green-50', 
+      textColor: 'text-green-700' 
+    },
+    'Emploi': { 
+      icon: '💼', 
+      color: 'bg-purple-500', 
+      lightColor: 'bg-purple-50', 
+      textColor: 'text-purple-700' 
+    },
+    'Salon BtoB': { 
+      icon: '🏢', 
+      color: 'bg-indigo-500', 
+      lightColor: 'bg-indigo-50', 
+      textColor: 'text-indigo-700' 
+    },
+    'Voyage d\'affaires': { 
+      icon: '✈️', 
+      color: 'bg-cyan-500', 
+      lightColor: 'bg-cyan-50', 
+      textColor: 'text-cyan-700' 
+    },
+    'Partenariat': { 
+      icon: '🤝', 
+      color: 'bg-pink-500', 
+      lightColor: 'bg-pink-50', 
+      textColor: 'text-pink-700' 
+    }
   };
 
   const config = typeConfig[annonce.type] || typeConfig['Financement'];
@@ -100,12 +134,19 @@ export default function AnnonceDetail() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* Header avec type */}
         <div className={`${config.color} text-white rounded-xl p-8 mb-8 shadow-lg`}>
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-4xl">{config.icon}</div>
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-bold">{annonce.type}</span>
+                {/* NOUVEAU : Badge sous-type pour Emploi */}
+                {annonce.type === 'Emploi' && annonce.sous_type && (
+                  <span className="px-3 py-1 bg-white/30 rounded-full text-sm font-bold">
+                    {annonce.sous_type}
+                  </span>
+                )}
                 {estUrgent && !estExpire && (
                   <span className="px-3 py-1 bg-red-500 rounded-full text-sm font-bold animate-pulse">🔥 Urgent - {joursRestants}j</span>
                 )}
@@ -129,6 +170,35 @@ export default function AnnonceDetail() {
                 </div>
               )}
             </div>
+
+            {/* NOUVEAU : Section spécifique pour Emploi */}
+            {annonce.type === 'Emploi' && annonce.sous_type && (
+              <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-6">
+                <h3 className="text-xl font-bold mb-3 text-purple-900 flex items-center gap-2">
+                  💼 Informations sur le poste
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 bg-white p-3 rounded-lg">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                      📝
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Type de contrat</p>
+                      <p className="font-bold text-gray-800">{annonce.sous_type}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 bg-white p-3 rounded-lg">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                      📍
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Localisation</p>
+                      <p className="font-bold text-gray-800">{annonce.ville || 'National'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Pièces jointes */}
             {annonce.pieces_jointes && annonce.pieces_jointes.length > 0 && (
