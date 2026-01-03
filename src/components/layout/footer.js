@@ -66,8 +66,8 @@ export default function Footer() {
               />
             </div>
             <p className="text-green-100 text-sm leading-relaxed mb-4">
-              Votre plateforme de proximité en Afrique. Découvrez les meilleurs restaurants, 
-              salons de beauté, boutiques, services et opportunités professionnelles près de chez vous.
+              Votre marketplace de proximité en Afrique. Découvrez les meilleurs partenaires, 
+              clients, fournisseurs, prospects, services, annonces et opportunités d'affaires du continent.
             </p>
             <p className="text-green-200 text-xs italic">
               Connecter l'Afrique, une communauté à la fois.
