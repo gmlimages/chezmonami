@@ -13,6 +13,7 @@ export default function Header() {
     { nom: 'Accueil', href: '/', icon: '🏠' },
     { nom: 'Entreprises', href: '/structures', icon: '🏪' },
     { nom: 'Boutiques', href: '/boutique', icon: '🛍️' },
+    { nom: 'Mes Commandes', href: '/mes-commandes', icon: '📦' },
     { nom: 'Annonces', href: '/annonces', icon: '📢' },
     { nom: 'Contact', href: '/contact', icon: '📞' }
   ];

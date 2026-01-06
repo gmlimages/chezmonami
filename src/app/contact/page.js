@@ -2,6 +2,7 @@
 'use client';
 import { useState } from 'react';
 import { ADMIN_CONTACT } from '@/data/mockData';
+import PageTracker from '@/components/PageTracker';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -22,6 +23,9 @@ export default function ContactPage() {
   };
 
   return (
+    <>
+      {/* ✅ TRACKING AUTOMATIQUE */}
+      <PageTracker pageType="contact" />
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary via-primary-dark to-primary-light text-white py-16">
@@ -223,5 +227,6 @@ export default function ContactPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

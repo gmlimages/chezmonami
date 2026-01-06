@@ -1012,3 +1012,5 @@ export const commentairesAPI = {
     };
   }
 };
+
+export { statistiquesAPI } from './statistiques';

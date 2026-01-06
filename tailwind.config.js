@@ -26,8 +26,28 @@ module.exports = {
           cream: '#f5e6d3',   // Beige/Crème (fond arche)
           sand: '#e8d4bc',    // Sable
         },
+        animation: {
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        },
+        backgroundImage: {
+          'promo-gradient': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          'featured-gradient': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+        },
+        
       },
     },
   },
-  plugins: [],
+  plugins: [
+  function({ addUtilities }) {
+    addUtilities({
+      '.scrollbar-hide': {
+        '-ms-overflow-style': 'none',
+        'scrollbar-width': 'none',
+        '&::-webkit-scrollbar': {
+          display: 'none'
+        }
+      }
+    })
+  }
+],
 };

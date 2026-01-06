@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { annoncesAPI, statistiquesAPI } from '@/lib/api';
+import { annoncesAPI } from '@/lib/api';
+import PageTracker from '@/components/PageTracker';
 
 export default function AnnonceDetail() {
   const params = useParams();
@@ -121,6 +122,15 @@ export default function AnnonceDetail() {
   const config = typeConfig[annonce.type] || typeConfig['Financement'];
 
   return (
+    <>
+      {/* ✅ TRACKING AVEC ID ANNONCE */}
+      {annonce && (
+        <PageTracker 
+          pageType="annonce_detail" 
+          elementId={annonce.id}
+          elementType="annonce"
+        />
+      )}
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -293,5 +303,6 @@ export default function AnnonceDetail() {
         </div>
       </div>
     </div>
+    </>
   );
 }

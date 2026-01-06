@@ -1,4 +1,4 @@
-// src/app/page.js
+// src/app/page.js - VERSION AVEC AJOUTS SUBTILS
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -12,12 +12,18 @@ import {
   bannieresAPI
 } from '@/lib/api';
 import StarRating from '@/components/ui/StarRating';
+import { supabase } from '@/lib/supabase';
+
+import PageTracker from '@/components/PageTracker';
+
 
 export default function Home() {
   // États pour les données
   const [structures, setStructures] = useState([]);
   const [structuresCombinees, setStructuresCombinees] = useState([]);
+  const [structuresFeatured, setStructuresFeatured] = useState([]); // ✅ AJOUT
   const [produitsCombines, setProduitsCombines] = useState([]);
+  const [produitsPromo, setProduitsPromo] = useState([]); // ✅ AJOUT
   const [annonces, setAnnonces] = useState([]);
   const [categories, setCategories] = useState([]);
   const [statsGlobales, setStatsGlobales] = useState({
@@ -30,19 +36,19 @@ export default function Home() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   
   // État pour l'onglet actif
-  const [ongletActif, setOngletActif] = useState('structures'); // 'structures' ou 'annonces'
+  const [ongletActif, setOngletActif] = useState('structures');
   
   // États pour le carrousel d'images Hero
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
-  // Images d'Afrique (Unsplash - paysages africains)
+  // Images d'Afrique
   const imagesAfrique = [
-    'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=1920&q=80', // Serengeti
-    'https://images.unsplash.com/photo-1489392191049-fc10c97e64b6?w=1920&q=80', // Savane
-    'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=1920&q=80', // Pyramides
-    'https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=1920&q=80', // Safari
-    'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1920&q=80', // Marrakech
-    'https://industries.ma/wp-content/uploads/2024/05/Maroc-82eme-classement-mondial-tourisme.jpg', // Plage africaine
+    'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=1920&q=80',
+    'https://images.unsplash.com/photo-1489392191049-fc10c97e64b6?w=1920&q=80',
+    'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=1920&q=80',
+    'https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=1920&q=80',
+    'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1920&q=80',
+    'https://industries.ma/wp-content/uploads/2024/05/Maroc-82eme-classement-mondial-tourisme.jpg',
   ];
   
   // États UI
@@ -53,18 +59,17 @@ export default function Home() {
     chargerDonnees();
   }, []);
 
-  // Rotation automatique des images du Hero toutes les 5s
+  // Rotation automatique des images du Hero
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => 
         (prevIndex + 1) % imagesAfrique.length
       );
     }, 5000);
-
     return () => clearInterval(interval);
   }, [imagesAfrique.length]);
 
-  // Rotation automatique des bannières toutes les 5s
+  // Rotation automatique des bannières
   useEffect(() => {
     if (bannieres.length > 1) {
       const interval = setInterval(() => {
@@ -72,10 +77,86 @@ export default function Home() {
           (prevIndex + 1) % bannieres.length
         );
       }, 5000);
-
       return () => clearInterval(interval);
     }
   }, [bannieres.length]);
+
+  // ✅ FONCTION POUR CHARGER STRUCTURES FEATURED
+  const chargerStructuresFeatured = async () => {
+  try {
+    const now = new Date().toISOString();
+    
+    // Charger mises en avant SANS relation
+    const { data: misesData, error: misesError } = await supabase
+      .from('mises_en_avant')
+      .select('*')
+      .eq('element_type', 'structure')
+      .eq('actif', true)
+      .lte('date_debut', now)
+      .or(`date_fin.is.null,date_fin.gte.${now}`)
+      .or('position.eq.accueil,position.eq.tous')
+      .order('ordre', { ascending: true })
+      .limit(6);
+
+    if (misesError) throw misesError;
+
+    // Charger toutes les structures séparément
+    const structures = await structuresAPI.getAll();
+
+    // Enrichir avec les structures
+    const validFeatured = (misesData || [])
+      .map(mise => {
+        const structure = structures.find(s => s.id === mise.element_id);
+        return structure ? {
+          ...structure,
+          featured: true,
+          featured_ordre: mise.ordre,
+          featured_titre: mise.titre
+        } : null;
+      })
+      .filter(Boolean);
+
+    setStructuresFeatured(validFeatured);
+  } catch (error) {
+    console.error('❌ Erreur featured:', error);
+    setStructuresFeatured([]);
+  }
+};
+
+  // ✅ FONCTION POUR CHARGER PRODUITS EN PROMO
+  const chargerProduitsPromo = async () => {
+    try {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('promotions')
+        .select(`
+          *,
+          produits (
+            id, nom, images, prix,
+            pays:pays(devise)
+          )
+        `)
+        .eq('actif', true)
+        .lte('date_debut', now)
+        .gte('date_fin', now)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      const validPromos = (data || []).filter(p => p.produits).map(promo => ({
+        ...promo.produits,
+        promo: {
+          prix_original: promo.prix_original,
+          prix_promo: promo.prix_promo,
+          economie: promo.economie,
+          pourcentage: Math.round((promo.economie / promo.prix_original) * 100)
+        }
+      }));
+      setProduitsPromo(validPromos);
+    } catch (error) {
+      console.error('Erreur promos:', error);
+    }
+  };
 
   const chargerDonnees = async () => {
     try {
@@ -118,7 +199,7 @@ export default function Home() {
       setAnnonces(annoncesData);
       setBannieres(bannieresData);
 
-      // Combiner structures récentes et populaires sans doublons
+      // Combiner structures récentes et populaires
       const structuresMap = new Map();
       [...structuresRecentesData, ...structuresPopulairesData].forEach(structure => {
         if (!structuresMap.has(structure.id)) {
@@ -127,7 +208,7 @@ export default function Home() {
       });
       setStructuresCombinees(Array.from(structuresMap.values()).slice(0, 8));
 
-      // Combiner produits récents et populaires sans doublons
+      // Combiner produits récents et populaires
       const produitsMap = new Map();
       [...produitsRecentsData, ...produitsPopulairesData].forEach(produit => {
         if (!produitsMap.has(produit.id)) {
@@ -135,6 +216,12 @@ export default function Home() {
         }
       });
       setProduitsCombines(Array.from(produitsMap.values()).slice(0, 10));
+
+      // ✅ CHARGER FEATURED + PROMOS
+      await Promise.all([
+        chargerStructuresFeatured(),
+        chargerProduitsPromo()
+      ]);
 
     } catch (error) {
       console.error('Erreur chargement données:', error);
@@ -155,10 +242,12 @@ export default function Home() {
   }
 
   return (
+    <>
+      {/* ✅ TRACKING AUTOMATIQUE */}
+      <PageTracker pageType="accueil" />
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section avec images défilantes */}
+      {/* Hero Section */}
       <section className="relative overflow-hidden">
-        {/* Images en arrière-plan avec transition */}
         <div className="absolute inset-0">
           {imagesAfrique.map((img, index) => (
             <div
@@ -174,12 +263,10 @@ export default function Home() {
               />
             </div>
           ))}
-          {/* Overlay avec gradient pour visibilité du texte */}
           <div className="absolute inset-0 bg-gradient-to-r from-primary/60 via-primary-dark/85 to-primary-light/60"></div>
         </div>
 
-        {/* Contenu du Hero */}
-        <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24">
+        <div className="relative container mx-auto px-4 py-16 md:py-24"> {/* ✅ CHANGÉ max-w-7xl en container */}
           <div className="text-center mb-8">
             <h1 className="text-4xl md:text-6xl font-bold mb-4 text-white">
               Bienvenue chez Mon Ami 🏪
@@ -194,30 +281,49 @@ export default function Home() {
 
           {/* Statistiques globales */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 max-w-4xl mx-auto">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition">
+            {/* Entreprises → /structures */}
+            <Link 
+              href="/structures"
+              className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition cursor-pointer"
+            >
               <div className="text-3xl font-bold text-white">{statsGlobales.structures}</div>
               <div className="text-sm text-green-100">Entreprises</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition">
+            </Link>
+
+            {/* Villes → /structures (avec filtre ville) */}
+            <Link 
+              href="/structures"
+              className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition cursor-pointer"
+            >
               <div className="text-3xl font-bold text-white">{statsGlobales.villes}</div>
               <div className="text-sm text-green-100">Villes</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition">
+            </Link>
+
+            {/* Annonces → /annonces */}
+            <Link 
+              href="/annonces"
+              className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition cursor-pointer"
+            >
               <div className="text-3xl font-bold text-white">{statsGlobales.annonces}</div>
               <div className="text-sm text-green-100">Annonces</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition">
+            </Link>
+
+            {/* Pays → /structures (avec filtre pays) */}
+            <Link 
+              href="/structures"
+              className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-center border border-white/20 hover:bg-white/20 transition cursor-pointer"
+            >
               <div className="text-3xl font-bold text-white">{statsGlobales.pays}</div>
               <div className="text-sm text-green-100">Pays</div>
-            </div>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Section principale avec onglets */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      {/* Section principale */}
+      <div className="container mx-auto px-4 py-12"> {/* ✅ CHANGÉ max-w-7xl en container */}
         
-        {/* Onglets modernes Structures / Annonces */}
+        {/* Onglets modernes */}
         <div className="mb-8">
           <div className="flex items-center justify-center gap-2 bg-white rounded-xl p-2 shadow-md max-w-md mx-auto">
             <button
@@ -246,6 +352,21 @@ export default function Home() {
         {/* SECTION STRUCTURES & PRODUITS */}
         {ongletActif === 'structures' && (
           <div>
+            {/* ✅ STRUCTURES MISES EN AVANT */}
+            {structuresFeatured.length > 0 && (
+              <section className="mb-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="text-2xl">⭐</span>
+                  <h2 className="text-2xl font-bold text-gray-800">Entreprises sponsorisées</h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {structuresFeatured.map(structure => (
+                    <StructureCard key={structure.id} structure={structure} categories={categories} featured={true} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Bloc Structures combinées */}
             <section className="mb-12">
               <div className="flex items-center justify-between mb-6">
@@ -266,8 +387,6 @@ export default function Home() {
                       <StructureCard key={structure.id} structure={structure} categories={categories} />
                     ))}
                   </div>
-
-                  {/* Bouton Voir plus */}
                   <div className="text-center mt-8">
                     <Link href="/structures" className="inline-flex items-center gap-2 bg-primary text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-dark transition shadow-lg hover:shadow-xl">
                       <span>Voir plus de structures</span>
@@ -279,6 +398,21 @@ export default function Home() {
                 </>
               )}
             </section>
+
+            {/* ✅ PRODUITS EN PROMOTION */}
+            {produitsPromo.length > 0 && (
+              <section className="mb-12 bg-gradient-to-br from-red-50 to-orange-50 -mx-4 px-4 py-8 rounded-xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="text-3xl animate-pulse">🔥</span>
+                  <h2 className="text-2xl font-bold text-gray-800">Promotions du moment</h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  {produitsPromo.map(produit => (
+                    <ProduitCard key={produit.id} produit={produit} promo={true} />
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Bloc Produits combinés */}
             <section className="mb-12">
@@ -300,8 +434,6 @@ export default function Home() {
                       <ProduitCard key={produit.id} produit={produit} />
                     ))}
                   </div>
-
-                  {/* Bouton Voir plus */}
                   <div className="text-center mt-8">
                     <Link href="/boutique" className="inline-flex items-center gap-2 bg-accent text-white px-8 py-4 rounded-lg font-semibold hover:bg-accent-dark transition shadow-lg hover:shadow-xl">
                       <span>Voir plus de produits</span>
@@ -314,10 +446,10 @@ export default function Home() {
               )}
             </section>
 
-            {/* Bannières - Format fixe 1920x500px */}
+            {/* Bannières */}
             {bannieres.length > 0 && (
               <section className="mb-12">
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden relative">
                   <div className="relative w-full" style={{ height: '250px' }}>
                     {bannieres.map((banniere, index) => (
                       <div
@@ -335,8 +467,6 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                  
-                  {/* Indicateurs de pagination */}
                   {bannieres.length > 1 && (
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
                       {bannieres.map((_, index) => (
@@ -383,7 +513,7 @@ export default function Home() {
               )}
             </section>
 
-            {/* Bannières - Format fixe 1920x500px (aussi visible dans annonces) */}
+            {/* Bannières (aussi dans annonces) */}
             {bannieres.length > 0 && (
               <section className="mb-12">
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden relative">
@@ -404,8 +534,6 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                  
-                  {/* Indicateurs de pagination */}
                   {bannieres.length > 1 && (
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
                       {bannieres.map((_, index) => (
@@ -425,19 +553,129 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* ✅ NEWSLETTER COMPACTE EN BAS */}
+      <NewsletterCompact />
     </div>
+    </>
   );
 }
 
-// Composant carte de structure
-function StructureCard({ structure, categories }) {
+// ✅ COMPOSANT NEWSLETTER COMPACT
+function NewsletterCompact() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setLoading(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const { data: existing } = await supabase
+        .from('newsletter_abonnes')
+        .select('id, actif')
+        .eq('email', email)
+        .single();
+
+      if (existing) {
+        if (existing.actif) {
+          setMessage({ type: 'info', text: 'Déjà abonné !' });
+        } else {
+          await supabase.from('newsletter_abonnes').update({ actif: true }).eq('id', existing.id);
+          setMessage({ type: 'success', text: 'Réactivé !' });
+        }
+      } else {
+        await supabase.from('newsletter_abonnes').insert({
+          email,
+          actif: true,
+          date_confirmation: new Date().toISOString()
+        });
+        setMessage({ type: 'success', text: '✅ Abonné avec succès !' });
+        setEmail('');
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Erreur, réessayez.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="bg-gradient-to-r from-primary to-primary-dark py-8">
+      <div className="container mx-auto px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            {/* Texte */}
+            <div className="flex-1 text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+                <span className="text-3xl">📬</span>
+                <h3 className="text-2xl font-bold text-white">Newsletter</h3>
+              </div>
+              <p className="text-green-100 text-sm">
+                Recevez les nouveautés : entreprises, produits, promos et annonces
+              </p>
+            </div>
+
+            {/* Formulaire */}
+            <div className="flex-1 w-full">
+              <form onSubmit={handleSubmit} className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder="Votre email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="flex-1 px-4 py-3 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-white/50"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-3 bg-white text-primary font-bold rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+                >
+                  {loading ? '...' : "S'abonner"}
+                </button>
+              </form>
+              {message.text && (
+                <p className={`mt-2 text-sm ${
+                  message.type === 'success' ? 'text-green-200' :
+                  message.type === 'error' ? 'text-red-200' : 'text-blue-200'
+                }`}>
+                  {message.text}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Composant Structure Card (avec badge featured)
+function StructureCard({ structure, categories, featured = false }) {
   const categorie = categories.find(c => c.id === structure.categorie_id);
   
   return (
     <Link 
       href={`/structure/${structure.id}`}
-      className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all hover:scale-105 cursor-pointer"
+      className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all hover:scale-105 cursor-pointer relative"
     >
+      {/* ✅ Badge Featured */}
+      {featured && (
+        <div className="absolute top-2 left-2 z-10">
+          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            Vedette
+          </span>
+        </div>
+      )}
+
       <div className="relative">
         <img
           src={structure.images?.[0] || '/placeholder-structure.jpg'}
@@ -452,16 +690,13 @@ function StructureCard({ structure, categories }) {
       </div>
       <div className="p-4">
         <h3 className="text-lg font-bold mb-2 text-gray-800 line-clamp-1">{structure.nom}</h3>
-        
         <div className="flex items-center justify-between mb-3">
-          <StarRating note={structure.note_moyenne || 0} taille={16} />
+          <StarRating note={structure.note_moyenne || structure.note || 0} taille={16} />
           <span className="text-xs text-gray-500">({structure.nombre_avis || 0})</span>
         </div>
-        
         <p className="text-sm text-gray-600 mb-3 line-clamp-2">
           {structure.description}
         </p>
-        
         <div className="pt-3 border-t border-gray-100">
           <span className="text-primary font-semibold text-sm hover:text-primary-dark transition">
             Voir détails →
@@ -472,20 +707,29 @@ function StructureCard({ structure, categories }) {
   );
 }
 
-// Composant carte de produit
-function ProduitCard({ produit }) {
+// Composant Produit Card (avec promo)
+function ProduitCard({ produit, promo = false }) {
   return (
     <Link 
       href={`/produit/${produit.id}`}
-      className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all hover:scale-105 cursor-pointer"
+      className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all hover:scale-105 cursor-pointer relative"
     >
+      {/* ✅ Badge Promo */}
+      {promo && produit.promo && (
+        <div className="absolute top-2 right-2 z-10">
+          <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-lg shadow-lg">
+            -{produit.promo.pourcentage}%
+          </span>
+        </div>
+      )}
+
       <div className="relative">
         <img
           src={produit.images?.[0] || '/placeholder-produit.jpg'}
           alt={produit.nom}
           className="w-full h-48 object-cover"
         />
-        {produit.stock && produit.stock < 5 && (
+        {!promo && produit.stock && produit.stock < 5 && (
           <span className="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-white shadow-lg">
             Stock faible
           </span>
@@ -493,9 +737,27 @@ function ProduitCard({ produit }) {
       </div>
       <div className="p-4">
         <h3 className="text-sm font-bold mb-2 text-gray-800 line-clamp-2">{produit.nom}</h3>
-        <p className="text-lg font-bold text-primary">
-          {produit.prix} {produit.pays?.devise || 'FCFA'}
-        </p>
+        
+        {/* ✅ Prix avec promo */}
+        {promo && produit.promo ? (
+          <div>
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-lg font-bold text-red-600">
+                {Math.round(produit.promo.prix_promo).toLocaleString()} {produit.pays?.devise || 'FCFA'}
+              </span>
+              <span className="text-xs text-gray-500 line-through">
+                {Math.round(produit.promo.prix_original).toLocaleString()}
+              </span>
+            </div>
+            <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded">
+              Économisez {Math.round(produit.promo.economie).toLocaleString()}
+            </span>
+          </div>
+        ) : (
+          <p className="text-lg font-bold text-primary">
+            {produit.prix} {produit.pays?.devise || 'FCFA'}
+          </p>
+        )}
         
         <div className="mt-3 pt-3 border-t border-gray-100">
           <span className="text-accent font-semibold text-sm hover:text-accent-dark transition">
@@ -507,7 +769,7 @@ function ProduitCard({ produit }) {
   );
 }
 
-// Composant carte d'annonce
+// Composant Annonce Card (inchangé)
 function AnnonceCard({ annonce }) {
   return (
     <Link

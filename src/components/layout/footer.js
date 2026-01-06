@@ -106,6 +106,14 @@ export default function Footer() {
               </li>
               <li>
                 <Link 
+                  href="/mes-commandes" 
+                  className="text-green-100 hover:text-white hover:pl-2 transition-all flex items-center gap-2 text-sm"
+                >
+                  <span>📦</span> Mes Commandes
+                </Link>
+              </li>
+              <li>
+                <Link 
                   href="/annonces" 
                   className="text-green-100 hover:text-white hover:pl-2 transition-all flex items-center gap-2 text-sm"
                 >

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { annoncesAPI, paysAPI } from '@/lib/api';
+import PageTracker from '@/components/PageTracker';
 
 export default function AnnoncesPage() {
   const [annonces, setAnnonces] = useState([]);
@@ -63,9 +64,12 @@ export default function AnnoncesPage() {
   }
 
   return (
+    <>
+      {/* ✅ TRACKING AUTOMATIQUE */}
+      <PageTracker pageType="annonces" />
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-accent via-accent-dark to-accent-light text-white py-12">
+      <div className="bg-gradient-to-r from-primary via-primary-dark to-primary-light text-white py-12">
         <div className="max-w-7xl mx-auto px-4">
           <h1 className="text-4xl md:text-5xl font-bold mb-3">📢 Toutes les Annonces</h1>
           <p className="text-xl text-orange-100">
@@ -355,5 +359,6 @@ export default function AnnoncesPage() {
         )}
       </div>
     </div>
+    </>
   );
 }
