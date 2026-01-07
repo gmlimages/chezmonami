@@ -74,30 +74,31 @@ export function usePanier() {
   const ajouterAuPanier = useCallback((produit) => {
     const panierActuel = JSON.parse(localStorage.getItem(PANIER_STORAGE_KEY) || '[]');
     
-    // Vérifier si le produit existe déjà
     const index = panierActuel.findIndex(item => item.id === produit.id);
     
     let nouveauPanier;
     if (index !== -1) {
-      // Produit existe, augmenter quantité
       nouveauPanier = [...panierActuel];
       nouveauPanier[index] = {
         ...nouveauPanier[index],
         quantite: (nouveauPanier[index].quantite || 1) + (produit.quantite || 1)
       };
     } else {
-      // Nouveau produit
-      nouveauPanier = [...panierActuel, { ...produit, quantite: produit.quantite || 1 }];
+      // IMPORTANT : Sauvegarder avec la devise complète
+      nouveauPanier = [...panierActuel, { 
+        ...produit, 
+        quantite: produit.quantite || 1,
+        devise_origine: produit.pays?.devise || 'XOF' // ← AJOUT
+      }];
     }
     
     sauvegarderPanier(nouveauPanier);
     
-    // Déclencher notification
     window.dispatchEvent(new CustomEvent('produit-ajoute-panier', {
       detail: { produit: produit.nom }
     }));
     
-    console.log('✅ Produit ajouté:', produit.nom);
+    console.log('✅ Produit ajouté:', produit.nom, 'Devise:', produit.pays?.devise);
   }, [sauvegarderPanier]);
 
   const retirerDuPanier = useCallback((index) => {
@@ -132,7 +133,7 @@ export function usePanier() {
   }, [sauvegarderPanier]);
 
   const totalPanier = panier.reduce((sum, item) => {
-    const prixConverti = convertPrice(item.prix, item.pays?.devise || 'XOF');
+    const prixConverti = convertPrice(item.prix, item.devise_origine || item.pays?.devise || 'XOF');
     return sum + (prixConverti * (item.quantite || 1));
   }, 0);
 
