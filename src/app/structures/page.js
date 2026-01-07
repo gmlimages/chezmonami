@@ -435,7 +435,7 @@ function StructuresContent() {
           <section className="mb-12">
             <div className="flex items-center gap-3 mb-6">
               <span className="text-3xl">⭐</span>
-              <h2 className="text-3xl font-bold text-gray-800">Entreprises sponsorisées</h2>
+              <h2 className="text-3xl font-bold text-gray-800">Entreprises à la une</h2>
             </div>
 
             <div className="relative">

@@ -1014,3 +1014,126 @@ export const commentairesAPI = {
 };
 
 export { statistiquesAPI } from './statistiques';
+
+
+// ============================================
+// API CHAMBRES
+// ============================================
+
+export const chambresAPI = {
+  // Récupérer toutes les chambres
+  async getAll() {
+    const { data, error } = await supabase
+      .from('chambres')
+      .select(`
+        *,
+        structure:structures(id, nom, ville:villes(nom))
+      `)
+      .order('ordre_affichage', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Récupérer toutes les chambres d'une structure
+  async getByStructure(structureId) {
+    const { data, error } = await supabase
+      .from('chambres')
+      .select('*')
+      .eq('structure_id', structureId)
+      .order('ordre_affichage', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Récupérer uniquement les chambres disponibles d'une structure
+  async getDisponiblesByStructure(structureId) {
+    const { data, error } = await supabase
+      .from('chambres')
+      .select('*')
+      .eq('structure_id', structureId)
+      .eq('disponible', true)
+      .order('ordre_affichage', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Récupérer une chambre par ID
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('chambres')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Créer une nouvelle chambre
+  async create(chambreData) {
+    const { data, error } = await supabase
+      .from('chambres')
+      .insert([chambreData])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Mettre à jour une chambre
+  async update(id, chambreData) {
+    const { data, error } = await supabase
+      .from('chambres')
+      .update(chambreData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Supprimer une chambre
+  async delete(id) {
+    const { error } = await supabase
+      .from('chambres')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
+  },
+
+  // Changer rapidement le statut disponible/occupé
+  async toggleDisponibilite(id, disponible) {
+    const { data, error } = await supabase
+      .from('chambres')
+      .update({ disponible })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Statistiques des chambres d'une structure
+  async getStats(structureId) {
+    const chambres = await this.getByStructure(structureId);
+    
+    const disponibles = chambres.filter(c => c.disponible);
+    const occupees = chambres.filter(c => !c.disponible);
+    
+    return {
+      total: chambres.length,
+      disponibles: disponibles.length,
+      occupees: occupees.length,
+      prix_min: chambres.length > 0 ? Math.min(...chambres.map(c => c.prix_standard)) : 0,
+      prix_max: chambres.length > 0 ? Math.max(...chambres.map(c => c.prix_standard)) : 0,
+    };
+  }
+};

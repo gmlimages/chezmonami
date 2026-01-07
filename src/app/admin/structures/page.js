@@ -334,8 +334,8 @@ export default function AdminStructures() {
   // MODE FORMULAIRE
   if (mode === 'formulaire') {
     const categorieSelectionnee = categories.find(c => c.id === formData.categorie_id);
-    const isHotelOuAppart = categorieSelectionnee?.nom?.toLowerCase().includes('hotel') || 
-                            categorieSelectionnee?.nom?.toLowerCase().includes('appartement');
+    const nomCategorie = categorieSelectionnee?.nom?.toLowerCase() || '';
+    const isHotelOuAppart = nomCategorie.includes('hotel') || nomCategorie.includes('appartement');
     const isBoutique = categorieSelectionnee?.nom?.toLowerCase().includes('boutique');
     const isUsine = categorieSelectionnee?.nom?.toLowerCase().includes('usine') || 
                     categorieSelectionnee?.nom?.toLowerCase().includes('production');
@@ -877,7 +877,7 @@ export default function AdminStructures() {
             </div>
 
             {/* Services hôtel */}
-            {isHotelOuAppart && (
+            {(isHotelOuAppart || formData.categorie_id) && (
               <div className="space-y-6 mb-8">
                 <h3 className="text-xl font-bold text-gray-800 border-b pb-3">🏨 Services inclus</h3>
                 

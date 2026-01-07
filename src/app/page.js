@@ -15,9 +15,11 @@ import StarRating from '@/components/ui/StarRating';
 import { supabase } from '@/lib/supabase';
 
 import PageTracker from '@/components/PageTracker';
+import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 
 
 export default function Home() {
+  const { userCurrency, convertPrice } = useCurrencyConverter();   // ✅ AJOUT
   // États pour les données
   const [structures, setStructures] = useState([]);
   const [structuresCombinees, setStructuresCombinees] = useState([]);
@@ -357,7 +359,7 @@ export default function Home() {
               <section className="mb-12">
                 <div className="flex items-center gap-3 mb-6">
                   <span className="text-2xl">⭐</span>
-                  <h2 className="text-2xl font-bold text-gray-800">Entreprises sponsorisées</h2>
+                  <h2 className="text-2xl font-bold text-gray-800">Entreprises à la une</h2>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {structuresFeatured.map(structure => (
@@ -408,7 +410,7 @@ export default function Home() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                   {produitsPromo.map(produit => (
-                    <ProduitCard key={produit.id} produit={produit} promo={true} />
+                    <ProduitCard key={produit.id} produit={produit} promo={true} convertPrice={convertPrice} userCurrency={userCurrency} />
                   ))}
                 </div>
               </section>
@@ -431,7 +433,7 @@ export default function Home() {
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                     {produitsCombines.map(produit => (
-                      <ProduitCard key={produit.id} produit={produit} />
+                      <ProduitCard key={produit.id} produit={produit} convertPrice={convertPrice} userCurrency={userCurrency} />
                     ))}
                   </div>
                   <div className="text-center mt-8">
@@ -708,13 +710,12 @@ function StructureCard({ structure, categories, featured = false }) {
 }
 
 // Composant Produit Card (avec promo)
-function ProduitCard({ produit, promo = false }) {
+function ProduitCard({ produit, promo = false, convertPrice, userCurrency }) {
   return (
     <Link 
       href={`/produit/${produit.id}`}
       className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all hover:scale-105 cursor-pointer relative"
     >
-      {/* ✅ Badge Promo */}
       {promo && produit.promo && (
         <div className="absolute top-2 right-2 z-10">
           <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-lg shadow-lg">
@@ -738,24 +739,23 @@ function ProduitCard({ produit, promo = false }) {
       <div className="p-4">
         <h3 className="text-sm font-bold mb-2 text-gray-800 line-clamp-2">{produit.nom}</h3>
         
-        {/* ✅ Prix avec promo */}
         {promo && produit.promo ? (
           <div>
             <div className="flex items-baseline gap-2 mb-1">
               <span className="text-lg font-bold text-red-600">
-                {Math.round(produit.promo.prix_promo).toLocaleString()} {produit.pays?.devise || 'FCFA'}
+                {convertPrice(Math.round(produit.promo.prix_promo), produit.pays?.devise).toLocaleString()} {userCurrency}
               </span>
               <span className="text-xs text-gray-500 line-through">
-                {Math.round(produit.promo.prix_original).toLocaleString()}
+                {convertPrice(Math.round(produit.promo.prix_original), produit.pays?.devise).toLocaleString()}
               </span>
             </div>
             <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded">
-              Économisez {Math.round(produit.promo.economie).toLocaleString()}
+              Économisez {convertPrice(Math.round(produit.promo.economie), produit.pays?.devise).toLocaleString()}
             </span>
           </div>
         ) : (
           <p className="text-lg font-bold text-primary">
-            {produit.prix} {produit.pays?.devise || 'FCFA'}
+            {convertPrice(produit.prix, produit.pays?.devise).toLocaleString()} {userCurrency}
           </p>
         )}
         

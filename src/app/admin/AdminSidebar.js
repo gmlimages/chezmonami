@@ -27,6 +27,13 @@ export default function AdminSidebar() {
       icon: '🔥',
       description: 'Offres spéciales'
     },
+    
+    { 
+      href: '/admin/chambres',    
+      label: 'Chambres', 
+      icon: '🛏️',
+      description: 'Hôtels & chambres'
+    },
     { 
       href: '/admin/mises-en-avant', 
       label: 'Mises en avant', 

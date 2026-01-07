@@ -63,26 +63,40 @@ export default function AdminLayout({ children, titre, sousTitre }) {
 
   useEffect(() => {
     const adminAuth = localStorage.getItem('adminAuth');
+    const sessionStart = localStorage.getItem('adminSessionStart');
+    const lastActivity = localStorage.getItem('adminLastActivity');
     
-    if (!adminAuth) {
+    // Vérifier si session existe et est valide
+    if (adminAuth && sessionStart && lastActivity) {
+      const now = Date.now();
+      const sessionDuration = now - parseInt(sessionStart);
+      const inactiveDuration = now - parseInt(lastActivity);
+      
+      // Si session expirée, nettoyer SANS alert
+      if (sessionDuration > SESSION_MAX || inactiveDuration > INACTIVITE_MAX) {
+        localStorage.removeItem('adminAuth');
+        localStorage.removeItem('adminSessionStart');
+        localStorage.removeItem('adminLastActivity');
+        router.push('/dashboard-chezmonami');
+        return;
+      }
+    } else if (!adminAuth) {
+      // Pas de session du tout, nettoyer tout
+      localStorage.removeItem('adminSessionStart');
+      localStorage.removeItem('adminLastActivity');
       router.push('/dashboard-chezmonami');
       return;
     }
 
-    // Initialiser la session si nécessaire
-    if (!localStorage.getItem('adminSessionStart')) {
+    // Initialiser la session si nécessaire (NOUVELLE connexion)
+    if (!sessionStart) {
       localStorage.setItem('adminSessionStart', Date.now().toString());
     }
-    if (!localStorage.getItem('adminLastActivity')) {
+    if (!lastActivity) {
       localStorage.setItem('adminLastActivity', Date.now().toString());
     }
 
     setAdmin(JSON.parse(adminAuth));
-
-    // Vérifier immédiatement
-    if (!verifierSession()) {
-      return;
-    }
 
     // Vérifier toutes les 30 secondes
     const intervalVerification = setInterval(() => {
@@ -140,6 +154,13 @@ export default function AdminLayout({ children, titre, sousTitre }) {
       label: 'Promotions', 
       icon: '🔥',
       description: 'Offres spéciales'
+    },
+    
+    { 
+      href: '/admin/chambres',    
+      label: 'Chambres', 
+      icon: '🛏️',
+      description: 'Hôtels & chambres'
     },
     { 
       href: '/admin/mises-en-avant', 

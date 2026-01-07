@@ -5,24 +5,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { structuresAPI, produitsAPI, chambresAPI } from '@/lib/api';
+import { structuresAPI, produitsAPI } from '@/lib/api';
 import StarRating from '@/components/ui/StarRating';
 import CommentaireForm from '@/components/CommentaireForm';
 import CommentairesList from '@/components/CommentairesList';
 import PageTracker from '@/components/PageTracker';
-import { useCurrencyConverter } from '@/hooks/useCurrencyConverter'; 
-console.log('🔍 chambresAPI disponible:', typeof chambresAPI);
 
 export default function StructureDetail() {
-  const { userCurrency, convertPrice } = useCurrencyConverter();
   const params = useParams();
   const router = useRouter();
   const [structure, setStructure] = useState(null);
   const [produits, setProduits] = useState([]);
-  const [chambres, setChambres] = useState([]);
-  const [modalChambreOuverte, setModalChambreOuverte] = useState(false);
-  const [chambreSelectionnee, setChambreSelectionnee] = useState(null);
-  const [indexImageChambre, setIndexImageChambre] = useState(0);
   const [imageActive, setImageActive] = useState(0);
   const [ongletActif, setOngletActif] = useState('apropos');
   const [loading, setLoading] = useState(true);
@@ -47,7 +40,6 @@ export default function StructureDetail() {
     const textes = {
       rdv: 'Prendre rendez-vous',
       reserver_table: 'Réserver une table',
-      reserver_chambre: 'Réserver une chambre',
       commander: 'Passer commande',
       devis: 'Demander un devis',
       contact: 'Nous contacter'
@@ -71,7 +63,6 @@ export default function StructureDetail() {
     const placeholders = {
       rdv: 'Indiquez votre disponibilité et le type de rendez-vous souhaité...',
       reserver_table: 'Nombre de personnes, date et heure souhaitées...',
-      reserver_chambre: 'Bonjour, je souhaite réserver une chambre chez ',
       commander: 'Détails de votre commande...',
       devis: 'Décrivez votre projet ou service souhaité...',
       contact: 'Votre message...'
@@ -146,32 +137,22 @@ export default function StructureDetail() {
   };
 
   const chargerStructure = async () => {
-  try {
-    setLoading(true);
-    const structureData = await structuresAPI.getById(params.id);
-    
-    if (structureData) {
-      setStructure(structureData);
-      const produitsData = await produitsAPI.getAll();
-      const produitsFiltres = produitsData.filter(p => p.structure_id === params.id);
-      setProduits(produitsFiltres);
+    try {
+      setLoading(true);
+      const structureData = await structuresAPI.getById(params.id);
       
-      // 🆕 CHAMBRES (si hôtel/appartement)
-        try {
-        const chambresData = await chambresAPI.getByStructure(params.id);
-        console.log('✅ Chambres chargées:', chambresData);
-        setChambres(chambresData || []);
-      } catch (errChambres) {
-        console.error('❌ Erreur chambres:', errChambres);
-        setChambres([]);
+      if (structureData) {
+        setStructure(structureData);
+        const produitsData = await produitsAPI.getAll();
+        const produitsFiltres = produitsData.filter(p => p.structure_id === params.id);
+        setProduits(produitsFiltres);
       }
+    } catch (error) {
+      console.error('Erreur chargement:', error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Erreur chargement:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const ouvrirModalEmail = (type) => {
     setTypeCTA(type);
@@ -208,24 +189,6 @@ ${formEmail.message}
       setIndexGalerie(prev => prev === total - 1 ? 0 : prev + 1);
     }
   };
-
-  const naviguerImageChambre = (direction) => {
-  if (!chambreSelectionnee || !chambreSelectionnee.images) return;
-  
-  setIndexImageChambre(prev => {
-    if (direction === 'next') {
-      return prev === chambreSelectionnee.images.length - 1 ? 0 : prev + 1;
-    } else {
-      return prev === 0 ? chambreSelectionnee.images.length - 1 : prev - 1;
-    }
-  });
-};
-
-const ouvrirModalChambre = (chambre, indexImage = 0) => {
-  setChambreSelectionnee(chambre);
-  setIndexImageChambre(indexImage);
-  setModalChambreOuverte(true);
-};
 
   if (loading) {
     return (
@@ -452,23 +415,6 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     Produits ({produits.length})
                   </button>
                 )}
-
-                {/* 🆕 ONGLET CHAMBRES */}
-                {isHotelOuAppart && chambres.length > 0 && (
-                  <button
-                    onClick={() => setOngletActif('chambres')}
-                    className={`flex-1 px-6 py-4 font-semibold transition ${
-                      ongletActif === 'chambres'
-                        ? 'text-primary border-b-2 border-primary bg-primary/5'
-                        : 'text-gray-600 hover:text-primary'
-                    }`}
-                  >
-                    🏨 Chambres ({chambres.length})
-                  </button>
-                )}
-
-
-
                 <button
                   onClick={() => setOngletActif('avis')}
                   className={`flex-1 px-6 py-4 font-semibold transition ${
@@ -628,9 +574,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                           <h4 className="font-bold text-gray-800 mb-2">{produit.nom}</h4>
                           <p className="text-sm text-gray-600 mb-3 line-clamp-2">{produit.description}</p>
                           <div className="flex items-center justify-between">
-                            <span className="text-xl font-bold text-primary">
-                              {convertPrice(produit.prix, produit.pays?.devise).toLocaleString()} {userCurrency}
-                            </span>
+                            <span className="text-xl font-bold text-primary">{produit.prix} MAD</span>
                             <span className="text-sm text-primary font-semibold">Voir le produit →</span>
                           </div>
                         </div>
@@ -638,145 +582,6 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     ))}
                   </div>
                 )}
-
-
-                {/* 🆕 ONGLET CHAMBRES */}
-                {ongletActif === 'chambres' && (
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {chambres.map(chambre => {
-                      const equipMap = {
-                        'wifi': '📶 WiFi',
-                        'climatisation': '❄️ Climatisation',
-                        'tv': '📺 TV',
-                        'balcon': '🌅 Balcon',
-                        'vue_mer': '🌊 Vue mer',
-                        'minibar': '🍷 Minibar',
-                        'coffre_fort': '🔒 Coffre-fort',
-                        'bureau': '🖊️ Bureau',
-                        'jacuzzi': '🛁 Jacuzzi',
-                        'douche': '🚿 Douche',
-                      };
-
-                      const typeIcons = {
-                        'simple': '🛏️',
-                        'double': '🛏️🛏️',
-                        'twin': '🛏️🛏️',
-                        'familiale': '👨‍👩‍👧‍👦',
-                        'suite': '🏰',
-                        'vip': '👑',
-                      };
-                      
-                      return (
-                        <div 
-                          key={chambre.id} 
-                          className={`bg-gray-50 rounded-xl overflow-hidden hover:shadow-lg transition border-2 ${
-                            chambre.disponible ? 'border-green-200' : 'border-red-200'
-                          }`}
-                        >
-                          
-                          {/* Image - CLIQUABLE */}
-                          <div 
-                            className="relative h-48 bg-gray-100 cursor-pointer group"
-                            onClick={() => ouvrirModalChambre(chambre, 0)}
-                          >
-                            {chambre.images && chambre.images.length > 0 ? (
-                              <>
-                                <img
-                                  src={chambre.images[0]}
-                                  alt={chambre.nom_affiche}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                />
-                                {/* Indicateur survol */}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-3">
-                                    <svg className="w-8 h-8 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                    </svg>
-                                  </div>
-                                </div>
-                                {/* Badge nombre d'images */}
-                                {chambre.images.length > 1 && (
-                                  <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded-full text-xs font-bold">
-                                    📷 {chambre.images.length}
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <span className="text-6xl">{typeIcons[chambre.type_chambre] || '🛏️'}</span>
-                              </div>
-                            )}
-                            
-                            {/* Badge statut */}
-                            <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-sm font-bold ${
-                              chambre.disponible 
-                                ? 'bg-green-100 text-green-800 border-2 border-green-300' 
-                                : 'bg-red-100 text-red-800 border-2 border-red-300'
-                            }`}>
-                              {chambre.disponible ? '✅ Disponible' : '❌ Complet'}
-                            </div>
-                          </div>
-                          
-                          {/* Contenu */}
-                          <div className="p-4">
-                            <h4 className="font-bold text-lg text-gray-800 mb-2">
-                              {typeIcons[chambre.type_chambre] || '🛏️'} {chambre.nom_affiche}
-                            </h4>
-                            
-                            {chambre.description && (
-                              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{chambre.description}</p>
-                            )}
-                            
-                            {/* Prix */}
-                            <div className="mb-3">
-                              {chambre.prix_min && chambre.prix_max ? (
-                                <>
-                                  <p className="text-sm text-gray-600 mb-1">À partir de</p>
-                                  <p className="text-2xl font-bold text-primary">
-                                    {convertPrice(chambre.prix_min, chambre.devise).toLocaleString()} - {convertPrice(chambre.prix_max, chambre.devise).toLocaleString()} {userCurrency}
-                                  </p>
-                                </>
-                              ) : (
-                                <>
-                                  <p className="text-sm text-gray-600 mb-1">Prix par nuit</p>
-                                  <p className="text-2xl font-bold text-primary">
-                                    {convertPrice(chambre.prix_standard, chambre.devise).toLocaleString()} {userCurrency}
-                                  </p>
-                                </>
-                              )}
-                            </div>
-                            
-                            {/* Équipements */}
-                            {chambre.equipements && chambre.equipements.length > 0 && (
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 mb-2">ÉQUIPEMENTS</p>
-                                <div className="flex flex-wrap gap-2">
-                                  {chambre.equipements.slice(0, 6).map(equip => (
-                                    <span
-                                      key={equip}
-                                      className="px-2 py-1 bg-white rounded text-xs border border-gray-200"
-                                      title={equipMap[equip] || equip}
-                                    >
-                                      {equipMap[equip]?.split(' ')[0] || '✓'}
-                                    </span>
-                                  ))}
-                                  {chambre.equipements.length > 6 && (
-                                    <span className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600">
-                                      +{chambre.equipements.length - 6}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-
-
 
                 {/* ONGLET AVIS */}
                 {ongletActif === 'avis' && (
@@ -1075,214 +880,6 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* 🖼️ MODAL GALERIE CHAMBRE - VERSION ENRICHIE */}
-      {modalChambreOuverte && chambreSelectionnee && chambreSelectionnee.images && chambreSelectionnee.images.length > 0 && (
-        <div 
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4" 
-          onClick={() => setModalChambreOuverte(false)}
-        >
-          {/* Bouton fermer */}
-          <button 
-            onClick={() => setModalChambreOuverte(false)} 
-            className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 transition z-10"
-          >
-            ×
-          </button>
-
-          {/* Layout 2 colonnes sur desktop */}
-          <div className="relative max-w-7xl w-full h-[90vh] flex flex-col md:flex-row gap-4" onClick={(e) => e.stopPropagation()}>
-            
-            {/* COLONNE GAUCHE - IMAGE */}
-            <div className="flex-1 relative bg-black rounded-lg overflow-hidden">
-              {/* Image principale */}
-              <img 
-                src={chambreSelectionnee.images[indexImageChambre]} 
-                alt={`${chambreSelectionnee.nom_affiche} - Photo ${indexImageChambre + 1}`} 
-                className="w-full h-full object-contain"
-              />
-
-              {/* Navigation */}
-              {chambreSelectionnee.images.length > 1 && (
-                <>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); naviguerImageChambre('prev'); }} 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition shadow-2xl"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); naviguerImageChambre('next'); }} 
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition shadow-2xl"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-
-                  {/* Compteur */}
-                  <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded-full text-sm font-bold">
-                    {indexImageChambre + 1} / {chambreSelectionnee.images.length}
-                  </div>
-
-                  {/* Miniatures */}
-                  <div className="absolute bottom-4 left-4 right-4 flex gap-2 justify-center overflow-x-auto pb-2 scrollbar-hide">
-                    {chambreSelectionnee.images.map((img, idx) => (
-                      <button
-                        key={idx}
-                        onClick={(e) => { e.stopPropagation(); setIndexImageChambre(idx); }}
-                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition ${
-                          idx === indexImageChambre 
-                            ? 'border-primary scale-110' 
-                            : 'border-white/30 opacity-60 hover:opacity-100'
-                        }`}
-                      >
-                        <img 
-                          src={img} 
-                          alt={`Miniature ${idx + 1}`} 
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* COLONNE DROITE - INFOS */}
-            <div className="w-full md:w-96 bg-white rounded-lg overflow-y-auto p-6 space-y-4">
-              {/* En-tête */}
-              <div className="border-b pb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-3xl">
-                    {{
-                      'simple': '🛏️',
-                      'double': '🛏️🛏️',
-                      'twin': '🛏️🛏️',
-                      'familiale': '👨‍👩‍👧‍👦',
-                      'suite': '🏰',
-                      'vip': '👑',
-                    }[chambreSelectionnee.type_chambre] || '🛏️'}
-                  </span>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800">{chambreSelectionnee.nom_affiche}</h3>
-                    <p className="text-sm text-gray-500 capitalize">{chambreSelectionnee.type_chambre}</p>
-                  </div>
-                </div>
-
-                {/* Prix */}
-                <div className="bg-primary/10 rounded-lg p-3 mt-3">
-                  {chambreSelectionnee.prix_min && chambreSelectionnee.prix_max ? (
-                    <>
-                      <p className="text-3xl font-bold text-primary">
-                        {convertPrice(chambreSelectionnee.prix_min, structure.pays?.devise).toLocaleString()} - {convertPrice(chambreSelectionnee.prix_max, structure.pays?.devise).toLocaleString()} {userCurrency}
-                      </p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Prix standard : {convertPrice(chambreSelectionnee.prix_standard, structure.pays?.devise).toLocaleString()} {userCurrency}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-3xl font-bold text-primary">
-                      {convertPrice(chambreSelectionnee.prix_standard, structure.pays?.devise).toLocaleString()} {userCurrency}
-                    </p>
-                  )}
-                </div>
-
-                {/* Statut */}
-                <div className={`mt-3 px-4 py-2 rounded-lg text-center font-bold ${
-                  chambreSelectionnee.disponible 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {chambreSelectionnee.disponible ? '✅ Disponible' : '❌ Complet'}
-                </div>
-              </div>
-
-              {/* Description */}
-              {chambreSelectionnee.description && (
-                <div>
-                  <h4 className="font-bold text-gray-800 mb-2">📝 Description</h4>
-                  <p className="text-sm text-gray-700 leading-relaxed">{chambreSelectionnee.description}</p>
-                </div>
-              )}
-
-              {/* Équipements */}
-              {chambreSelectionnee.equipements && chambreSelectionnee.equipements.length > 0 && (
-                <div>
-                  <h4 className="font-bold text-gray-800 mb-3">🛋️ Équipements</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {chambreSelectionnee.equipements.map(equip => {
-                      const equipMap = {
-                        'wifi': { icon: '📶', label: 'WiFi' },
-                        'climatisation': { icon: '❄️', label: 'Climatisation' },
-                        'tv': { icon: '📺', label: 'TV' },
-                        'balcon': { icon: '🌅', label: 'Balcon' },
-                        'vue_mer': { icon: '🌊', label: 'Vue mer' },
-                        'minibar': { icon: '🍷', label: 'Minibar' },
-                        'coffre_fort': { icon: '🔒', label: 'Coffre-fort' },
-                        'bureau': { icon: '🖊️', label: 'Bureau' },
-                        'jacuzzi': { icon: '🛁', label: 'Jacuzzi' },
-                        'baignoire': { icon: '🛁', label: 'Baignoire' },
-                        'douche': { icon: '🚿', label: 'Douche' },
-                        'peignoirs': { icon: '👘', label: 'Peignoirs' },
-                        'seche_cheveux': { icon: '💨', label: 'Sèche-cheveux' },
-                        'telephone': { icon: '☎️', label: 'Téléphone' },
-                      };
-                      const equipInfo = equipMap[equip] || { icon: '✓', label: equip };
-                      return (
-                        <div key={equip} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
-                          <span className="text-xl">{equipInfo.icon}</span>
-                          <span className="text-sm text-gray-700">{equipInfo.label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* CTAs */}
-              <div className="pt-4 border-t space-y-2">
-                {structure.telephone && (
-                  <a
-                    href={`https://wa.me/${structure.telephone.replace(/\D/g, '')}?text=${encodeURIComponent(
-                      `Bonjour, je souhaite réserver la ${chambreSelectionnee.nom_affiche} à ${structure.nom}`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-center transition"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    💬 Réserver via WhatsApp
-                  </a>
-                )}
-                {structure.email && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setModalChambreOuverte(false);
-                      ouvrirModalEmail('reserver_chambre');
-                    }}
-                    className="block w-full px-4 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg font-semibold text-center transition"
-                  >
-                    ✉️ Réserver par Email
-                  </button>
-                )}
-                {structure.telephone && !structure.telephone.match(/^[\d\s\-\+\(\)]+$/) && (
-                  <a
-                    href={`tel:${structure.telephone}`}
-                    className="block w-full px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold text-center transition"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    📞 Appeler directement
-                  </a>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       )}

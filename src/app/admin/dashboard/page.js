@@ -10,7 +10,8 @@ import {
   annoncesAPI, 
   categoriesAPI, 
   categoriesProduitsAPI,
-  commentairesAPI
+  commentairesAPI,
+  chambresAPI
 } from '@/lib/api';
 
 export default function AdminDashboard() {
@@ -23,6 +24,7 @@ export default function AdminDashboard() {
     annonces: 0,
     categories: 0,
     categoriesProduits: 0,
+    chambres: 0,  //  Chambres hôtel
     commentaires: 0,
     // Commandes détaillées
     commandes: {
@@ -74,14 +76,16 @@ export default function AdminDashboard() {
         annonces, 
         categories, 
         categoriesProduits, 
-        statsCommentaires
+        statsCommentaires,
+        chambres  // AJout
       ] = await Promise.all([
         structuresAPI.getAll(),
         produitsAPI.getAll(),
         annoncesAPI.getAll(),
         categoriesAPI.getAll(),
         categoriesProduitsAPI.getAll(),
-        commentairesAPI.getStats()
+        commentairesAPI.getStats(),
+        chambresAPI.getAll()  // API Chambres
       ]);
 
       // Stats commandes détaillées
@@ -158,11 +162,13 @@ export default function AdminDashboard() {
         produits: produits.length,
         annonces: annonces.length,
         categories: categories.length,
+        chambres: chambres.length,
         categoriesProduits: categoriesProduits.length,
         commentaires: statsCommentaires.total,
         commandes: commandesStats,
         featured: featuredStats,
-        promotions: promosStats
+        promotions: promosStats,
+        
       });
 
       setCommandesRecentes(recentCommandes || []);
@@ -186,6 +192,7 @@ export default function AdminDashboard() {
       items: [
         { nom: 'Structures', href: '/admin/structures', icon: '🏪', count: stats.structures },
         { nom: 'Produits', href: '/admin/produits', icon: '📦', count: stats.produits },
+        { nom: 'Chambres', href: '/admin/chambres', icon: '🏨', count: stats.chambres },
         { nom: 'Annonces', href: '/admin/annonces', icon: '📢', count: stats.annonces },
       ]
     },
