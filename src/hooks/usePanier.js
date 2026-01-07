@@ -1,6 +1,7 @@
 // hooks/usePanier.js - VERSION CORRIGÉE AVEC RÉACTIVITÉ
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useCurrencyConverter } from './useCurrencyConverter';
 
 const PANIER_STORAGE_KEY = 'chezmonami_panier';
 
@@ -8,6 +9,7 @@ const PANIER_STORAGE_KEY = 'chezmonami_panier';
 const PANIER_CHANGED_EVENT = 'panier-changed';
 
 export function usePanier() {
+  const { userCurrency, convertPrice } = useCurrencyConverter();
   const [panier, setPanier] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -129,10 +131,10 @@ export function usePanier() {
     console.log('🗑️ Panier vidé');
   }, [sauvegarderPanier]);
 
-  const totalPanier = panier.reduce(
-    (sum, item) => sum + (item.prix * (item.quantite || 1)), 
-    0
-  );
+  const totalPanier = panier.reduce((sum, item) => {
+    const prixConverti = convertPrice(item.prix, item.pays?.devise || 'XOF');
+    return sum + (prixConverti * (item.quantite || 1));
+  }, 0);
 
   const nombreArticles = panier.reduce(
     (sum, item) => sum + (item.quantite || 1), 
@@ -146,7 +148,9 @@ export function usePanier() {
     retirerDuPanier,
     modifierQuantite,
     viderPanier,
-    totalPanier,
-    nombreArticles
+    totalPanier: totalPanier.toFixed(2), // ← Format 2 décimales
+    nombreArticles,
+    userCurrency, // ← Export aussi la devise
+    convertPrice  // ← Export pour usage externe
   };
 }

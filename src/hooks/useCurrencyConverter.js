@@ -67,11 +67,10 @@ export function useCurrencyConverter() {
   }, []);
 
   const convertPrice = (price, fromCurrency = 'XOF') => {
-  if (!price || !rates || Object.keys(rates).length === 0) return Math.round(price);
-  if (fromCurrency === userCurrency) return Math.round(price);
+  if (!price || !rates || Object.keys(rates).length === 0) return parseFloat(price.toFixed(2));
+  if (fromCurrency === userCurrency) return parseFloat(price.toFixed(2));
   
   // Conversion via XOF comme pivot
-  // Étape 1: fromCurrency → XOF
   let priceInXOF = price;
   if (fromCurrency !== 'XOF') {
     if (rates[fromCurrency]) {
@@ -79,12 +78,12 @@ export function useCurrencyConverter() {
     }
   }
   
-  // Étape 2: XOF → userCurrency
+  // XOF → userCurrency
   if (userCurrency !== 'XOF' && rates[userCurrency]) {
-    return Math.round(priceInXOF * rates[userCurrency]);
+    return parseFloat((priceInXOF * rates[userCurrency]).toFixed(2)); // ← 2 décimales
   }
   
-  return Math.round(priceInXOF);
+  return parseFloat(priceInXOF.toFixed(2));
 };
 
   return { userCurrency, convertPrice };

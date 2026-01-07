@@ -500,7 +500,7 @@ TOTAL: ${produit.prix * quantite} ${produit.pays?.devise || 'FCFA'}
                       {p.nom}
                     </h3>
                     <p className="text-accent font-bold text-lg">
-                      {p.prix} {p.pays?.devise || 'FCFA'}
+                      {convertPrice(p.prix, p.pays?.devise).toLocaleString()} {userCurrency}
                     </p>
                   </div>
                 </Link>
