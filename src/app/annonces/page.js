@@ -13,6 +13,8 @@ export default function AnnoncesPage() {
   // Filtres
   const [typeFiltre, setTypeFiltre] = useState('tous');
   const [paysFiltre, setPaysFiltre] = useState('');
+  const [villeFiltre, setVilleFiltre] = useState('');
+  const [villesFiltrees, setVillesFiltrees] = useState([]);
   const [recherche, setRecherche] = useState('');
 
   useEffect(() => {
@@ -24,11 +26,13 @@ export default function AnnoncesPage() {
       setLoading(true);
       const [annoncesData, paysData] = await Promise.all([
         annoncesAPI.getAll(),
-        paysAPI.getAll()
+        paysAPI.getAll(),
+        villesAPI.getAll()
       ]);
       
       setAnnonces(annoncesData);
       setPays(paysData);
+      setVilles(villesData);
     } catch (error) {
       console.error('Erreur chargement annonces:', error);
     } finally {
@@ -36,15 +40,29 @@ export default function AnnoncesPage() {
     }
   };
 
+  // Fonction pour gérer le changement de pays
+  const handlePaysChange = (nouveauPays) => {
+    setPaysFiltre(nouveauPays);
+    setVilleFiltre(''); // Réinitialiser ville
+    
+    if (nouveauPays) {
+      const villesDuPays = villes.filter(v => v.pays_id === nouveauPays);
+      setVillesFiltrees(villesDuPays);
+    } else {
+      setVillesFiltrees([]);
+    }
+  };
+
   // Filtrage
-  const annoncesFiltrees = annonces.filter(a => {
+    const annoncesFiltrees = annonces.filter(a => {
     const matchType = typeFiltre === 'tous' || a.type === typeFiltre;
     const matchPays = !paysFiltre || a.pays_id === paysFiltre;
+    const matchVille = !villeFiltre || a.ville_id === villeFiltre; // NOUVEAU
     const matchRecherche = !recherche ||
       a.titre.toLowerCase().includes(recherche.toLowerCase()) ||
       a.organisme.toLowerCase().includes(recherche.toLowerCase()) ||
       (a.description && a.description.toLowerCase().includes(recherche.toLowerCase()));
-    return matchType && matchPays && matchRecherche;
+    return matchType && matchPays && matchVille && matchRecherche;
   });
 
   // Tri par date
@@ -137,6 +155,23 @@ export default function AnnoncesPage() {
                 ))}
               </select>
             </div>
+            {paysFiltre && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🏙️ Ville
+                </label>
+                <select
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-accent focus:outline-none font-medium"
+                  value={villeFiltre}
+                  onChange={(e) => setVilleFiltre(e.target.value)}
+                >
+                  <option value="">Toutes les villes</option>
+                  {villesFiltrees.map(v => (
+                    <option key={v.id} value={v.id}>{v.nom}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Badges types - MODIFIÉ avec nouveaux types */}
@@ -314,8 +349,13 @@ export default function AnnoncesPage() {
 
                         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
-                            📍 {annonce.pays?.nom || 'Non spécifié'}
-                          </span>
+                              📍 {annonce.pays?.nom || 'Non spécifié'}
+                            </span>
+                            {annonce.ville && (
+                              <span className="flex items-center gap-1">
+                                🏙️ {annonce.ville.nom}
+                              </span>
+                            )}
                           <span className="flex items-center gap-1">
                             📅 Date limite: {new Date(annonce.date_fin).toLocaleDateString('fr-FR', {
                               day: 'numeric',

@@ -425,7 +425,8 @@ export const annoncesAPI = {
       .from('annonces')
       .select(`
         *,
-        pays:pays_id(id, nom)
+        pays:pays_id(id, nom),
+        ville:ville_id(id, nom)
       `)
       .order('date_publication', { ascending: false });
 
@@ -435,6 +436,10 @@ export const annoncesAPI = {
 
     if (filters.pays_id) {
       query = query.eq('pays_id', filters.pays_id);
+    }
+
+    if (filters.ville_id) {
+      query = query.eq('ville_id', filters.ville_id);
     }
 
     if (filters.recherche) {

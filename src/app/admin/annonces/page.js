@@ -12,6 +12,7 @@ export default function AdminAnnonces() {
   const [pays, setPays] = useState([]);
   const [villes, setVilles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [villesFiltrees, setVillesFiltrees] = useState([]);
   const [recherche, setRecherche] = useState('');
   const [filtreType, setFiltreType] = useState('');
   
@@ -50,8 +51,10 @@ export default function AdminAnnonces() {
   useEffect(() => {
     if (formData.pays_id) {
       chargerVilles(formData.pays_id);
+    } else {
+      setVillesFiltrees([]); // NOUVEAU : Vider si pas de pays
     }
-  }, [formData.pays_id]);
+  }, [formData.pays_id, villes]);
 
   // ← NOUVEAU : Réinitialiser sous_type si le type change
   useEffect(() => {
@@ -63,12 +66,14 @@ export default function AdminAnnonces() {
   const chargerDonnees = async () => {
     try {
       setLoading(true);
-      const [annoncesData, paysData] = await Promise.all([
+      const [annoncesData, paysData, villesData] = await Promise.all([
         annoncesAPI.getAll(),
-        paysAPI.getAll()
+        paysAPI.getAll(),
+        villesAPI.getAll() 
       ]);
       setAnnonces(annoncesData);
       setPays(paysData);
+      setVilles(villesData); 
     } catch (error) {
       console.error('Erreur chargement:', error);
       alert('❌ Erreur lors du chargement des données');
@@ -79,10 +84,11 @@ export default function AdminAnnonces() {
 
   const chargerVilles = async (paysId) => {
     try {
-      const villesData = await villesAPI.getByPays(paysId);
-      setVilles(villesData);
+        const villesDuPays = villes.filter(v => v.pays_id === paysId);
+      setVillesFiltrees(villesDuPays);
     } catch (error) {
       console.error('Erreur chargement villes:', error);
+      setVillesFiltrees([]);
     }
   };
 
@@ -94,7 +100,7 @@ export default function AdminAnnonces() {
       type: 'Financement',
       sous_type: '', // ← NOUVEAU
       pays_id: '',
-      ville: 'National',
+      ville_id: '',
       description: '',
       description_longue: '',
       date_debut: '',
@@ -104,7 +110,7 @@ export default function AdminAnnonces() {
       lien_externe: '',
       pieces_jointes: []
     });
-    setVilles([]);
+    setVillesFiltrees([]);
     setMode('formulaire');
   };
 
@@ -121,7 +127,7 @@ export default function AdminAnnonces() {
       type: annonce.type,
       sous_type: annonce.sous_type || '', // ← NOUVEAU
       pays_id: annonce.pays?.id || '',
-      ville: annonce.ville || 'National',
+      ville_id: annonce.ville?.id || '',
       description: annonce.description,
       description_longue: annonce.description_longue || '',
       date_debut: annonce.date_debut || '',
@@ -273,14 +279,23 @@ export default function AdminAnnonces() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Portée</label>
-                <select className="input-field" value={formData.ville} onChange={(e) => setFormData({...formData, ville: e.target.value})} disabled={!formData.pays_id}>
-                  <option value="National">National</option>
-                  <option value="Régional">Régional</option>
-                  {villes.map(v => (
-                    <option key={v.id} value={v.nom}>{v.nom}</option>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ville</label>
+                <select 
+                  className="input-field" 
+                  value={formData.ville_id || ''} 
+                  onChange={(e) => setFormData({...formData, ville_id: e.target.value})} 
+                  disabled={!formData.pays_id}
+                >
+                  <option value="">Sélectionner une ville (optionnel)</option>
+                  {villesFiltrees.map(v => (
+                    <option key={v.id} value={v.id}>{v.nom}</option>
                   ))}
                 </select>
+                {!formData.pays_id && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Sélectionnez d'abord un pays
+                  </p>
+                )}
               </div>
 
               <div>
@@ -408,8 +423,9 @@ export default function AdminAnnonces() {
                   </div>
                   <p className="text-gray-600 mb-2">{annonce.organisme}</p>
                   <p className="text-sm text-gray-500">
-                    📍 {annonce.pays?.nom} • {annonce.ville} • 
-                    📅 Date limite: {new Date(annonce.date_fin).toLocaleDateString('fr-FR')}
+                    📍 {annonce.pays?.nom}
+                    {annonce.ville && ` • 🏙️ ${annonce.ville.nom}`} {/* MODIFIÉ */}
+                    • 📅 Date limite: {new Date(annonce.date_fin).toLocaleDateString('fr-FR')}
                   </p>
                 </div>
                 <div className="flex gap-2">

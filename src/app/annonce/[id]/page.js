@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { annoncesAPI } from '@/lib/api';
+import { annoncesAPI, statistiquesAPI } from '@/lib/api';
 import PageTracker from '@/components/PageTracker';
+import { downloadFile } from '@/utils/downloadFile';
 
 export default function AnnonceDetail() {
   const params = useParams();
@@ -216,7 +217,28 @@ export default function AnnonceDetail() {
                 <h2 className="text-2xl font-bold mb-4 text-gray-800">📎 Pièces jointes ({annonce.pieces_jointes.length})</h2>
                 <div className="space-y-3">
                   {annonce.pieces_jointes.map((fichier, index) => (
-                    <a key={index} href={fichier.url} download={fichier.nom} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition group">
+                    <button
+                        key={index}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          downloadFile(fichier.url, fichier.nom);
+                        }}
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition group w-full text-left"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="text-3xl flex-shrink-0">{getIconeFichier(fichier.type)}</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-800 truncate">{fichier.nom}</p>
+                            <p className="text-xs text-gray-500">{formatTaille(fichier.taille)}</p>
+                          </div>
+                        </div>
+                        <div className="ml-4 px-4 py-2 bg-blue-500 text-white rounded-lg group-hover:bg-blue-600 transition flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span className="text-sm font-semibold">Télécharger</span>
+                        </div>
+                      </button>
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="text-3xl flex-shrink-0">{getIconeFichier(fichier.type)}</div>
                         <div className="flex-1 min-w-0">
