@@ -285,35 +285,66 @@ export default function AdminStructures() {
   };
 
   const sauvegarderStructure = async () => {
-    if (!formData.nom || !formData.ville_id || !formData.pays_id || !formData.categorie_id) {
-      alert('⚠️ Veuillez remplir tous les champs obligatoires');
-      return;
-    }
+  if (!formData.nom || !formData.ville_id || !formData.pays_id || !formData.categorie_id || !formData.telephone || !formData.email || !formData.horaires) {
+    alert('⚠️ Veuillez remplir tous les champs obligatoires (nom, ville, pays, catégorie, téléphone, email, horaires)');
+    return;
+  }
 
-    try {
-      const dataToSave = {
-        ...formData,
-        // Conversion des valeurs vides en null pour les champs optionnels
-        annee_creation: formData.annee_creation ? parseInt(formData.annee_creation) : null,
-        nombre_employes: formData.nombre_employes ? parseInt(formData.nombre_employes) : null,
-        nombre_produits_vendus: formData.nombre_produits_vendus ? parseInt(formData.nombre_produits_vendus) : 0
-      };
-
-      if (structureEnCours) {
-        await structuresAPI.update(structureEnCours.id, dataToSave);
-        alert('✅ Structure modifiée avec succès !');
-      } else {
-        await structuresAPI.create(dataToSave);
-        alert('✅ Structure ajoutée avec succès !');
-      }
+  try {
+    const dataToSave = {
+      // Champs obligatoires
+      nom: formData.nom,
+      description: formData.description || '',
+      categorie_id: formData.categorie_id,
+      ville_id: formData.ville_id,
+      pays_id: formData.pays_id,
+      telephone: formData.telephone,
+      email: formData.email,
+      horaires: formData.horaires,
       
-      chargerDonnees();
-      setMode('liste');
-    } catch (error) {
-      console.error('Erreur sauvegarde:', error);
-      alert('❌ Erreur lors de la sauvegarde');
+      // Champs optionnels existants
+      description_longue: formData.description_longue || null,
+      adresse: formData.adresse || null,
+      images: formData.images || [],
+      galerie: formData.galerie || [],
+      cta_principal: formData.cta_principal || null,
+      cta_secondaire: formData.cta_secondaire || null,
+      canaux_contact: formData.canaux_contact || null,
+      services_inclus: formData.services_inclus || null,
+      politique_annulation: formData.politique_annulation || null,
+      
+      // Nouveaux champs
+      annee_creation: formData.annee_creation ? parseInt(formData.annee_creation) : null,
+      nombre_employes: formData.nombre_employes ? parseInt(formData.nombre_employes) : null,
+      nombre_produits_vendus: formData.nombre_produits_vendus ? parseInt(formData.nombre_produits_vendus) : null,
+      horaires_detailles: formData.horaires_detailles || {},
+      langues_parlees: formData.langues_parlees || [],
+      modes_paiement: formData.modes_paiement || [],
+      livraison_locale: formData.livraison_locale || false,
+      livraison_internationale: formData.livraison_internationale || false,
+      click_and_collect: formData.click_and_collect || false,
+      sur_place: formData.sur_place || false,
+      verifie: formData.verifie || false,
+      certificats: formData.certificats || [],
+      youtube_video_url: formData.youtube_video_url || null,
+      youtube_video_url_2: formData.youtube_video_url_2 || null,
+    };
+
+    if (structureEnCours) {
+      await structuresAPI.update(structureEnCours.id, dataToSave);
+      alert('✅ Structure modifiée avec succès !');
+    } else {
+      await structuresAPI.create(dataToSave);
+      alert('✅ Structure ajoutée avec succès !');
     }
-  };
+    
+    chargerDonnees();
+    setMode('liste');
+  } catch (error) {
+    console.error('Erreur sauvegarde:', error);
+    alert(`❌ Erreur: ${error.message || 'Erreur inconnue'}`);
+  }
+};
 
   const structuresFiltrees = structures.filter(s => 
     s.nom.toLowerCase().includes(recherche.toLowerCase()) ||
