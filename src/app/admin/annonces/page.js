@@ -22,7 +22,7 @@ export default function AdminAnnonces() {
     type: 'Financement',
     sous_type: '', // ← NOUVEAU
     pays_id: '',
-    ville: '',
+    ville_id: '',
     description: '',
     description_longue: '',
     date_debut: '',
@@ -270,7 +270,7 @@ export default function AdminAnnonces() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Pays *</label>
-                <select className="input-field" value={formData.pays_id} onChange={(e) => setFormData({...formData, pays_id: e.target.value, ville: 'National'})}>
+                <select className="input-field" value={formData.pays_id} onChange={(e) => setFormData({...formData, pays_id: e.target.value, ville_id: ''})}>
                   <option value="">Choisir un pays</option>
                   {pays.map(p => (
                     <option key={p.id} value={p.id}>{p.nom}</option>

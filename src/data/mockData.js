@@ -1,8 +1,8 @@
 // src/data/mockData.js
 
 export const ADMIN_CONTACT = {
-  telephone: "+212 673-6230537",
-  email: "contact@chezmonami.com"
+  telephone: "+212 693-908389",
+  email: "contact@chezmonami.ma"
 };
 
 export const categories = [

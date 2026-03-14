@@ -568,7 +568,7 @@ export default function Home() {
 
         {/* Bouton WhatsApp Flottant */}
         <a
-          href="https://wa.me/212673623053?text=Bonjour%2C%20je%20souhaite%20inscrire%20mon%20entreprise%20sur%20Chez%20Mon%20Ami.%20Pouvez-vous%20m%27aider%20%3F"
+          href="https://wa.me/212693908389?text=Bonjour%2C%20je%20souhaite%20inscrire%20mon%20entreprise%20sur%20Chez%20Mon%20Ami.%20Pouvez-vous%20m%27aider%20%3F"
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-6 right-6 w-16 h-16 bg-green-500 hover:bg-green-600 rounded-full shadow-2xl flex items-center justify-center text-white text-3xl z-50 hover:scale-110 transition-transform"

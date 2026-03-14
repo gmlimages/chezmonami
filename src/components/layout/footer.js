@@ -198,12 +198,12 @@ export default function Footer() {
               <div>
                 <p className="text-green-200 text-xs mb-1">WhatsApp</p>
                 <a 
-                  href="https://wa.me/212673623053" 
+                  href="https://wa.me/212693908389" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-white hover:text-green-200 transition text-sm"
                 >
-                  +212 673 623 053
+                  +212 693 908 389
                 </a>
               </div>
             </div>
