@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 
 import PageTracker from '@/components/PageTracker';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import NewsletterCompact from '@/components/NewsletterCompact';
 
 
 export default function Home() {
@@ -588,99 +589,6 @@ export default function Home() {
   );
 }
 
-// ✅ COMPOSANT NEWSLETTER COMPACT
-function NewsletterCompact() {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setLoading(true);
-    setMessage({ type: '', text: '' });
-
-    try {
-      const { data: existing } = await supabase
-        .from('newsletter_abonnes')
-        .select('id, actif')
-        .eq('email', email)
-        .single();
-
-      if (existing) {
-        if (existing.actif) {
-          setMessage({ type: 'info', text: 'Déjà abonné !' });
-        } else {
-          await supabase.from('newsletter_abonnes').update({ actif: true }).eq('id', existing.id);
-          setMessage({ type: 'success', text: 'Réactivé !' });
-        }
-      } else {
-        await supabase.from('newsletter_abonnes').insert({
-          email,
-          actif: true,
-          date_confirmation: new Date().toISOString()
-        });
-        setMessage({ type: 'success', text: '✅ Abonné avec succès !' });
-        setEmail('');
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Erreur, réessayez.' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <section className="bg-gradient-to-r from-primary to-primary-dark py-8">
-      <div className="container mx-auto px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            {/* Texte */}
-            <div className="flex-1 text-center md:text-left">
-              <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                <span className="text-3xl">📬</span>
-                <h3 className="text-2xl font-bold text-white">Newsletter</h3>
-              </div>
-              <p className="text-green-100 text-sm">
-                Recevez les nouveautés : entreprises, produits, promos et annonces
-              </p>
-            </div>
-
-            {/* Formulaire */}
-            <div className="flex-1 w-full">
-              <form onSubmit={handleSubmit} className="flex gap-2">
-                <input
-                  type="email"
-                  placeholder="Votre email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="flex-1 px-4 py-3 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-white/50"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-6 py-3 bg-white text-primary font-bold rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
-                >
-                  {loading ? '...' : "S'abonner"}
-                </button>
-              </form>
-              {message.text && (
-                <p className={`mt-2 text-sm ${
-                  message.type === 'success' ? 'text-green-200' :
-                  message.type === 'error' ? 'text-red-200' : 'text-blue-200'
-                }`}>
-                  {message.text}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 // Composant Structure Card (avec badge featured)
 function StructureCard({ structure, categories, featured = false }) {

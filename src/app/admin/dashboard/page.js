@@ -207,6 +207,7 @@ export default function AdminDashboard() {
     {
       section: 'Interaction',
       items: [
+        { nom: 'Newsletter', href: '/admin/newsletter', icon: '📧', count: 0 },
         { nom: 'Commentaires', href: '/admin/commentaires', icon: '💬', count: stats.commentaires },
       ]
     },
