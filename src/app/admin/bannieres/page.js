@@ -243,54 +243,124 @@ export default function AdminBannieres() {
 
   return (
     <AdminLayout titre="Gestion des Bannières Publicitaires" sousTitre={`${bannieres.length} bannières configurées`}>
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <button onClick={ajouterBanniere} className="btn-primary flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
           </svg>
           Ajouter une bannière
         </button>
+
+        {/* Info multi-bannières */}
+        {bannieres.length > 1 && (
+          <div className="text-sm text-gray-500 bg-blue-50 border border-blue-100 px-4 py-2 rounded-lg">
+            🔄 {bannieres.length} bannières — défilement automatique toutes les 5 secondes
+          </div>
+        )}
       </div>
 
       <div className="space-y-6">
         {bannieres.map((banniere) => (
-          <div key={banniere.id} className={`bg-white rounded-xl shadow-lg overflow-hidden ${!banniere.actif ? 'opacity-60' : ''}`}>
-            <div className="relative h-48">
-              <img src={banniere.image_url} alt={banniere.titre} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-              <div className="absolute bottom-4 left-4 text-white">
-                <h3 className="text-2xl font-bold">{banniere.titre}</h3>
-                {banniere.sous_titre && <p className="text-sm">{banniere.sous_titre}</p>}
-              </div>
-              {!banniere.actif && (
-                <div className="absolute top-4 right-4 px-3 py-1 bg-red-500 text-white rounded-full text-sm font-bold">
-                  Désactivée
+          <div
+            key={banniere.id}
+            className={`bg-white rounded-xl shadow-lg overflow-hidden ${!banniere.actif ? 'opacity-60' : ''}`}
+          >
+            {/* Aperçu responsive */}
+            <div className="grid grid-cols-1 md:grid-cols-3">
+
+              {/* Aperçu desktop */}
+              <div className="md:col-span-2 relative h-40">
+                <img
+                  src={banniere.image_url}
+                  alt={banniere.titre}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                  <div>
+                    <p className="text-white font-bold">{banniere.titre}</p>
+                    {banniere.sous_titre && (
+                      <p className="text-white/80 text-sm">{banniere.sous_titre}</p>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-            <div className="p-4 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                <p><strong>Ordre:</strong> {banniere.ordre}</p>
-                {banniere.structure && <p><strong>Lien:</strong> Structure - {banniere.structure.nom}</p>}
-                {banniere.lien_externe && <p><strong>Lien:</strong> {banniere.lien_externe}</p>}
+                {!banniere.actif && (
+                  <div className="absolute top-3 right-3 px-3 py-1 bg-red-500 text-white rounded-full text-xs font-bold">
+                    Désactivée
+                  </div>
+                )}
+                {/* Badge ordre */}
+                <div className="absolute top-3 left-3 px-2 py-1 bg-black/50 text-white rounded text-xs">
+                  Ordre #{banniere.ordre}
+                </div>
               </div>
+
+              {/* Aperçu mobile simulé */}
+              <div className="hidden md:flex flex-col items-center justify-center bg-gray-50 p-4 border-l border-gray-100">
+                <p className="text-xs text-gray-400 mb-2 font-medium">Aperçu mobile</p>
+                <div className="w-32 h-16 rounded overflow-hidden shadow-sm relative">
+                  <img
+                    src={banniere.image_url}
+                    alt="aperçu mobile"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end px-1 pb-1">
+                    <p className="text-white text-xs font-bold truncate w-full">
+                      {banniere.titre}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">h-36 sur mobile</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-gray-100">
+              <div className="text-sm text-gray-600 space-y-1">
+                {banniere.structure && (
+                  <p>🏪 <strong>Lien :</strong> {banniere.structure.nom}</p>
+                )}
+                {banniere.lien_externe && (
+                  <p>🔗 <strong>Lien :</strong>
+                    <a
+                      href={banniere.lien_externe}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline ml-1 truncate max-w-xs inline-block"
+                    >
+                      {banniere.lien_externe}
+                    </a>
+                  </p>
+                )}
+                {!banniere.structure && !banniere.lien_externe && (
+                  <p className="text-gray-400 italic">Aucun lien configuré</p>
+                )}
+              </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={() => toggleActif(banniere)}
-                  className={`px-4 py-2 rounded-lg font-medium ${
-                    banniere.actif 
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition ${
+                    banniere.actif
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
                   {banniere.actif ? '✓ Active' : '✗ Inactive'}
                 </button>
-                <button onClick={() => modifierBanniere(banniere)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
+                <button
+                  onClick={() => modifierBanniere(banniere)}
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                  title="Modifier"
+                >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </button>
-                <button onClick={() => supprimerBanniere(banniere.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                <button
+                  onClick={() => supprimerBanniere(banniere.id)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                  title="Supprimer"
+                >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>

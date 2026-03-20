@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 import PageTracker from '@/components/PageTracker';
 import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
 import NewsletterCompact from '@/components/NewsletterCompact';
+import BanniereCarousel from '@/components/BanniereCarousel';
 
 
 export default function Home() {
@@ -461,42 +462,7 @@ export default function Home() {
             </section>
 
             {/* Bannières */}
-            {bannieres.length > 0 && (
-              <section className="mb-12">
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden relative">
-                  <div className="relative w-full" style={{ height: '250px' }}>
-                    {bannieres.map((banniere, index) => (
-                      <div
-                        key={banniere.id}
-                        className={`absolute inset-0 transition-opacity duration-1000 ${
-                          index === currentBannerIndex ? 'opacity-100' : 'opacity-0'
-                        }`}
-                      >
-                        <img 
-                          src={banniere.image_url} 
-                          alt={banniere.titre || 'Bannière publicitaire'} 
-                          className="w-full h-full object-cover object-center cursor-pointer hover:opacity-90 transition"
-                          onClick={() => banniere.lien_externe && window.open(banniere.lien_externe, '_blank')}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {bannieres.length > 1 && (
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-                      {bannieres.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentBannerIndex(index)}
-                          className={`w-2 h-2 rounded-full transition ${
-                            index === currentBannerIndex ? 'bg-white w-8' : 'bg-white/50'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
+            <BanniereCarousel bannieres={bannieres} />
           </div>
         )}
 
@@ -527,43 +493,8 @@ export default function Home() {
               )}
             </section>
 
-            {/* Bannières (aussi dans annonces) */}
-            {bannieres.length > 0 && (
-              <section className="mb-12">
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden relative">
-                  <div className="relative w-full" style={{ height: '250px' }}>
-                    {bannieres.map((banniere, index) => (
-                      <div
-                        key={banniere.id}
-                        className={`absolute inset-0 transition-opacity duration-1000 ${
-                          index === currentBannerIndex ? 'opacity-100' : 'opacity-0'
-                        }`}
-                      >
-                        <img 
-                          src={banniere.image_url} 
-                          alt={banniere.titre || 'Bannière publicitaire'} 
-                          className="w-full h-full object-cover object-center cursor-pointer hover:opacity-90 transition"
-                          onClick={() => banniere.lien_externe && window.open(banniere.lien_externe, '_blank')}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {bannieres.length > 1 && (
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-                      {bannieres.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentBannerIndex(index)}
-                          className={`w-2 h-2 rounded-full transition ${
-                            index === currentBannerIndex ? 'bg-white w-8' : 'bg-white/50'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
+            {/* Bannières */}
+            <BanniereCarousel bannieres={bannieres} />
           </div>
         )}
 
