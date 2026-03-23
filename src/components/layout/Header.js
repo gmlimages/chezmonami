@@ -40,7 +40,7 @@ export default function Header() {
             </div>
             <div>
               <h1 className="text-2xl font-bold">Chez Mon Ami</h1>
-              <p className="text-xs text-green-200">Trouves ton partenaire panafricain en toute confiance</p>
+              <p className="text-xs text-green-200">Trouvez les meilleurs commerces et services au Maroc</p>
             </div>
           </Link>
           

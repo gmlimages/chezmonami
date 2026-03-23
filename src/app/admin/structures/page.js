@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import ImageUploader from '@/components/ImageUploader';
-import { structuresAPI, categoriesAPI, paysAPI, villesAPI } from '@/lib/api';
+import { structuresAPI, categoriesAPI, regionsAPI, villesAPI } from '@/lib/api';
 
 // Types de CTA disponibles
 const CTA_TYPES = [
@@ -68,7 +68,7 @@ export default function AdminStructures() {
   const [structureEnCours, setStructureEnCours] = useState(null);
   const [structures, setStructures] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [pays, setPays] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [villes, setVilles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState('');
@@ -129,14 +129,14 @@ export default function AdminStructures() {
   const chargerDonnees = async () => {
     try {
       setLoading(true);
-      const [structuresData, categoriesData, paysData] = await Promise.all([
+      const [structuresData, categoriesData, regionsData] = await Promise.all([
         structuresAPI.getAll(),
         categoriesAPI.getAll(),
-        paysAPI.getAll()
+        regionsAPI.getAll()
       ]);
       setStructures(structuresData);
       setCategories(categoriesData);
-      setPays(paysData);
+      setRegions(regionsData);
     } catch (error) {
       console.error('Erreur chargement:', error);
       alert('❌ Erreur lors du chargement des données');
@@ -286,7 +286,7 @@ export default function AdminStructures() {
 
   const sauvegarderStructure = async () => {
   if (!formData.nom || !formData.ville_id || !formData.pays_id || !formData.categorie_id || !formData.telephone || !formData.email || !formData.horaires) {
-    alert('⚠️ Veuillez remplir tous les champs obligatoires (nom, ville, pays, catégorie, téléphone, email, horaires)');
+    alert('⚠️ Veuillez remplir tous les champs obligatoires (nom, ville, région, catégorie, téléphone, email, horaires)');
     return;
   }
 
@@ -408,15 +408,15 @@ export default function AdminStructures() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Pays *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Région *</label>
                   <select
                     className="input-field"
                     value={formData.pays_id}
                     onChange={(e) => setFormData({...formData, pays_id: e.target.value, ville_id: ''})}
                   >
-                    <option value="">Sélectionner un pays</option>
-                    {pays.map(p => (
-                      <option key={p.id} value={p.id}>{p.nom}</option>
+                    <option value="">Sélectionner une région</option>
+                    {regions.map(r => (
+                      <option key={r.id} value={r.id}>{r.nom}</option>
                     ))}
                   </select>
                 </div>

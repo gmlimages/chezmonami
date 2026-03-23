@@ -1020,6 +1020,9 @@ export const commentairesAPI = {
 
 export { statistiquesAPI } from './statistiques';
 
+// Alias pour la version Maroc : regionsAPI = paysAPI (la table "pays" stocke les régions du Maroc)
+export { paysAPI as regionsAPI };
+
 
 // ============================================
 // API CHAMBRES

@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import FileUploader from '@/components/FileUploader';
-import { annoncesAPI, paysAPI, villesAPI } from '@/lib/api';
+import { annoncesAPI, regionsAPI, villesAPI } from '@/lib/api';
 
 export default function AdminAnnonces() {
   const [mode, setMode] = useState('liste');
   const [annonceEnCours, setAnnonceEnCours] = useState(null);
   const [annonces, setAnnonces] = useState([]);
-  const [pays, setPays] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [villes, setVilles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [villesFiltrees, setVillesFiltrees] = useState([]);
@@ -66,13 +66,13 @@ export default function AdminAnnonces() {
   const chargerDonnees = async () => {
     try {
       setLoading(true);
-      const [annoncesData, paysData, villesData] = await Promise.all([
+      const [annoncesData, regionsData, villesData] = await Promise.all([
         annoncesAPI.getAll(),
-        paysAPI.getAll(),
-        villesAPI.getAll() 
+        regionsAPI.getAll(),
+        villesAPI.getAll()
       ]);
       setAnnonces(annoncesData);
-      setPays(paysData);
+      setRegions(regionsData);
       setVilles(villesData); 
     } catch (error) {
       console.error('Erreur chargement:', error);
@@ -269,11 +269,11 @@ export default function AdminAnnonces() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Pays *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Région *</label>
                 <select className="input-field" value={formData.pays_id} onChange={(e) => setFormData({...formData, pays_id: e.target.value, ville_id: ''})}>
-                  <option value="">Choisir un pays</option>
-                  {pays.map(p => (
-                    <option key={p.id} value={p.id}>{p.nom}</option>
+                  <option value="">Choisir une région</option>
+                  {regions.map(r => (
+                    <option key={r.id} value={r.id}>{r.nom}</option>
                   ))}
                 </select>
               </div>
@@ -293,7 +293,7 @@ export default function AdminAnnonces() {
                 </select>
                 {!formData.pays_id && (
                   <p className="text-xs text-gray-500 mt-1">
-                    Sélectionnez d'abord un pays
+                    Sélectionnez d'abord une région
                   </p>
                 )}
               </div>
@@ -423,7 +423,7 @@ export default function AdminAnnonces() {
                   </div>
                   <p className="text-gray-600 mb-2">{annonce.organisme}</p>
                   <p className="text-sm text-gray-500">
-                    📍 {annonce.pays?.nom}
+                    🗺️ {annonce.pays?.nom || 'Maroc'}
                     {annonce.ville && ` • 🏙️ ${annonce.ville.nom}`} {/* MODIFIÉ */}
                     • 📅 Date limite: {new Date(annonce.date_fin).toLocaleDateString('fr-FR')}
                   </p>

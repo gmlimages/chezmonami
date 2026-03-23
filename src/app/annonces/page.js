@@ -2,18 +2,18 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { annoncesAPI, paysAPI, villesAPI } from '@/lib/api';
+import { annoncesAPI, regionsAPI, villesAPI } from '@/lib/api';
 import PageTracker from '@/components/PageTracker';
 
 export default function AnnoncesPage() {
   const [annonces, setAnnonces] = useState([]);
-  const [pays, setPays] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [villes, setVilles] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Filtres
   const [typeFiltre, setTypeFiltre] = useState('tous');
-  const [paysFiltre, setPaysFiltre] = useState('');
+  const [regionFiltre, setRegionFiltre] = useState('');
   const [villeFiltre, setVilleFiltre] = useState('');
   const [villesFiltrees, setVillesFiltrees] = useState([]);
   const [recherche, setRecherche] = useState('');
@@ -25,14 +25,14 @@ export default function AnnoncesPage() {
   const chargerDonnees = async () => {
     try {
       setLoading(true);
-      const [annoncesData, paysData, villesData] = await Promise.all([
+      const [annoncesData, regionsData, villesData] = await Promise.all([
         annoncesAPI.getAll(),
-        paysAPI.getAll(),
+        regionsAPI.getAll(),
         villesAPI.getAll()
       ]);
-      
+
       setAnnonces(annoncesData);
-      setPays(paysData);
+      setRegions(regionsData);
       setVilles(villesData);
     } catch (error) {
       console.error('Erreur chargement annonces:', error);
@@ -41,14 +41,14 @@ export default function AnnoncesPage() {
     }
   };
 
-  // Fonction pour gerer le changement de pays
-  const handlePaysChange = (nouveauPays) => {
-    setPaysFiltre(nouveauPays);
+  // Fonction pour gérer le changement de région
+  const handleRegionChange = (nouvelleRegion) => {
+    setRegionFiltre(nouvelleRegion);
     setVilleFiltre('');
-    
-    if (nouveauPays) {
-      const villesDuPays = villes.filter(v => v.pays_id === nouveauPays);
-      setVillesFiltrees(villesDuPays);
+
+    if (nouvelleRegion) {
+      const villesDeLaRegion = villes.filter(v => v.pays_id === nouvelleRegion);
+      setVillesFiltrees(villesDeLaRegion);
     } else {
       setVillesFiltrees([]);
     }
@@ -57,13 +57,13 @@ export default function AnnoncesPage() {
   // Filtrage
   const annoncesFiltrees = annonces.filter(a => {
     const matchType = typeFiltre === 'tous' || a.type === typeFiltre;
-    const matchPays = !paysFiltre || a.pays_id === paysFiltre;
+    const matchRegion = !regionFiltre || a.pays_id === regionFiltre;
     const matchVille = !villeFiltre || a.ville_id === villeFiltre;
     const matchRecherche = !recherche ||
       a.titre.toLowerCase().includes(recherche.toLowerCase()) ||
       a.organisme.toLowerCase().includes(recherche.toLowerCase()) ||
       (a.description && a.description.toLowerCase().includes(recherche.toLowerCase()));
-    return matchType && matchPays && matchVille && matchRecherche;
+    return matchType && matchRegion && matchVille && matchRecherche;
   });
 
   // Tri par date
@@ -139,26 +139,26 @@ export default function AnnoncesPage() {
                 </select>
               </div>
 
-              {/* Pays */}
+              {/* Région */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🌍 Pays
+                  🗺️ Région
                 </label>
                 <select
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-accent focus:outline-none font-medium"
-                  value={paysFiltre}
-                  onChange={(e) => handlePaysChange(e.target.value)}
+                  value={regionFiltre}
+                  onChange={(e) => handleRegionChange(e.target.value)}
                 >
-                  <option value="">Tous les pays</option>
-                  {pays.map(p => (
-                    <option key={p.id} value={p.id}>{p.nom}</option>
+                  <option value="">Toutes les régions</option>
+                  {regions.map(r => (
+                    <option key={r.id} value={r.id}>{r.nom}</option>
                   ))}
                 </select>
               </div>
             </div>
 
             {/* Ville */}
-            {paysFiltre && villesFiltrees.length > 0 && (
+            {regionFiltre && villesFiltrees.length > 0 && (
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   🏙️ Ville
@@ -260,7 +260,7 @@ export default function AnnoncesPage() {
               <button
                 onClick={() => {
                   setTypeFiltre('tous');
-                  setPaysFiltre('');
+                  setRegionFiltre('');
                   setVilleFiltre('');
                   setRecherche('');
                 }}
@@ -350,7 +350,7 @@ export default function AnnoncesPage() {
 
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
-                              📍 {annonce.pays?.nom || 'Non spécifié'}
+                              🗺️ {annonce.pays?.nom || 'Maroc'}
                             </span>
                             {annonce.ville && (
                               <span className="flex items-center gap-1">
