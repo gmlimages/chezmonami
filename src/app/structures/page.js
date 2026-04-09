@@ -9,7 +9,7 @@ import StarRating from '@/components/ui/StarRating';
 
 import PageTracker from '@/components/PageTracker';
 
-const STRUCTURES_PAR_PAGE = 12;
+const STRUCTURES_PAR_PAGE = 20;
 const CATEGORIES_VISIBLES = 5;
 
 function StructuresContent() {
@@ -24,6 +24,7 @@ function StructuresContent() {
   const [paysFiltre, setPaysFiltre] = useState('');
   const [villeFiltre, setVilleFiltre] = useState('');
   const [recherche, setRecherche] = useState('');
+  const [tri, setTri] = useState('recentes');
   const [pageActuelle, setPageActuelle] = useState(1);
   const [showModalPays, setShowModalPays] = useState(false);
   const [villesDisponibles, setVillesDisponibles] = useState([]);
@@ -105,7 +106,7 @@ function StructuresContent() {
     if (misesError) throw misesError;
 
     // Charger toutes les structures séparément
-    const structures = await structuresAPI.getAll();
+    const structures = await structuresAPI.getAll({ publieSeulement: true });
 
     // Enrichir avec les structures
     const validFeatured = (misesData || [])
@@ -136,7 +137,7 @@ function StructuresContent() {
         categoriesData,
         paysData
       ] = await Promise.all([
-        structuresAPI.getAll(),
+        structuresAPI.getAll({ publieSeulement: true }),
         categoriesAPI.getAll(),
         paysAPI.getAll(),
         chargerStructuresFeatured()
@@ -182,14 +183,18 @@ function StructuresContent() {
     return matchCategorie && matchGroupe && matchPays && matchVille && matchRecherche;
   });
 
-  const totalPages = Math.ceil(structuresFiltrees.length / STRUCTURES_PAR_PAGE);
+  const structuresTriees = [...structuresFiltrees].sort((a, b) => {
+    if (tri === 'populaires') return (b.note || 0) - (a.note || 0);
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+  const totalPages = Math.ceil(structuresTriees.length / STRUCTURES_PAR_PAGE);
   const indexDebut = (pageActuelle - 1) * STRUCTURES_PAR_PAGE;
   const indexFin = indexDebut + STRUCTURES_PAR_PAGE;
-  const structuresPage = structuresFiltrees.slice(indexDebut, indexFin);
+  const structuresPage = structuresTriees.slice(indexDebut, indexFin);
 
   useEffect(() => {
     setPageActuelle(1);
-  }, [categorieFiltre, paysFiltre, villeFiltre, recherche, groupeActif]);
+  }, [categorieFiltre, paysFiltre, villeFiltre, recherche, groupeActif, tri]);
 
   const scrollCategories = (direction) => {
     if (categoriesScrollRef.current) {
@@ -513,6 +518,29 @@ function StructuresContent() {
               </div>
             </div>
           </section>
+        )}
+
+        {/* Tri */}
+        {structuresFiltrees.length > 0 && (
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-gray-600">
+              {structuresFiltrees.length} structure{structuresFiltrees.length > 1 ? 's' : ''}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTri('recentes')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tri === 'recentes' ? 'bg-primary text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+              >
+                Récentes
+              </button>
+              <button
+                onClick={() => setTri('populaires')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tri === 'populaires' ? 'bg-primary text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+              >
+                Populaires
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Liste des structures */}

@@ -1,13 +1,9 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import AdminLayout from '@/app/admin/AdminLayout';
 import AdminNewsletterQueue from '@/components/admin/AdminNewsletterQueue';
-import { envoyerMessageLibre } from '@/services/newsletterService';
 
 export default function AdminNewsletter() {
-  const router = useRouter();
   const [onglet, setOnglet] = useState('queue');
   const [stats, setStats] = useState({
     total: 0, actifs: 0, inactifs: 0, en_attente: 0, envoyes: 0
@@ -27,26 +23,28 @@ export default function AdminNewsletter() {
   }, []);
 
   const chargerStats = async () => {
-    const [{ data: ab }, { data: queue }] = await Promise.all([
-      supabase.from('newsletter_abonnes').select('actif'),
-      supabase.from('newsletter_queue').select('statut'),
-    ]);
-    setStats({
-      total:      ab?.length || 0,
-      actifs:     ab?.filter(a => a.actif).length || 0,
-      inactifs:   ab?.filter(a => !a.actif).length || 0,
-      en_attente: queue?.filter(q => q.statut === 'en_attente').length || 0,
-      envoyes:    queue?.filter(q => q.statut === 'envoye').length || 0,
-    });
+    try {
+      const res = await fetch('/api/admin/newsletter/abonnes?stats=1');
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (err) {
+      console.error('Erreur stats newsletter:', err);
+    }
   };
 
   const chargerAbonnes = async () => {
     setLoadingAbonnes(true);
-    const { data } = await supabase
-      .from('newsletter_abonnes')
-      .select('id, email, nom, actif, date_inscription, derniere_notification, preferences')
-      .order('date_inscription', { ascending: false });
-    setAbonnes(data || []);
+    try {
+      const res = await fetch('/api/admin/newsletter/abonnes');
+      if (res.ok) {
+        const { abonnes: data } = await res.json();
+        setAbonnes(data || []);
+      }
+    } catch (err) {
+      console.error('Erreur chargement abonnés:', err);
+    }
     setLoadingAbonnes(false);
   };
 
@@ -64,16 +62,25 @@ export default function AdminNewsletter() {
     );
   }, [abonnes, recherche]);
 
-  // Envoi message libre
+  // Envoi message libre — via route API server-side
   const handleEnvoyerMessage = async (e) => {
     e.preventDefault();
     if (!form.sujet.trim() || !form.contenu.trim()) return;
     setEnvoi({ loading: true, resultat: null });
     try {
-      const res = await envoyerMessageLibre(form);
-      setEnvoi({ loading: false, resultat: { success: true, ...res } });
-      setForm({ sujet: '', contenu: '', cible: 'tous' });
-      chargerStats();
+      const res = await fetch('/api/admin/newsletter/message-libre', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEnvoi({ loading: false, resultat: { success: true, ...data } });
+        setForm({ sujet: '', contenu: '', cible: 'tous' });
+        chargerStats();
+      } else {
+        setEnvoi({ loading: false, resultat: { success: false, reason: data.error } });
+      }
     } catch (err) {
       setEnvoi({ loading: false, resultat: { success: false, reason: err.message } });
     }
@@ -81,13 +88,21 @@ export default function AdminNewsletter() {
 
   const handleDesabonner = async (id) => {
     if (!confirm('Désabonner cet abonné ?')) return;
-    await supabase.from('newsletter_abonnes').update({ actif: false }).eq('id', id);
+    await fetch(`/api/admin/newsletter/abonnes/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actif: false }),
+    });
     chargerAbonnes();
     chargerStats();
   };
 
   const handleReabonner = async (id) => {
-    await supabase.from('newsletter_abonnes').update({ actif: true }).eq('id', id);
+    await fetch(`/api/admin/newsletter/abonnes/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actif: true }),
+    });
     chargerAbonnes();
     chargerStats();
   };
@@ -140,7 +155,7 @@ export default function AdminNewsletter() {
       </div>
 
       {/* ── ONGLET FILE D'ATTENTE ── */}
-      {onglet === 'queue' && <AdminNewsletterQueue />}
+      {onglet === 'queue' && <AdminNewsletterQueue onStatChange={chargerStats} />}
 
       {/* ── ONGLET MESSAGE LIBRE ── */}
       {onglet === 'message' && (
@@ -152,9 +167,7 @@ export default function AdminNewsletter() {
           <form onSubmit={handleEnvoyerMessage} className="space-y-6">
             {/* Cible */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Destinataires
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Destinataires</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {cibles.map(c => (
                   <label
@@ -181,9 +194,7 @@ export default function AdminNewsletter() {
 
             {/* Sujet */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sujet de l'email *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Sujet de l'email *</label>
               <input
                 type="text"
                 value={form.sujet}
@@ -196,9 +207,7 @@ export default function AdminNewsletter() {
 
             {/* Contenu */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contenu du message *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Contenu du message *</label>
               <textarea
                 value={form.contenu}
                 onChange={e => setForm(f => ({ ...f, contenu: e.target.value }))}
@@ -207,9 +216,7 @@ export default function AdminNewsletter() {
                 rows={10}
                 className="input-field resize-none font-mono text-sm"
               />
-              <p className="text-xs text-gray-400 mt-1">
-                Les retours à la ligne sont conservés dans l'email.
-              </p>
+              <p className="text-xs text-gray-400 mt-1">Les retours à la ligne sont conservés dans l'email.</p>
             </div>
 
             {/* Résultat */}
@@ -253,7 +260,6 @@ export default function AdminNewsletter() {
       {/* ── ONGLET ABONNÉS ── */}
       {onglet === 'abonnes' && (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          {/* En-tête tableau */}
           <div className="p-6 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h2 className="text-lg font-bold text-gray-800">
               👥 Liste des abonnés
@@ -261,16 +267,10 @@ export default function AdminNewsletter() {
                 {abonnesFiltres.length} / {abonnes.length}
               </span>
             </h2>
-
             <div className="flex items-center gap-3">
-              {/* Barre de recherche */}
               <div className="relative">
-                <svg
-                  className="absolute left-3 top-3 text-gray-400 w-4 h-4"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg className="absolute left-3 top-3 text-gray-400 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
                   type="text"
@@ -280,35 +280,24 @@ export default function AdminNewsletter() {
                   className="input-field pl-9 py-2 text-sm w-72"
                 />
                 {recherche && (
-                  <button
-                    onClick={() => setRecherche('')}
-                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-lg leading-none"
-                  >
-                    ✕
-                  </button>
+                  <button onClick={() => setRecherche('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
                 )}
               </div>
-
               <button
                 onClick={chargerAbonnes}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition text-sm flex items-center gap-1"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Actualiser
               </button>
             </div>
           </div>
 
-          {/* Tableau */}
           {loadingAbonnes ? (
             <div className="flex items-center justify-center py-20">
-              <div className="text-center">
-                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-gray-600">Chargement...</p>
-              </div>
+              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -316,9 +305,7 @@ export default function AdminNewsletter() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     {['Email', 'Nom', 'Statut', 'Inscrit le', 'Dernier email', 'Préférences', 'Action'].map(h => (
-                      <th key={h} className={`py-3 px-4 font-semibold text-gray-600 ${h === 'Action' ? 'text-right' : 'text-left'}`}>
-                        {h}
-                      </th>
+                      <th key={h} className={`py-3 px-4 font-semibold text-gray-600 ${h === 'Action' ? 'text-right' : 'text-left'}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -328,68 +315,40 @@ export default function AdminNewsletter() {
                       <td className="py-3 px-4 font-medium text-gray-800">{a.email}</td>
                       <td className="py-3 px-4 text-gray-600">{a.nom || '—'}</td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          a.actif
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${a.actif ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                           {a.actif ? '✅ Actif' : '🚫 Désabonné'}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-gray-500">
-                        {a.date_inscription
-                          ? new Date(a.date_inscription).toLocaleDateString('fr-FR')
-                          : '—'}
+                        {a.date_inscription ? new Date(a.date_inscription).toLocaleDateString('fr-FR') : '—'}
                       </td>
                       <td className="py-3 px-4 text-gray-500">
-                        {a.derniere_notification
-                          ? new Date(a.derniere_notification).toLocaleDateString('fr-FR')
-                          : '—'}
+                        {a.derniere_notification ? new Date(a.derniere_notification).toLocaleDateString('fr-FR') : '—'}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-1 flex-wrap">
-                          {a.preferences?.nouvelles_structures !== false && (
-                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">🏢</span>
-                          )}
-                          {a.preferences?.nouveaux_produits !== false && (
-                            <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">📦</span>
-                          )}
-                          {(a.preferences?.promotions !== false || a.preferences?.annonces !== false) && (
-                            <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full">🔥📢</span>
-                          )}
+                          {a.preferences?.nouvelles_structures !== false && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">🏢</span>}
+                          {a.preferences?.nouveaux_produits !== false && <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">📦</span>}
+                          {(a.preferences?.promotions !== false || a.preferences?.annonces !== false) && <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full">🔥</span>}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right">
                         {a.actif ? (
-                          <button
-                            onClick={() => handleDesabonner(a.id)}
-                            className="text-xs px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition font-medium"
-                          >
-                            Désabonner
-                          </button>
+                          <button onClick={() => handleDesabonner(a.id)} className="text-xs px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition font-medium">Désabonner</button>
                         ) : (
-                          <button
-                            onClick={() => handleReabonner(a.id)}
-                            className="text-xs px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition font-medium"
-                          >
-                            Réabonner
-                          </button>
+                          <button onClick={() => handleReabonner(a.id)} className="text-xs px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition font-medium">Réabonner</button>
                         )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-
               {abonnesFiltres.length === 0 && (
                 <div className="text-center py-16">
                   <div className="text-6xl mb-4">📭</div>
                   <p className="text-xl text-gray-600 mb-2">
                     {recherche ? `Aucun résultat pour "${recherche}"` : 'Aucun abonné pour le moment'}
                   </p>
-                  {recherche && (
-                    <p className="text-gray-500">Essayez avec d'autres termes de recherche</p>
-                  )}
                 </div>
               )}
             </div>

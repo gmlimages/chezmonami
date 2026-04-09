@@ -5,6 +5,8 @@ import AdminLayout from '@/app/admin/AdminLayout';
 import FileUploader from '@/components/FileUploader';
 import { annoncesAPI, paysAPI, villesAPI } from '@/lib/api';
 
+const PAR_PAGE = 20;
+
 export default function AdminAnnonces() {
   const [mode, setMode] = useState('liste');
   const [annonceEnCours, setAnnonceEnCours] = useState(null);
@@ -15,6 +17,7 @@ export default function AdminAnnonces() {
   const [villesFiltrees, setVillesFiltrees] = useState([]);
   const [recherche, setRecherche] = useState('');
   const [filtreType, setFiltreType] = useState('');
+  const [pageCourante, setPageCourante] = useState(1);
   
   const [formData, setFormData] = useState({
     titre: '',
@@ -191,12 +194,15 @@ export default function AdminAnnonces() {
   };
 
   const annoncesFiltrees = annonces.filter(a => {
-    const matchRecherche = !recherche || 
+    const matchRecherche = !recherche ||
       a.titre.toLowerCase().includes(recherche.toLowerCase()) ||
       a.organisme.toLowerCase().includes(recherche.toLowerCase());
     const matchType = !filtreType || a.type === filtreType;
     return matchRecherche && matchType;
   });
+
+  const nbPages = Math.ceil(annoncesFiltrees.length / PAR_PAGE);
+  const annoncesPaginees = annoncesFiltrees.slice((pageCourante - 1) * PAR_PAGE, pageCourante * PAR_PAGE);
 
   if (loading) {
     return (
@@ -366,33 +372,32 @@ export default function AdminAnnonces() {
 
   return (
     <AdminLayout titre="📢 Gestion des Annonces" sousTitre={`${annonces.length} annonces au total`}>
-      <div className="mb-6 flex flex-col md:flex-row gap-4">
-        <input
-          type="text"
-          placeholder="🔍 Rechercher..."
-          className="input-field flex-1"
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-        />
-        
-        {/* ← MODIFIÉ : Nouveaux types dans le filtre */}
-        <select
-          className="input-field md:w-64"
-          value={filtreType}
-          onChange={(e) => setFiltreType(e.target.value)}
-        >
-          <option value="">Tous les types</option>
-          <option value="Financement">💰 Financement</option>
-          <option value="Appel d'offres">📋 Appel d'offres</option>
-          <option value="Emploi">💼 Emploi</option>
-          <option value="Salon BtoB">🏢 Salon BtoB</option>
-          <option value="Voyage d'affaires">✈️ Voyage d'affaires</option>
-          <option value="Partenariat">🤝 Partenariat</option>
-        </select>
-
-        <button onClick={ajouterAnnonce} className="btn-primary whitespace-nowrap">
-          ➕ Nouvelle annonce
+      <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <button onClick={ajouterAnnonce} className="btn-primary whitespace-nowrap flex items-center justify-center gap-2">
+          <span>➕</span> Nouvelle annonce
         </button>
+        <div className="flex flex-col sm:flex-row gap-3 flex-1 sm:max-w-2xl">
+          <input
+            type="text"
+            placeholder="Rechercher..."
+            className="input-field flex-1"
+            value={recherche}
+            onChange={(e) => { setRecherche(e.target.value); setPageCourante(1); }}
+          />
+          <select
+            className="input-field sm:w-52"
+            value={filtreType}
+            onChange={(e) => { setFiltreType(e.target.value); setPageCourante(1); }}
+          >
+            <option value="">Tous les types</option>
+            <option value="Financement">💰 Financement</option>
+            <option value="Appel d'offres">📋 Appel d&apos;offres</option>
+            <option value="Emploi">💼 Emploi</option>
+            <option value="Salon BtoB">🏢 Salon BtoB</option>
+            <option value="Voyage d'affaires">✈️ Voyage d&apos;affaires</option>
+            <option value="Partenariat">🤝 Partenariat</option>
+          </select>
+        </div>
       </div>
 
       {annoncesFiltrees.length === 0 ? (
@@ -404,49 +409,101 @@ export default function AdminAnnonces() {
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {annoncesFiltrees.map(annonce => (
-            <div key={annonce.id} className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-gray-800">{annonce.titre}</h3>
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-semibold">
-                      {annonce.type}
-                    </span>
-                    {/* ← NOUVEAU : Afficher le sous-type pour Emploi */}
-                    {annonce.type === 'Emploi' && annonce.sous_type && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-                        {annonce.sous_type}
+        <>
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Annonce</th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 hidden sm:table-cell">Type</th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 hidden md:table-cell">Localisation</th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 hidden lg:table-cell">Date limite</th>
+                  <th className="px-4 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {annoncesPaginees.map(annonce => (
+                  <tr key={annonce.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4">
+                      <p className="font-semibold text-gray-800 leading-tight">{annonce.titre}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{annonce.organisme}</p>
+                    </td>
+                    <td className="px-4 py-4 hidden sm:table-cell">
+                      <span className="px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold whitespace-nowrap">
+                        {annonce.type}
                       </span>
-                    )}
-                  </div>
-                  <p className="text-gray-600 mb-2">{annonce.organisme}</p>
-                  <p className="text-sm text-gray-500">
-                    📍 {annonce.pays?.nom}
-                    {annonce.ville && ` • 🏙️ ${annonce.ville.nom}`} {/* MODIFIÉ */}
-                    • 📅 Date limite: {new Date(annonce.date_fin).toLocaleDateString('fr-FR')}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => modifierAnnonce(annonce)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => supprimerAnnonce(annonce.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-              <p className="text-gray-700">{annonce.description}</p>
-            </div>
-          ))}
+                      {annonce.type === 'Emploi' && annonce.sous_type && (
+                        <span className="ml-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold whitespace-nowrap">
+                          {annonce.sous_type}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 hidden md:table-cell">
+                      <p className="text-sm text-gray-800">{annonce.pays?.nom}</p>
+                      {annonce.ville && <p className="text-xs text-gray-500">{annonce.ville.nom}</p>}
+                    </td>
+                    <td className="px-4 py-4 hidden lg:table-cell">
+                      <p className="text-sm text-gray-700">
+                        {annonce.date_fin ? new Date(annonce.date_fin).toLocaleDateString('fr-FR') : '—'}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button onClick={() => modifierAnnonce(annonce)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Modifier">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button onClick={() => supprimerAnnonce(annonce.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        {nbPages > 1 && (
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              {((pageCourante - 1) * PAR_PAGE) + 1}–{Math.min(pageCourante * PAR_PAGE, annoncesFiltrees.length)} sur {annoncesFiltrees.length} annonces
+            </p>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setPageCourante(p => Math.max(1, p - 1))}
+                disabled={pageCourante === 1}
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ‹
+              </button>
+              {Array.from({ length: nbPages }, (_, i) => i + 1).filter(p => p === 1 || p === nbPages || Math.abs(p - pageCourante) <= 2).map((p, idx, arr) => (
+                <span key={p}>
+                  {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-2 py-2 text-gray-400 text-sm">…</span>}
+                  <button
+                    onClick={() => setPageCourante(p)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition ${pageCourante === p ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+                  >
+                    {p}
+                  </button>
+                </span>
+              ))}
+              <button
+                onClick={() => setPageCourante(p => Math.min(nbPages, p + 1))}
+                disabled={pageCourante === nbPages}
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </AdminLayout>
   );

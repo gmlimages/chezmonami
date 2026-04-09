@@ -1,421 +1,364 @@
-// src/app/admin/statistiques/page.js - PARTIE 1/2
 'use client';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
-import { statistiquesAPI } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function groupBy(arr, keyFn) {
+  return arr.reduce((acc, item) => {
+    const key = keyFn(item) || 'Inconnu';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function getLast6Months() {
+  const months = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      label: d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }),
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      count: 0,
+    });
+  }
+  return months;
+}
+
+// ── Sous-composants ───────────────────────────────────────────────────────────
+
+function BarRow({ label, count, maxCount, color = 'bg-primary' }) {
+  const width = maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-28 shrink-0 text-sm text-gray-700 truncate text-right">{label}</div>
+      <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+        <div
+          className={`${color} h-5 rounded-full transition-all duration-500`}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+      <div className="w-8 shrink-0 text-sm font-semibold text-gray-700 text-right">{count}</div>
+    </div>
+  );
+}
+
+function KpiCard({ label, value, icon, bgIcon, textColor = 'text-gray-800' }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
+      <div className={`w-12 h-12 ${bgIcon} rounded-xl flex items-center justify-center text-2xl shrink-0`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+        <p className={`text-3xl font-bold ${textColor}`}>{value}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AdminStatistiques() {
   const [loading, setLoading] = useState(true);
-  const [periode, setPeriode] = useState('30'); // 7, 30, 90 jours
-  const [onglet, setOnglet] = useState('apercu'); // apercu, pages, elements
-  
-  const [statsGlobales, setStatsGlobales] = useState({
-    aujourd_hui: { visiteurs_uniques: 0, total_visites: 0 },
-    hier: { visiteurs_uniques: 0, total_visites: 0 },
-    total_visites_historique: 0
-  });
-  
-  const [statsQuotidiennes, setStatsQuotidiennes] = useState([]);
-  const [pagesPopulaires, setPagesPopulaires] = useState([]);
-  const [structuresPopulaires, setStructuresPopulaires] = useState([]);
-  const [produitsPopulaires, setProduitsPopulaires] = useState([]);
+  const [tousComptes, setTousComptes] = useState([]);
+  const [listePays, setListePays] = useState([]);
+  const [filtreP, setFiltreP] = useState('');
 
   useEffect(() => {
-    chargerStatistiques();
-  }, [periode]);
+    chargerDonnees();
+  }, []);
 
-  const chargerStatistiques = async () => {
+  const chargerDonnees = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      // Mettre à jour les stats d'abord
-      await statistiquesAPI.majStatsQuotidiennes();
+      const { data, error } = await supabase
+        .from('comptes_structures')
+        .select(`
+          id, statut, badge_verifie, abonnement, date_inscription, demande_suppression,
+          structures (
+            id, nom,
+            pays (nom),
+            villes (nom)
+          )
+        `);
 
-      const [globales, quotidiennes, pages, structures, produits] = await Promise.all([
-        statistiquesAPI.getStatsGlobales(),
-        statistiquesAPI.getStatsQuotidiennes(parseInt(periode)),
-        statistiquesAPI.getPagesPopulaires(parseInt(periode)),
-        statistiquesAPI.getElementsPopulaires('structure', 10, 'total'),
-        statistiquesAPI.getElementsPopulaires('produit', 10, 'total')
-      ]);
+      if (error) throw error;
 
-      setStatsGlobales(globales);
-      setStatsQuotidiennes(quotidiennes);
-      setPagesPopulaires(pages);
-      setStructuresPopulaires(structures);
-      setProduitsPopulaires(produits);
-    } catch (error) {
-      console.error('Erreur chargement stats:', error);
+      const comptes = data || [];
+      setTousComptes(comptes);
+
+      const pays = [...new Set(
+        comptes.map(c => c.structures?.pays?.nom).filter(Boolean)
+      )].sort();
+      setListePays(pays);
+    } catch (err) {
+      console.error('Erreur chargement statistiques :', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const exporterStatistiques = () => {
-    // Préparer les données pour l'export
-    const data = {
-      periode: `Statistiques des ${periode} derniers jours`,
-      date_export: new Date().toLocaleDateString('fr-FR'),
-      stats_globales: statsGlobales,
-      stats_quotidiennes: statsQuotidiennes,
-      pages_populaires: pagesPopulaires,
-      structures_populaires: structuresPopulaires,
-      produits_populaires: produitsPopulaires
-    };
-
-    // Créer le contenu CSV
-    let csv = 'STATISTIQUES CHEZ MON AMI\n';
-    csv += `Date d'export: ${data.date_export}\n`;
-    csv += `Période: ${data.periode}\n\n`;
-
-    // Stats globales
-    csv += 'STATISTIQUES GLOBALES\n';
-    csv += 'Métrique,Aujourd\'hui,Hier,Total\n';
-    csv += `Visiteurs uniques,${statsGlobales.aujourd_hui.visiteurs_uniques},${statsGlobales.hier.visiteurs_uniques},-\n`;
-    csv += `Total visites,${statsGlobales.aujourd_hui.total_visites},${statsGlobales.hier.total_visites},${statsGlobales.total_visites_historique}\n\n`;
-
-    // Stats quotidiennes
-    csv += 'STATISTIQUES QUOTIDIENNES\n';
-    csv += 'Date,Visiteurs Uniques,Total Visites\n';
-    statsQuotidiennes.forEach(stat => {
-      csv += `${new Date(stat.date).toLocaleDateString('fr-FR')},${stat.visiteurs_uniques},${stat.total_visites}\n`;
-    });
-    csv += '\n';
-
-    // Pages populaires
-    csv += 'PAGES LES PLUS VISITÉES\n';
-    csv += 'Position,Page,URL,Vues\n';
-    pagesPopulaires.forEach((page, index) => {
-      csv += `${index + 1},"${page.page_titre || page.page_url}",${page.page_url},${page.total_vues}\n`;
-    });
-    csv += '\n';
-
-    // Structures populaires
-    csv += 'STRUCTURES LES PLUS CONSULTÉES\n';
-    csv += 'Position,Nom,Vues Total,Vues Semaine,Vues Mois\n';
-    structuresPopulaires.forEach((structure, index) => {
-      csv += `${index + 1},"${structure.element_nom}",${structure.vues_total},${structure.vues_semaine},${structure.vues_mois}\n`;
-    });
-    csv += '\n';
-
-    // Produits populaires
-    csv += 'PRODUITS LES PLUS CONSULTÉS\n';
-    csv += 'Position,Nom,Vues Total,Vues Semaine,Vues Mois\n';
-    produitsPopulaires.forEach((produit, index) => {
-      csv += `${index + 1},"${produit.element_nom}",${produit.vues_total},${produit.vues_semaine},${produit.vues_mois}\n`;
-    });
-
-    // Télécharger le fichier
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `statistiques_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const calculerEvolution = (valeurAujourdhui, valeurHier) => {
-    if (valeurHier === 0) return valeurAujourdhui > 0 ? 100 : 0;
-    return Math.round(((valeurAujourdhui - valeurHier) / valeurHier) * 100);
-  };
-
-  const evolutionVisiteurs = calculerEvolution(
-    statsGlobales.aujourd_hui.visiteurs_uniques,
-    statsGlobales.hier.visiteurs_uniques
-  );
-
-  const evolutionVisites = calculerEvolution(
-    statsGlobales.aujourd_hui.total_visites,
-    statsGlobales.hier.total_visites
-  );
-
+  // ── Loading ──
   if (loading) {
     return (
-      <AdminLayout titre="Statistiques des Visiteurs">
-        <div className="flex items-center justify-center py-20">
+      <AdminLayout titre="Statistiques" sousTitre="Vue d'ensemble des sociétés inscrites">
+        <div className="flex items-center justify-center py-24">
           <div className="text-center">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-600">Chargement des statistiques...</p>
           </div>
         </div>
       </AdminLayout>
     );
   }
+
+  // ── Filtrage par pays ──
+  const comptes = filtreP
+    ? tousComptes.filter(c => c.structures?.pays?.nom === filtreP)
+    : tousComptes;
+
+  // ── KPIs calculés ──
+  const total              = comptes.length;
+  const actifs             = comptes.filter(c => c.statut === 'actif').length;
+  const enAttente          = comptes.filter(c => c.statut === 'en_attente').length;
+  const suspendus          = comptes.filter(c => c.statut === 'suspendu').length;
+  const badgeVerifie       = comptes.filter(c => c.badge_verifie).length;
+  const avecStructure      = comptes.filter(c => c.structures?.id).length;
+  const sansStructure      = comptes.filter(c => !c.structures?.id).length;
+  const demandesSuppression = comptes.filter(c => c.demande_suppression).length;
+
+  // ── Par statut ──
+  const STATUTS = [
+    { key: 'actif',      label: 'Actif',       color: 'bg-green-500' },
+    { key: 'en_attente', label: 'En attente',  color: 'bg-yellow-400' },
+    { key: 'suspendu',   label: 'Suspendu',    color: 'bg-red-500' },
+    { key: 'inactif',    label: 'Inactif',     color: 'bg-gray-400' },
+  ];
+  const grouped_statut = groupBy(comptes, c => c.statut);
+  const parStatut = STATUTS.map(s => ({
+    label: s.label,
+    count: grouped_statut[s.key] || 0,
+    color: s.color,
+  }));
+  const maxStatut = Math.max(...parStatut.map(s => s.count), 1);
+
+  // ── Par abonnement ──
+  const TYPES_ABO = ['gratuit', 'mensuel', 'trimestriel', 'semestriel', 'annuel'];
+  const grouped_abo = groupBy(comptes, c => c.abonnement || 'gratuit');
+  const parAbonnement = TYPES_ABO.map(t => ({
+    label: t.charAt(0).toUpperCase() + t.slice(1),
+    count: grouped_abo[t] || 0,
+    color: t === 'gratuit' ? 'bg-gray-400'
+         : t === 'mensuel' ? 'bg-blue-400'
+         : t === 'trimestriel' ? 'bg-indigo-500'
+         : t === 'semestriel' ? 'bg-violet-500'
+         : 'bg-primary',
+  }));
+  const maxAbo = Math.max(...parAbonnement.map(a => a.count), 1);
+
+  // ── Par pays ──
+  const grouped_pays = groupBy(tousComptes, c => c.structures?.pays?.nom || 'Sans pays');
+  const parPays = Object.entries(grouped_pays)
+    .map(([nom, count]) => ({ nom, count }))
+    .sort((a, b) => b.count - a.count);
+  const maxPays = Math.max(...parPays.map(p => p.count), 1);
+
+  // ── Par ville (top 10, dans le filtre pays) ──
+  const grouped_ville = groupBy(comptes, c => c.structures?.villes?.nom || null);
+  delete grouped_ville['Inconnu'];
+  const parVille = Object.entries(grouped_ville)
+    .map(([nom, count]) => ({ nom, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+  const maxVille = Math.max(...parVille.map(v => v.count), 1);
+
+  // ── Inscriptions par mois (6 derniers) ──
+  const moisTemplate = getLast6Months();
+  comptes.forEach(c => {
+    if (!c.date_inscription) return;
+    const d = new Date(c.date_inscription);
+    const m = moisTemplate.find(m => m.year === d.getFullYear() && m.month === d.getMonth());
+    if (m) m.count++;
+  });
+  const maxMois = Math.max(...moisTemplate.map(m => m.count), 1);
+
   return (
-    <AdminLayout titre="Statistiques des Visiteurs" sousTitre="Analysez le trafic de votre plateforme">
-      {/* Filtres */}
-      <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setOnglet('apercu')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${
-              onglet === 'apercu' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            📊 Aperçu
-          </button>
-          <button
-            onClick={() => setOnglet('pages')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${
-              onglet === 'pages' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            📄 Pages
-          </button>
-          <button
-            onClick={() => setOnglet('elements')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${
-              onglet === 'elements' ? 'bg-primary text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            🏆 Populaires
-          </button>
-        </div>
+    <AdminLayout titre="Statistiques" sousTitre="Vue d'ensemble des sociétés inscrites">
+      <div className="space-y-6">
 
-        <div className="flex gap-3">
-          <select
-            className="input-field"
-            value={periode}
-            onChange={(e) => setPeriode(e.target.value)}
-          >
-            <option value="7">7 derniers jours</option>
-            <option value="30">30 derniers jours</option>
-            <option value="90">90 derniers jours</option>
-          </select>
-
+        {/* ── Barre d'actions : filtre pays + actualiser ── */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="text-sm font-semibold text-gray-600">Filtrer par pays :</label>
+            <select
+              value={filtreP}
+              onChange={e => setFiltreP(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="">Tous les pays</option>
+              {listePays.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            {filtreP && (
+              <button
+                onClick={() => setFiltreP('')}
+                className="text-xs text-gray-500 hover:text-red-500 underline transition"
+              >
+                Réinitialiser
+              </button>
+            )}
+          </div>
           <button
-            onClick={exporterStatistiques}
-            className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-semibold flex items-center gap-2"
+            onClick={chargerDonnees}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 shadow-sm transition"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Exporter CSV
+            Actualiser
           </button>
         </div>
-      </div>
 
-      {/* ONGLET APERÇU */}
-      {onglet === 'apercu' && (
-        <div className="space-y-6">
-          {/* Stats en temps réel */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl">
-                  👥
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  evolutionVisiteurs >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                }`}>
-                  {evolutionVisiteurs >= 0 ? '+' : ''}{evolutionVisiteurs}%
-                </span>
-              </div>
-              <h3 className="text-3xl font-bold text-gray-800 mb-1">
-                {statsGlobales.aujourd_hui.visiteurs_uniques}
-              </h3>
-              <p className="text-gray-600">Visiteurs aujourd'hui</p>
-              <p className="text-xs text-gray-500 mt-2">
-                Hier : {statsGlobales.hier.visiteurs_uniques}
-              </p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-2xl">
-                  👁️
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  evolutionVisites >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                }`}>
-                  {evolutionVisites >= 0 ? '+' : ''}{evolutionVisites}%
-                </span>
-              </div>
-              <h3 className="text-3xl font-bold text-gray-800 mb-1">
-                {statsGlobales.aujourd_hui.total_visites}
-              </h3>
-              <p className="text-gray-600">Visites aujourd'hui</p>
-              <p className="text-xs text-gray-500 mt-2">
-                Hier : {statsGlobales.hier.total_visites}
-              </p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-2xl">
-                  📈
-                </div>
-              </div>
-              <h3 className="text-3xl font-bold text-gray-800 mb-1">
-                {statsGlobales.total_visites_historique?.toLocaleString() || 0}
-              </h3>
-              <p className="text-gray-600">Total visites (tout temps)</p>
-              <p className="text-xs text-gray-500 mt-2">
-                Depuis le début
-              </p>
-            </div>
+        {filtreP && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2 text-sm text-blue-700">
+            Affichage filtré pour : <strong>{filtreP}</strong> — {total} compte{total > 1 ? 's' : ''}
           </div>
+        )}
 
-          {/* Graphique des visites */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-6">
-              Évolution des visites ({periode} derniers jours)
-            </h3>
-            <div className="space-y-2">
-              {statsQuotidiennes.slice(0, 15).reverse().map((stat, index) => {
-                const maxVisites = Math.max(...statsQuotidiennes.map(s => s.total_visites));
-                const pourcentage = (stat.total_visites / maxVisites) * 100;
-                
-                return (
-                  <div key={index} className="flex items-center gap-4">
-                    <div className="w-24 text-sm text-gray-600">
-                      {new Date(stat.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                    </div>
-                    <div className="flex-1 bg-gray-100 rounded-full h-8 relative">
-                      <div 
-                        className="bg-gradient-to-r from-primary to-primary-dark h-8 rounded-full flex items-center justify-end px-3"
-                        style={{ width: `${pourcentage}%` }}
-                      >
-                        <span className="text-white text-xs font-bold">
-                          {stat.total_visites}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="w-20 text-sm text-gray-600 text-right">
-                      {stat.visiteurs_uniques} uniques
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        {/* ── Ligne 1 : KPIs principaux ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard label="Total sociétés"    value={total}       icon="🏢" bgIcon="bg-blue-100"   textColor="text-blue-700" />
+          <KpiCard label="Comptes actifs"    value={actifs}      icon="✅" bgIcon="bg-green-100"  textColor="text-green-700" />
+          <KpiCard label="En attente"        value={enAttente}   icon="⏳" bgIcon="bg-yellow-100" textColor="text-yellow-700" />
+          <KpiCard label="Badge vérifié"     value={badgeVerifie} icon="🏅" bgIcon="bg-purple-100" textColor="text-purple-700" />
         </div>
-      )}
 
-      {/* ONGLET PAGES */}
-      {onglet === 'pages' && (
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="px-6 py-4 bg-gray-50 border-b">
-            <h3 className="text-lg font-bold text-gray-800">Pages les plus visitées</h3>
-          </div>
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">#</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Page</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Vues</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {pagesPopulaires.map((page, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-gray-600">{index + 1}</td>
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-gray-800">{page.page_titre || page.page_url}</p>
-                    <p className="text-xs text-gray-500">{page.page_url}</p>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-bold">
-                      {page.total_vues}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {pagesPopulaires.length === 0 && (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4">📊</div>
-              <p className="text-gray-600">Aucune donnée pour le moment</p>
-            </div>
-          )}
+        {/* ── Ligne 2 : KPIs secondaires ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard label="Avec structure"        value={avecStructure}      icon="🔗" bgIcon="bg-teal-100"   textColor="text-teal-700" />
+          <KpiCard label="Suspendus"             value={suspendus}          icon="🚫" bgIcon="bg-red-100"    textColor="text-red-700" />
+          <KpiCard label="Dem. suppression"      value={demandesSuppression} icon="🗑️" bgIcon="bg-orange-100" textColor="text-orange-700" />
+          <KpiCard label="Sans structure"        value={sansStructure}      icon="❓" bgIcon="bg-gray-100"   textColor="text-gray-600" />
         </div>
-      )}
 
-      {/* ONGLET ÉLÉMENTS POPULAIRES */}
-      {onglet === 'elements' && (
+        {/* ── Ligne 3 : Statuts + Abonnements ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Structures populaires */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="px-6 py-4 bg-blue-50 border-b">
-              <h3 className="text-lg font-bold text-blue-900">🏪 Structures les plus consultées</h3>
-            </div>
-            <div className="p-4 space-y-3">
-              {structuresPopulaires.map((structure, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {index + 1}
+
+          {/* Répartition par statut */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-base font-bold text-gray-800 mb-5">Répartition par statut</h2>
+            {total === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">Aucune donnée</p>
+            ) : (
+              <div className="space-y-4">
+                {parStatut.map(s => (
+                  <div key={s.label}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium text-gray-700">{s.label}</span>
+                      <span className="font-bold text-gray-800">{s.count}</span>
                     </div>
-                    <div>
-                      <p className="font-semibold text-gray-800">{structure.element_nom}</p>
-                      <p className="text-xs text-gray-500">
-                        Semaine: {structure.vues_semaine} | Mois: {structure.vues_mois}
-                      </p>
+                    <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                      <div
+                        className={`${s.color} h-3 rounded-full transition-all duration-500`}
+                        style={{ width: `${(s.count / maxStatut) * 100}%` }}
+                      />
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-bold text-sm">
-                    {structure.vues_total}
-                  </span>
-                </div>
-              ))}
-
-              {structuresPopulaires.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  Aucune donnée
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Produits populaires */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="px-6 py-4 bg-purple-50 border-b">
-              <h3 className="text-lg font-bold text-purple-900">📦 Produits les plus consultés</h3>
-            </div>
-            <div className="p-4 space-y-3">
-              {produitsPopulaires.map((produit, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {index + 1}
+          {/* Répartition par abonnement */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-base font-bold text-gray-800 mb-5">Répartition par abonnement</h2>
+            {total === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">Aucune donnée</p>
+            ) : (
+              <div className="space-y-4">
+                {parAbonnement.map(a => (
+                  <div key={a.label}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium text-gray-700">{a.label}</span>
+                      <span className="font-bold text-gray-800">{a.count}</span>
                     </div>
-                    <div>
-                      <p className="font-semibold text-gray-800">{produit.element_nom}</p>
-                      <p className="text-xs text-gray-500">
-                        Semaine: {produit.vues_semaine} | Mois: {produit.vues_mois}
-                      </p>
+                    <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                      <div
+                        className={`${a.color} h-3 rounded-full transition-all duration-500`}
+                        style={{ width: `${(a.count / maxAbo) * 100}%` }}
+                      />
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-bold text-sm">
-                    {produit.vues_total}
-                  </span>
-                </div>
-              ))}
-
-              {produitsPopulaires.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  Aucune donnée
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      {/* Info */}
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-blue-900 mb-3">ℹ️ À propos des statistiques</h3>
-        <ul className="text-sm text-blue-800 space-y-2">
-          <li>• Les statistiques sont mises à jour en temps réel</li>
-          <li>• Les visiteurs uniques sont comptés par session (8h)</li>
-          <li>• Les stats hebdomadaires se réinitialisent chaque lundi</li>
-          <li>• Les stats mensuelles se réinitialisent le 1er de chaque mois</li>
-        </ul>
+        {/* ── Ligne 4 : Inscriptions par mois ── */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-base font-bold text-gray-800 mb-5">Inscriptions (6 derniers mois)</h2>
+          <div className="flex items-end gap-3 h-40">
+            {moisTemplate.map(m => {
+              const height = maxMois > 0 ? Math.max((m.count / maxMois) * 100, m.count > 0 ? 6 : 0) : 0;
+              return (
+                <div key={m.label} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-xs font-bold text-gray-700">{m.count > 0 ? m.count : ''}</span>
+                  <div className="w-full bg-gray-100 rounded-t overflow-hidden relative" style={{ height: '90px' }}>
+                    <div
+                      className="bg-primary w-full rounded-t transition-all duration-500 absolute bottom-0"
+                      style={{ height: `${height}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-500 text-center leading-tight">{m.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Ligne 5 : Par pays + Par ville ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* Répartition par pays — toujours sur l'ensemble */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-base font-bold text-gray-800 mb-1">Répartition par pays</h2>
+            <p className="text-xs text-gray-400 mb-4">Sur l'ensemble des comptes</p>
+            {parPays.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">Aucune donnée</p>
+            ) : (
+              <div className="space-y-3">
+                {parPays.map(p => (
+                  <BarRow key={p.nom} label={p.nom} count={p.count} maxCount={maxPays} color="bg-blue-500" />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Top 10 villes — selon le filtre pays */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-base font-bold text-gray-800 mb-1">Top 10 villes</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              {filtreP ? `Filtré : ${filtreP}` : 'Tous les pays'}
+            </p>
+            {parVille.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">Aucune donnée</p>
+            ) : (
+              <div className="space-y-3">
+                {parVille.map(v => (
+                  <BarRow key={v.nom} label={v.nom} count={v.count} maxCount={maxVille} color="bg-teal-500" />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
     </AdminLayout>
   );

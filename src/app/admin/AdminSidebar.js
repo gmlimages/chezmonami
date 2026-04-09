@@ -1,58 +1,11 @@
-// src/components/admin/AdminSidebar.js
+// src/app/admin/AdminSidebar.js
+// Utilisé par admin/dashboard/page.js (page sans AdminLayout)
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import AdminSidebarContent from './AdminSidebarContent';
 
 export default function AdminSidebar() {
-  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
-
-  const menuItems = [
-    { 
-      href: '/admin/dashboard', 
-      label: 'Dashboard', 
-      icon: '📊',
-      description: 'Vue d\'ensemble'
-    },
-    { 
-      href: '/admin/commandes', 
-      label: 'Commandes', 
-      icon: '🛒',
-      description: 'Gestion commandes'
-    },
-    { 
-      href: '/admin/promotions', 
-      label: 'Promotions', 
-      icon: '🔥',
-      description: 'Offres spéciales'
-    },
-    
-    { 
-      href: '/admin/chambres',    
-      label: 'Chambres', 
-      icon: '🛏️',
-      description: 'Hôtels & chambres'
-    },
-    { 
-      href: '/admin/mises-en-avant', 
-      label: 'Mises en avant', 
-      icon: '⭐',
-      description: 'Featured items'
-    },
-    { 
-      href: '/admin/structures', 
-      label: 'Structures', 
-      icon: '🏢',
-      description: 'Entreprises'
-    },
-    { 
-      href: '/admin/produits', 
-      label: 'Produits', 
-      icon: '📦',
-      description: 'Catalogue'
-    },
-  ];
 
   return (
     <>
@@ -70,82 +23,24 @@ export default function AdminSidebar() {
           isOpen ? 'w-64' : 'w-0 lg:w-20'
         } overflow-hidden`}
       >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="p-6 border-b border-gray-200">
-            <Link href="/admin/dashboard" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center text-white font-bold text-xl">
-                A
-              </div>
-              {isOpen && (
-                <div>
-                  <h2 className="font-bold text-gray-800 group-hover:text-primary transition">
-                    Admin
-                  </h2>
-                  <p className="text-xs text-gray-500">ChezMonAmi</p>
-                </div>
-              )}
-            </Link>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
-            <div className="space-y-2">
-              {menuItems.map((item) => {
-                const isActive = pathname === item.href;
-                
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition group ${
-                      isActive
-                        ? 'bg-primary text-white shadow-md'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <span className="text-2xl">{item.icon}</span>
-                    {isOpen && (
-                      <div className="flex-1 min-w-0">
-                        <p className={`font-semibold text-sm truncate ${
-                          isActive ? 'text-white' : 'text-gray-800 group-hover:text-primary'
-                        }`}>
-                          {item.label}
-                        </p>
-                        <p className={`text-xs truncate ${
-                          isActive ? 'text-white/80' : 'text-gray-500'
-                        }`}>
-                          {item.description}
-                        </p>
-                      </div>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-200">
-            {/* Bouton Retour Accueil */}
-            <Link
-              href="/"
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition mb-2"
-            >
-              <span className="text-xl">🏠</span>
-              {isOpen && <span className="font-medium text-sm">Retour Accueil</span>}
-            </Link>
-
-            {/* Toggle Sidebar Desktop */}
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="hidden lg:flex items-center justify-center w-full px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition"
-            >
-              <span className="text-xl">{isOpen ? '◀' : '▶'}</span>
-            </button>
-          </div>
-        </div>
+        <AdminSidebarContent
+          isOpen={isOpen}
+          admin={null}
+          tempsRestant={null}
+          formatTemps={null}
+          onLogout={null}
+        />
       </aside>
+
+      {/* Toggle Desktop */}
+      <div className={`fixed bottom-6 z-40 hidden lg:flex transition-all duration-300 ${isOpen ? 'left-[232px]' : 'left-[56px]'}`}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="bg-white border border-gray-200 shadow-md rounded-full w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition"
+        >
+          <span className="text-sm">{isOpen ? '◀' : '▶'}</span>
+        </button>
+      </div>
 
       {/* Overlay Mobile */}
       {isOpen && (

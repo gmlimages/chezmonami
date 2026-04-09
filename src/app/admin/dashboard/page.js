@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import AdminSidebarContent from '../AdminSidebarContent';
 import { 
   structuresAPI, 
   produitsAPI, 
@@ -18,6 +19,8 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [admin, setAdmin] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [nbNouveauxMessages, setNbNouveauxMessages] = useState(0);
+  const [nbDocsPending, setNbDocsPending] = useState(0);
   const [stats, setStats] = useState({
     structures: 0,
     produits: 0,
@@ -64,8 +67,23 @@ export default function AdminDashboard() {
     } else {
       setAdmin(JSON.parse(adminAuth));
       chargerStats();
+      chargerBadges();
     }
   }, [router]);
+
+  const chargerBadges = async () => {
+    try {
+      const [notifRes, docsRes] = await Promise.all([
+        fetch('/api/admin/notifications'),
+        supabase.from('documents_entreprises').select('id', { count: 'exact', head: true }).eq('statut', 'en_attente'),
+      ]);
+      if (notifRes.ok) {
+        const d = await notifRes.json();
+        setNbNouveauxMessages(d.nb_messages || 0);
+      }
+      setNbDocsPending(docsRes.count || 0);
+    } catch {}
+  };
 
   const chargerStats = async () => {
     try {
@@ -249,89 +267,63 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-72' : 'w-20'} bg-white border-r border-gray-200 transition-all duration-300 flex flex-col`}>
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            {sidebarOpen ? (
-              <Link href="/" className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-xl">🏪</span>
-                </div>
-                <div>
-                  <div className="font-bold text-gray-800">Chez Mon Ami</div>
-                  <div className="text-xs text-primary font-semibold">Admin Panel</div>
-                </div>
-              </Link>
-            ) : (
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center shadow-lg mx-auto">
-                <span className="text-xl">🏪</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-          {navigationItems.map((section, idx) => (
-            <div key={idx}>
-              {sidebarOpen && (
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3">
-                  {section.section}
-                </div>
-              )}
-              <div className="space-y-1">
-                {section.items.map((item, itemIdx) => (
-                  <Link
-                    key={itemIdx}
-                    href={item.href}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition group"
-                  >
-                    <span className="text-xl">{item.icon}</span>
-                    {sidebarOpen && (
-                      <>
-                        <span className="flex-1 font-medium text-gray-700 group-hover:text-gray-900">
-                          {item.nom}
-                        </span>
-                        {item.count > 0 && (
-                          <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
-                            {item.count}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="w-full px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition flex items-center justify-center gap-2"
-          >
-            <span>{sidebarOpen ? '◀' : '▶'}</span>
-            {sidebarOpen && <span className="text-sm font-medium">Réduire</span>}
-          </button>
-        </div>
+      <aside
+        className={`fixed top-0 left-0 h-screen lg:top-20 lg:h-[calc(100vh-5rem)] bg-white border-r border-gray-200 shadow-xl transition-all duration-300 z-40 ${
+          sidebarOpen ? 'w-64' : 'w-0 lg:w-20'
+        } overflow-hidden`}
+      >
+        <AdminSidebarContent
+          isOpen={sidebarOpen}
+          admin={admin}
+          tempsRestant={null}
+          formatTemps={null}
+          onLogout={handleLogout}
+          nbNouveauxMessages={nbNouveauxMessages}
+        />
       </aside>
 
+      {/* Toggle Desktop */}
+      <div className={`fixed bottom-6 z-40 hidden lg:flex transition-all duration-300 ${sidebarOpen ? 'left-[232px]' : 'left-[56px]'}`}>
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="bg-white border border-gray-200 shadow-md rounded-full w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition"
+        >
+          <span className="text-sm">{sidebarOpen ? '◀' : '▶'}</span>
+        </button>
+      </div>
+
+      {/* Overlay Mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-          <div className="px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800">
-                  👋 Bienvenue, {admin.nom} !
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">
-                  {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
+        <header className="bg-white border-b border-gray-200 sticky top-20 z-20">
+          <div className="px-4 lg:px-8 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="lg:hidden bg-primary text-white p-2 rounded-lg shadow flex-shrink-0"
+                >
+                  {sidebarOpen ? '✕' : '☰'}
+                </button>
+                <div>
+                  <h1 className="text-lg lg:text-2xl font-bold text-gray-800">
+                    👋 Bienvenue, {admin.nom} !
+                  </h1>
+                  <p className="text-xs lg:text-sm text-gray-500 mt-0.5 hidden sm:block">
+                    {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 flex-shrink-0">
                 <div className="text-right hidden md:block">
                   <div className="text-sm font-medium text-gray-800">{admin.nom}</div>
                   <div className="text-xs text-gray-500">
@@ -340,10 +332,10 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition font-medium text-sm flex items-center gap-2"
+                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition font-medium text-sm flex items-center gap-2"
                 >
                   <span>🚪</span>
-                  <span>Déconnexion</span>
+                  <span className="hidden sm:inline">Déconnexion</span>
                 </button>
               </div>
             </div>
@@ -358,6 +350,36 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <>
+              {/* Alertes messages / documents en attente */}
+              {(nbNouveauxMessages > 0 || nbDocsPending > 0) && (
+                <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                  {nbNouveauxMessages > 0 && (
+                    <Link href="/admin/messages" className="flex-1 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 hover:bg-blue-100 transition">
+                      <span className="text-2xl">💬</span>
+                      <div>
+                        <p className="font-semibold text-blue-800 text-sm">
+                          {nbNouveauxMessages} nouveau{nbNouveauxMessages > 1 ? 'x' : ''} message{nbNouveauxMessages > 1 ? 's' : ''}
+                        </p>
+                        <p className="text-xs text-blue-600">En attente de réponse</p>
+                      </div>
+                      <span className="ml-auto text-blue-500 text-lg">→</span>
+                    </Link>
+                  )}
+                  {nbDocsPending > 0 && (
+                    <Link href="/admin/comptes-entreprises" className="flex-1 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 hover:bg-amber-100 transition">
+                      <span className="text-2xl">📄</span>
+                      <div>
+                        <p className="font-semibold text-amber-800 text-sm">
+                          {nbDocsPending} document{nbDocsPending > 1 ? 's' : ''} à valider
+                        </p>
+                        <p className="text-xs text-amber-600">En attente de validation</p>
+                      </div>
+                      <span className="ml-auto text-amber-500 text-lg">→</span>
+                    </Link>
+                  )}
+                </div>
+              )}
+
               {/* Stats Cards principales */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">

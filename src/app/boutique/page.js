@@ -27,6 +27,7 @@ export default function BoutiquePage() {
   const [categorieFiltre, setCategorieFiltre] = useState('toutes');
   const [recherche, setRecherche] = useState('');
   const [pageActuelle, setPageActuelle] = useState(1);
+  const [tri, setTri] = useState('populaires');
   const [showModalPays, setShowModalPays] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -83,14 +84,7 @@ export default function BoutiquePage() {
         chargerProduitsPromo()
       ]);
 
-      const produitsTriés = produitsData.sort((a, b) => {
-        if (Math.abs((a.vues_total || 0) - (b.vues_total || 0)) > 10) {
-          return (b.vues_total || 0) - (a.vues_total || 0);
-        }
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
-
-      setProduits(produitsTriés);
+      setProduits(produitsData);
       setCategories(categoriesData);
       setPays(paysData);
     } catch (error) {
@@ -130,14 +124,23 @@ export default function BoutiquePage() {
     return matchPays && matchVille && matchCategorie && matchRecherche;
   });
 
-  const totalPages = Math.ceil(produitsFiltres.length / PRODUITS_PAR_PAGE);
+  const produitsTriés = [...produitsFiltres].sort((a, b) => {
+    if (tri === 'populaires') {
+      if (Math.abs((a.vues_total || 0) - (b.vues_total || 0)) > 10) {
+        return (b.vues_total || 0) - (a.vues_total || 0);
+      }
+    }
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  const totalPages = Math.ceil(produitsTriés.length / PRODUITS_PAR_PAGE);
   const indexDebut = (pageActuelle - 1) * PRODUITS_PAR_PAGE;
   const indexFin = indexDebut + PRODUITS_PAR_PAGE;
-  const produitsPage = produitsFiltres.slice(indexDebut, indexFin);
+  const produitsPage = produitsTriés.slice(indexDebut, indexFin);
 
   useEffect(() => {
     setPageActuelle(1);
-  }, [categorieFiltre, paysFiltre, villeFiltre, recherche]);
+  }, [categorieFiltre, paysFiltre, villeFiltre, recherche, tri]);
 
   const scrollCategories = (direction) => {
     if (categoriesScrollRef.current) {
@@ -266,7 +269,7 @@ export default function BoutiquePage() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <button
               onClick={() => setShowModalPays(true)}
               className="flex items-center gap-2 text-accent hover:text-orange-600 font-medium transition"
@@ -276,9 +279,25 @@ export default function BoutiquePage() {
               </svg>
               Changer de pays
             </button>
-            <p className="text-sm text-gray-600">
-              <span className="font-semibold text-accent">{produitsFiltres.length}</span> produit{produitsFiltres.length > 1 ? 's' : ''}
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold text-accent">{produitsFiltres.length}</span> produit{produitsFiltres.length > 1 ? 's' : ''}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTri('recentes')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${tri === 'recentes' ? 'bg-accent text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  Récents
+                </button>
+                <button
+                  onClick={() => setTri('populaires')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${tri === 'populaires' ? 'bg-accent text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  Populaires
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

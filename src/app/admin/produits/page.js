@@ -8,6 +8,8 @@ import { produitsAPI, structuresAPI, paysAPI, villesAPI, categoriesProduitsAPI }
 export default function AdminProduits() {
   const [mode, setMode] = useState('liste');
   const [produitEnCours, setProduitEnCours] = useState(null);
+  const PAR_PAGE = 20;
+  const [pageCourante, setPageCourante] = useState(1);
   const [produits, setProduits] = useState([]);
   const [structures, setStructures] = useState([]);
   const [categoriesProduits, setCategoriesProduits] = useState([]);
@@ -404,6 +406,9 @@ export default function AdminProduits() {
     );
   }
 
+  const nbPages = Math.ceil(produitsFiltres.length / PAR_PAGE);
+  const produitsPagines = produitsFiltres.slice((pageCourante - 1) * PAR_PAGE, pageCourante * PAR_PAGE);
+
   return (
     <AdminLayout titre="Gestion des Produits" sousTitre={`${produits.length} produits enregistrés`}>
       <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -423,59 +428,125 @@ export default function AdminProduits() {
             placeholder="Rechercher un produit..."
             className="input-field pl-10"
             value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
+            onChange={(e) => { setRecherche(e.target.value); setPageCourante(1); }}
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {produitsFiltres.map((produit) => (
-          <div key={produit.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
-            {produit.images?.[0] && (
-              <img src={produit.images[0]} alt={produit.nom} className="w-full h-48 object-cover" />
-            )}
-            <div className="p-4">
-              <h3 className="font-bold text-lg mb-2 line-clamp-2">{produit.nom}</h3>
-              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{produit.description}</p>
-              
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                <span>📍</span>
-                <span>{produit.ville?.nom}, {produit.pays?.nom}</span>
-              </div>
-
-              {produit.structure && (
-                <div className="text-xs text-primary mb-2">
-                  🏪 {produit.structure.nom}
-                </div>
-              )}
-
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xl font-bold text-accent">{produit.prix?.toLocaleString()} {produit.pays?.devise}</p>
-                <span className="text-sm text-gray-500">Stock: {produit.stock}</span>
-              </div>
-
-              <div className="flex gap-2">
-                <button onClick={() => modifierProduit(produit)} className="flex-1 btn-primary py-2 text-sm">
-                  Modifier
-                </button>
-                <button onClick={() => supprimerProduit(produit.id)} className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          
-        ))}
-      </div>
-
-      {produitsFiltres.length === 0 && (
+      {produitsFiltres.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl shadow">
           <div className="text-6xl mb-4">📦</div>
           <p className="text-xl text-gray-600 mb-2">Aucun produit trouvé</p>
           <p className="text-gray-500">Essayez avec d'autres termes de recherche</p>
         </div>
+      ) : (
+        <>
+          <div className="bg-white rounded-xl shadow overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Produit</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Catégorie</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Localisation</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden lg:table-cell">Prix / Stock</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {produitsPagines.map((produit) => (
+                  <tr key={produit.id} className="hover:bg-gray-50 transition">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {produit.images?.[0] ? (
+                          <img src={produit.images[0]} alt={produit.nom} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-lg">📦</span>
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-gray-900 line-clamp-1">{produit.nom}</p>
+                          {produit.structure && (
+                            <p className="text-xs text-primary">🏪 {produit.structure.nom}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <span className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-700">
+                        {produit.categorie || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">
+                      📍 {produit.ville?.nom}, {produit.pays?.nom}
+                    </td>
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      <p className="font-bold text-accent">{produit.prix?.toLocaleString()} {produit.pays?.devise}</p>
+                      <p className="text-xs text-gray-500">Stock: {produit.stock}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => modifierProduit(produit)}
+                          className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs hover:bg-primary-dark transition"
+                        >
+                          Modifier
+                        </button>
+                        <button
+                          onClick={() => supprimerProduit(produit.id)}
+                          className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 transition"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {nbPages > 1 && (
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-sm text-gray-600">
+                {(pageCourante - 1) * PAR_PAGE + 1}–{Math.min(pageCourante * PAR_PAGE, produitsFiltres.length)} sur {produitsFiltres.length}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPageCourante(p => Math.max(1, p - 1))}
+                  disabled={pageCourante === 1}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-white shadow disabled:opacity-40 hover:bg-gray-50"
+                >
+                  ← Précédent
+                </button>
+                {[...Array(nbPages)].map((_, i) => {
+                  const n = i + 1;
+                  if (n === 1 || n === nbPages || (n >= pageCourante - 1 && n <= pageCourante + 1)) {
+                    return (
+                      <button
+                        key={n}
+                        onClick={() => setPageCourante(n)}
+                        className={`w-9 h-9 rounded-lg text-sm font-semibold transition ${pageCourante === n ? 'bg-primary text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                      >
+                        {n}
+                      </button>
+                    );
+                  } else if (n === pageCourante - 2 || n === pageCourante + 2) {
+                    return <span key={n} className="px-1 text-gray-400 self-center">…</span>;
+                  }
+                  return null;
+                })}
+                <button
+                  onClick={() => setPageCourante(p => Math.min(nbPages, p + 1))}
+                  disabled={pageCourante === nbPages}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-white shadow disabled:opacity-40 hover:bg-gray-50"
+                >
+                  Suivant →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </AdminLayout>
   );

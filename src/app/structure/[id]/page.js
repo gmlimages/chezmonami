@@ -27,6 +27,18 @@ export default function StructureDetail() {
   const [ongletActif, setOngletActif] = useState('apropos');
   const [loading, setLoading] = useState(true);
   const [refreshCommentaires, setRefreshCommentaires] = useState(0);
+
+  // Auth entreprise — accès réservé aux comptes connectés
+  const [compteConnecte, setCompteConnecte] = useState(null);
+  const [authVerifie, setAuthVerifie] = useState(false);
+
+  useEffect(() => {
+    const auth = localStorage.getItem('entrepriseAuth');
+    if (auth) {
+      try { setCompteConnecte(JSON.parse(auth).compte); } catch {}
+    }
+    setAuthVerifie(true);
+  }, []);
   
   // Galerie
   const [galerieOuverte, setGalerieOuverte] = useState(false);
@@ -41,6 +53,40 @@ export default function StructureDetail() {
     telephone: '',
     message: ''
   });
+
+  // Modal "Demander à échanger"
+  const [showModalEchange, setShowModalEchange] = useState(false);
+  const [formEchange, setFormEchange] = useState({ nom: '', email: '', telephone: '', message: '' });
+  const [envoyantEchange, setEnvoyantEchange] = useState(false);
+  const [echangeEnvoye, setEchangeEnvoye] = useState(false);
+  const [echangeErreur, setEchangeErreur] = useState('');
+
+  const envoyerDemandeEchange = async (e) => {
+    e.preventDefault();
+    setEnvoyantEchange(true);
+    setEchangeErreur('');
+    try {
+      const res = await fetch('/api/public/demandes-contact-structure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          structure_id: params.id,
+          nom_demandeur: formEchange.nom,
+          email_demandeur: formEchange.email,
+          telephone_demandeur: formEchange.telephone,
+          message_demandeur: formEchange.message,
+          compte_demandeur_id: compteConnecte?.id || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEchangeEnvoye(true);
+      } else {
+        setEchangeErreur(data.error || 'Une erreur est survenue');
+      }
+    } catch { setEchangeErreur('Erreur réseau'); }
+    setEnvoyantEchange(false);
+  };
 
   // Helpers CTA
   const getTexteCTA = (type) => {
@@ -226,6 +272,85 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
   setIndexImageChambre(indexImage);
   setModalChambreOuverte(true);
 };
+
+  // Gate 1 : non connecté
+  if (authVerifie && !compteConnecte) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-4xl mx-auto mb-5">🔒</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">Accès réservé</h2>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            La fiche détaillée des structures est réservée aux entreprises ayant un abonnement actif sur ChezMonAmi.
+          </p>
+          <div className="space-y-3">
+            <Link href="/entreprise/connexion" className="btn-primary w-full block py-3 font-semibold text-center rounded-xl">
+              🔑 Se connecter à mon espace
+            </Link>
+            <Link href="/entreprise/inscription" className="block w-full py-3 px-4 border-2 border-primary text-primary rounded-xl font-semibold hover:bg-primary/5 transition text-center">
+              🏢 Créer un compte entreprise
+            </Link>
+            <Link href="/structures" className="block text-sm text-gray-500 hover:text-gray-700 mt-2 transition">
+              ← Retour à la liste des structures
+            </Link>
+          </div>
+          <div className="mt-6 p-3 bg-blue-50 rounded-xl text-left">
+            <p className="text-xs font-semibold text-blue-700 mb-1">✨ Avec un abonnement vous pouvez :</p>
+            <ul className="text-xs text-blue-600 space-y-1">
+              <li>• Accéder aux fiches détaillées de toutes les structures</li>
+              <li>• Répondre aux appels d&apos;offres</li>
+              <li>• Échanger avec d&apos;autres entreprises</li>
+              <li>• Gérer votre propre fiche entreprise</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Gate 2 : connecté mais abonnement gratuit ou expiré
+  const typePayant = ['mensuel', 'trimestriel', 'semestriel', 'annuel'];
+  const estPayant = typePayant.includes(compteConnecte?.abonnement);
+  const dateFin = compteConnecte?.date_fin_abonnement ? new Date(compteConnecte.date_fin_abonnement) : null;
+  const abonnementValide = estPayant && (!dateFin || dateFin > new Date());
+  const abonnementExpire = estPayant && dateFin && dateFin <= new Date();
+
+  if (authVerifie && compteConnecte && !abonnementValide) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-5">
+            {abonnementExpire ? '⏰' : '💳'}
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            {abonnementExpire ? 'Abonnement expiré' : 'Abonnement requis'}
+          </h2>
+          <p className="text-gray-600 mb-2 leading-relaxed">
+            {abonnementExpire
+              ? `Votre abonnement a expiré le ${dateFin.toLocaleDateString('fr-FR')}. Renouvelez-le pour accéder à cette fiche.`
+              : 'Votre compte est en mode gratuit. Souscrivez à un abonnement pour accéder aux fiches détaillées.'}
+          </p>
+          <div className="space-y-3 mt-6">
+            <Link
+              href="/entreprise/dashboard/messages"
+              className="btn-primary w-full block py-3 font-semibold text-center rounded-xl"
+            >
+              📩 Contacter l&apos;administration
+            </Link>
+            <Link
+              href="/entreprise/dashboard"
+              className="block w-full py-3 px-4 border-2 border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition text-center"
+            >
+              ← Mon tableau de bord
+            </Link>
+            <Link href="/structures" className="block text-sm text-gray-500 hover:text-gray-700 transition">
+              ← Retour à la liste
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -967,6 +1092,25 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
               </div>
 
               {/* CTAs */}
+              {/* ── Bouton "Demander à échanger" — visible par tous ── */}
+              <div className="mt-6 pt-6 border-t">
+                <button
+                  onClick={() => { setShowModalEchange(true); setEchangeEnvoye(false); setEchangeErreur('');
+                    setFormEchange({
+                      nom: compteConnecte?.nom_contact || '',
+                      email: compteConnecte?.email || '',
+                      telephone: '',
+                      message: '',
+                    });
+                  }}
+                  className="w-full flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl hover:opacity-90 transition font-semibold shadow-sm"
+                >
+                  <span className="text-xl">🤝</span>
+                  <span>Demander à échanger avec cette société</span>
+                </button>
+                <p className="text-xs text-gray-400 text-center mt-2">Votre demande sera vérifiée par l'administration</p>
+              </div>
+
               {(structure.cta_principal || structure.cta_secondaire) && structure.canaux_contact && structure.canaux_contact.length > 0 && (
                 <div className="mt-6 space-y-3 pt-6 border-t">
                   <h4 className="font-bold text-gray-800 mb-4">Contactez-nous</h4>
@@ -1282,6 +1426,108 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                   </a>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🤝 MODAL DEMANDER À ÉCHANGER */}
+      {showModalEchange && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
+              <div>
+                <h3 className="font-bold text-gray-800 text-base">🤝 Demander à échanger</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{structure?.nom}</p>
+              </div>
+              <button
+                onClick={() => setShowModalEchange(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200"
+              >✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5">
+              {echangeEnvoye ? (
+                <div className="text-center py-8 space-y-3">
+                  <div className="text-5xl">✅</div>
+                  <p className="font-bold text-gray-800">Demande envoyée !</p>
+                  <p className="text-sm text-gray-500">
+                    L'administration examinera votre demande et vous contactera par email.
+                  </p>
+                  <button
+                    onClick={() => setShowModalEchange(false)}
+                    className="mt-4 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={envoyerDemandeEchange} className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
+                    ℹ️ Votre demande sera vérifiée par l'administration avant d'être transmise à la société.
+                  </div>
+
+                  {echangeErreur && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{echangeErreur}</div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Votre nom <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        required
+                        value={formEchange.nom}
+                        onChange={e => setFormEchange(f => ({ ...f, nom: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+                      <input
+                        type="email"
+                        required
+                        value={formEchange.email}
+                        onChange={e => setFormEchange(f => ({ ...f, email: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone <span className="text-gray-400 font-normal">(optionnel)</span></label>
+                    <input
+                      type="tel"
+                      value={formEchange.telephone}
+                      onChange={e => setFormEchange(f => ({ ...f, telephone: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Message <span className="text-gray-400 font-normal">(optionnel)</span></label>
+                    <textarea
+                      rows={3}
+                      value={formEchange.message}
+                      onChange={e => setFormEchange(f => ({ ...f, message: e.target.value }))}
+                      placeholder="Présentez-vous et expliquez l'objet de votre démarche..."
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={envoyantEchange}
+                    className="w-full py-3 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-primary/90 transition disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {envoyantEchange ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Envoi…</>
+                    ) : (
+                      <>🤝 Envoyer ma demande</>
+                    )}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>

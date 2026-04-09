@@ -35,6 +35,10 @@ export const structuresAPI = {
       query = query.or(`nom.ilike.%${filters.recherche}%,description.ilike.%${filters.recherche}%`);
     }
 
+    if (filters.publieSeulement) {
+      query = query.eq('statut', 'publie');
+    }
+
     const { data, error } = await query;
 
     if (error) throw error;
@@ -103,6 +107,7 @@ export const structuresAPI = {
         pays:pays(id, nom, devise),
         ville:villes(id, nom)
       `)
+      .eq('statut', 'publie')
       .order('created_at', { ascending: false })
       .limit(limit);
 

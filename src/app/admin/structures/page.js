@@ -63,6 +63,8 @@ const CERTIFICATS_DISPONIBLES = [
 // 🆕 JOURS DE LA SEMAINE
 const JOURS_SEMAINE = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
+const PAR_PAGE = 20;
+
 export default function AdminStructures() {
   const [mode, setMode] = useState('liste');
   const [structureEnCours, setStructureEnCours] = useState(null);
@@ -72,6 +74,8 @@ export default function AdminStructures() {
   const [villes, setVilles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState('');
+  const [filtreStatut, setFiltreStatut] = useState('tous');
+  const [pageCourante, setPageCourante] = useState(1);
   
   const [formData, setFormData] = useState({
     nom: '',
@@ -129,12 +133,12 @@ export default function AdminStructures() {
   const chargerDonnees = async () => {
     try {
       setLoading(true);
-      const [structuresData, categoriesData, paysData] = await Promise.all([
-        structuresAPI.getAll(),
+      const [structuresRes, categoriesData, paysData] = await Promise.all([
+        fetch('/api/admin/structures').then(r => r.json()),
         categoriesAPI.getAll(),
         paysAPI.getAll()
       ]);
-      setStructures(structuresData);
+      setStructures(structuresRes.structures || []);
       setCategories(categoriesData);
       setPays(paysData);
     } catch (error) {
@@ -275,7 +279,8 @@ export default function AdminStructures() {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette structure ?')) return;
 
     try {
-      await structuresAPI.delete(id);
+      const res = await fetch(`/api/admin/structures/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error((await res.json()).error);
       alert('✅ Structure supprimée avec succès !');
       chargerDonnees();
     } catch (error) {
@@ -328,16 +333,29 @@ export default function AdminStructures() {
       certificats: formData.certificats || [],
       youtube_video_url: formData.youtube_video_url || null,
       youtube_video_url_2: formData.youtube_video_url_2 || null,
+      // Les structures créées par l'admin sont publiées directement
+      statut: structureEnCours ? structureEnCours.statut : 'publie',
     };
 
+    let res;
     if (structureEnCours) {
-      await structuresAPI.update(structureEnCours.id, dataToSave);
+      res = await fetch(`/api/admin/structures/${structureEnCours.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSave),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
       alert('✅ Structure modifiée avec succès !');
     } else {
-      await structuresAPI.create(dataToSave);
+      res = await fetch('/api/admin/structures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSave),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
       alert('✅ Structure ajoutée avec succès !');
     }
-    
+
     chargerDonnees();
     setMode('liste');
   } catch (error) {
@@ -346,11 +364,32 @@ export default function AdminStructures() {
   }
 };
 
-  const structuresFiltrees = structures.filter(s => 
-    s.nom.toLowerCase().includes(recherche.toLowerCase()) ||
-    s.ville?.nom.toLowerCase().includes(recherche.toLowerCase()) ||
-    s.pays?.nom.toLowerCase().includes(recherche.toLowerCase())
-  );
+  const validerStructure = async (id) => {
+    try {
+      const res = await fetch(`/api/admin/structures/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut: 'publie' }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      chargerDonnees();
+    } catch (error) {
+      console.error('Erreur validation:', error);
+      alert('❌ Erreur lors de la validation');
+    }
+  };
+
+  const structuresFiltrees = structures.filter(s => {
+    const matchRecherche = s.nom.toLowerCase().includes(recherche.toLowerCase()) ||
+      s.ville?.nom?.toLowerCase().includes(recherche.toLowerCase()) ||
+      s.pays?.nom?.toLowerCase().includes(recherche.toLowerCase());
+    const matchStatut = filtreStatut === 'tous' || s.statut === filtreStatut;
+    return matchRecherche && matchStatut;
+  });
+
+  const nbPages = Math.ceil(structuresFiltrees.length / PAR_PAGE);
+  const structuresPaginees = structuresFiltrees.slice((pageCourante - 1) * PAR_PAGE, pageCourante * PAR_PAGE);
+  const nbEnAttente = structures.filter(s => s.statut === 'soumis').length;
 
   if (loading) {
     return (
@@ -966,25 +1005,49 @@ export default function AdminStructures() {
   // MODE LISTE
   return (
     <AdminLayout titre="Gestion des Structures" sousTitre={`${structures.length} structures enregistrées`}>
-      <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <button onClick={ajouterStructure} className="btn-primary flex items-center gap-2">
+
+      {/* Bandeau alerte validations en attente */}
+      {nbEnAttente > 0 && (
+        <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-xl flex items-center gap-3 cursor-pointer" onClick={() => { setFiltreStatut('soumis'); setPageCourante(1); }}>
+          <span className="text-2xl">⏳</span>
+          <div>
+            <p className="font-semibold text-orange-800">{nbEnAttente} fiche{nbEnAttente > 1 ? 's' : ''} en attente de validation</p>
+            <p className="text-sm text-orange-700">Cliquez pour filtrer les fiches soumises par des entreprises.</p>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <button onClick={ajouterStructure} className="btn-primary flex items-center gap-2 justify-center">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
           </svg>
           Ajouter une structure
         </button>
 
-        <div className="relative flex-1 max-w-md">
-          <svg className="absolute left-3 top-3 text-gray-400" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Rechercher une structure..."
-            className="input-field pl-10"
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row gap-3 flex-1 sm:max-w-2xl">
+          <div className="relative flex-1">
+            <svg className="absolute left-3 top-3 text-gray-400" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Rechercher une structure..."
+              className="input-field pl-10 w-full"
+              value={recherche}
+              onChange={(e) => { setRecherche(e.target.value); setPageCourante(1); }}
+            />
+          </div>
+          <select
+            className="input-field sm:w-48"
+            value={filtreStatut}
+            onChange={(e) => { setFiltreStatut(e.target.value); setPageCourante(1); }}
+          >
+            <option value="tous">Tous les statuts</option>
+            <option value="publie">✅ Publiées</option>
+            <option value="soumis">⏳ En attente</option>
+            <option value="brouillon">📝 Brouillons</option>
+          </select>
         </div>
       </div>
 
@@ -993,65 +1056,72 @@ export default function AdminStructures() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Structure</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Catégorie</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Localisation</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Contact</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Badges</th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Structure</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 hidden sm:table-cell">Catégorie</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 hidden md:table-cell">Localisation</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 hidden lg:table-cell">Contact</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700">Statut</th>
+                <th className="px-4 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {structuresFiltrees.map((structure) => (
-                <tr key={structure.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
+              {structuresPaginees.map((structure) => (
+                <tr key={structure.id} className={`hover:bg-gray-50 ${structure.statut === 'soumis' ? 'bg-orange-50/40' : ''}`}>
+                  <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
-                      {structure.images?.[0] && (
-                        <img src={structure.images[0]} alt={structure.nom} className="w-12 h-12 rounded object-cover" />
+                      {structure.images?.[0] ? (
+                        <img src={structure.images[0]} alt={structure.nom} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-lg flex-shrink-0">
+                          {structure.categorie?.icon || '🏢'}
+                        </div>
                       )}
-                      <div>
-                        <p className="font-semibold text-gray-800">{structure.nom}</p>
-                        <p className="text-sm text-gray-500">Note: {structure.note || 0}/5</p>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-800 truncate max-w-[150px]">{structure.nom}</p>
+                        <p className="text-xs text-gray-400">⭐ {structure.note || 0}/5</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${structure.categorie?.color}`}>
+                  <td className="px-4 py-4 hidden sm:table-cell">
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold text-white ${structure.categorie?.color || 'bg-gray-400'}`}>
                       {structure.categorie?.icon} {structure.categorie?.nom}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-4 hidden md:table-cell">
                     <p className="text-sm text-gray-800">{structure.ville?.nom}</p>
                     <p className="text-xs text-gray-500">{structure.pays?.nom}</p>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-4 hidden lg:table-cell">
                     <p className="text-sm text-gray-800">{structure.telephone}</p>
-                    <p className="text-xs text-gray-500">{structure.email}</p>
+                    <p className="text-xs text-gray-500 truncate max-w-[140px]">{structure.email}</p>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      {structure.verifie && (
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">✅ Vérifié</span>
-                      )}
-                      {structure.certificats?.length > 0 && (
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                          🏅 {structure.certificats.length} cert.
-                        </span>
-                      )}
-                      {structure.youtube_video_url && (
-                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">🎥 Vidéo</span>
-                      )}
-                    </div>
+                  <td className="px-4 py-4">
+                    {structure.statut === 'publie' ? (
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium whitespace-nowrap">✅ Publiée</span>
+                    ) : structure.statut === 'soumis' ? (
+                      <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full font-medium whitespace-nowrap">⏳ En attente</span>
+                    ) : (
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium whitespace-nowrap">📝 Brouillon</span>
+                    )}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => modifierStructure(structure)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <td className="px-4 py-4">
+                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                      {structure.statut === 'soumis' && (
+                        <button
+                          onClick={() => validerStructure(structure.id)}
+                          className="px-2.5 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition whitespace-nowrap"
+                          title="Valider et publier"
+                        >
+                          ✅ Valider
+                        </button>
+                      )}
+                      <button onClick={() => modifierStructure(structure)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Modifier">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button onClick={() => supprimerStructure(structure.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <button onClick={() => supprimerStructure(structure.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
@@ -1064,11 +1134,44 @@ export default function AdminStructures() {
         </div>
       </div>
 
-      {structuresFiltrees.length === 0 && (
+      {structuresFiltrees.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl shadow mt-6">
           <div className="text-6xl mb-4">🔍</div>
           <p className="text-xl text-gray-600 mb-2">Aucune structure trouvée</p>
           <p className="text-gray-500">Essayez avec d'autres termes de recherche</p>
+        </div>
+      ) : nbPages > 1 && (
+        <div className="mt-6 flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            {((pageCourante - 1) * PAR_PAGE) + 1}–{Math.min(pageCourante * PAR_PAGE, structuresFiltrees.length)} sur {structuresFiltrees.length} structures
+          </p>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setPageCourante(p => Math.max(1, p - 1))}
+              disabled={pageCourante === 1}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ‹
+            </button>
+            {Array.from({ length: nbPages }, (_, i) => i + 1).filter(p => p === 1 || p === nbPages || Math.abs(p - pageCourante) <= 2).map((p, idx, arr) => (
+              <span key={p}>
+                {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-2 py-2 text-gray-400 text-sm">…</span>}
+                <button
+                  onClick={() => setPageCourante(p)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition ${pageCourante === p ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+                >
+                  {p}
+                </button>
+              </span>
+            ))}
+            <button
+              onClick={() => setPageCourante(p => Math.min(nbPages, p + 1))}
+              disabled={pageCourante === nbPages}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ›
+            </button>
+          </div>
         </div>
       )}
     </AdminLayout>
