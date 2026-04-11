@@ -172,13 +172,18 @@ export default function AdminAppelsOffres() {
 
   const changerStatutAppel = async (appelId, nouveauStatut) => {
     if (nouveauStatut === 'supprimer') {
-      if (!confirm('Supprimer définitivement cet appel d\'offres ?')) return;
+      if (!confirm('Supprimer définitivement cet appel d\'offres et tous ses fichiers ?')) return;
     }
     setActionEnCours(appelId + '_statut');
     try {
       if (nouveauStatut === 'supprimer') {
-        const { error } = await supabase.from('appels_offres').delete().eq('id', appelId);
-        if (error) throw error;
+        const adminAuth = localStorage.getItem('adminAuth');
+        const adminToken = adminAuth ? JSON.parse(adminAuth).token || '' : '';
+        const res = await fetch(`/api/admin/appels-offres/${appelId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${adminToken}` },
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
         afficherMessage('Appel d\'offres supprimé.');
         if (appelSelectionne?.id === appelId) retourListe();
       } else {
@@ -193,6 +198,26 @@ export default function AdminAppelsOffres() {
         }
       }
       await chargerDonnees();
+    } catch (err) {
+      afficherMessage('Erreur : ' + err.message, 'erreur');
+    } finally {
+      setActionEnCours(null);
+    }
+  };
+
+  const supprimerReponse = async (reponseId) => {
+    if (!confirm('Supprimer ce dossier et ses fichiers ?')) return;
+    setActionEnCours(reponseId + '_suppr');
+    try {
+      const adminAuth = localStorage.getItem('adminAuth');
+      const adminToken = adminAuth ? JSON.parse(adminAuth).token || '' : '';
+      const res = await fetch(`/api/admin/appels-offres/reponses/${reponseId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      afficherMessage('Dossier supprimé.');
+      setReponses((prev) => prev.filter((r) => r.id !== reponseId));
     } catch (err) {
       afficherMessage('Erreur : ' + err.message, 'erreur');
     } finally {
@@ -652,8 +677,8 @@ export default function AdminAppelsOffres() {
                     </div>
                   )}
 
-                  {/* Boutons de changement de statut */}
-                  <div className="flex flex-wrap gap-2">
+                  {/* Boutons de changement de statut + suppression */}
+                  <div className="flex flex-wrap items-center gap-2">
                     {STATUTS_REPONSE.filter((s) => s.value !== reponse.statut).map((s) => (
                       <button
                         key={s.value}
@@ -664,6 +689,13 @@ export default function AdminAppelsOffres() {
                         Marquer {s.label}
                       </button>
                     ))}
+                    <button
+                      onClick={() => supprimerReponse(reponse.id)}
+                      disabled={actionEnCours === reponse.id + '_suppr'}
+                      className="ml-auto px-3 py-1.5 text-xs rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition disabled:opacity-50 flex items-center gap-1"
+                    >
+                      🗑️ Supprimer le dossier
+                    </button>
                   </div>
                 </div>
               ))}

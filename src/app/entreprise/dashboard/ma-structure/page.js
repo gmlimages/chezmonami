@@ -864,11 +864,9 @@ export default function MaStructurePage() {
             <h3 className="font-bold text-gray-800">Horaires d&apos;ouverture</h3>
             <div className="space-y-3">
               {JOURS.map(jour => (
-                <div key={jour} className="flex items-center gap-3">
-                  <div className="w-24 flex-shrink-0">
-                    <span className="text-sm font-medium text-gray-700 capitalize">{jour}</span>
-                  </div>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
+                <div key={jour} className="grid grid-cols-[5.5rem_5rem_1fr] items-center gap-2 min-w-0">
+                  <span className="text-sm font-medium text-gray-700 capitalize truncate">{jour}</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer flex-shrink-0">
                     <input
                       type="checkbox"
                       checked={form.horaires_detailles?.[jour]?.ouvert || false}
@@ -883,11 +881,11 @@ export default function MaStructurePage() {
                     />
                     <span className="text-xs text-gray-600">Ouvert</span>
                   </label>
-                  {form.horaires_detailles?.[jour]?.ouvert && (
+                  {form.horaires_detailles?.[jour]?.ouvert ? (
                     <input
                       type="text"
                       placeholder="09:00-18:00"
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                      className="min-w-0 w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                       value={form.horaires_detailles?.[jour]?.heures || ''}
                       onChange={e => setForm(f => ({
                         ...f,
@@ -897,8 +895,7 @@ export default function MaStructurePage() {
                         }
                       }))}
                     />
-                  )}
-                  {!form.horaires_detailles?.[jour]?.ouvert && (
+                  ) : (
                     <span className="text-xs text-gray-400 italic">Fermé</span>
                   )}
                 </div>

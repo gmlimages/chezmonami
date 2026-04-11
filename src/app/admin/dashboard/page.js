@@ -302,37 +302,31 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
-        {/* Header */}
+        {/* Header compact */}
         <header className="bg-white border-b border-gray-200 sticky top-20 z-20">
-          <div className="px-4 lg:px-8 py-4">
+          <div className="px-4 lg:px-6 py-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="lg:hidden bg-primary text-white p-2 rounded-lg shadow flex-shrink-0"
+                  className="lg:hidden bg-primary text-white p-1.5 rounded-lg shadow flex-shrink-0"
                 >
                   {sidebarOpen ? '✕' : '☰'}
                 </button>
                 <div>
-                  <h1 className="text-lg lg:text-2xl font-bold text-gray-800">
-                    👋 Bienvenue, {admin.nom} !
-                  </h1>
-                  <p className="text-xs lg:text-sm text-gray-500 mt-0.5 hidden sm:block">
-                    {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  <p className="text-sm font-semibold text-gray-800">👋 {admin.nom}</p>
+                  <p className="text-xs text-gray-400 hidden sm:block">
+                    {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </p>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <div className="text-right hidden md:block">
-                  <div className="text-sm font-medium text-gray-800">{admin.nom}</div>
-                  <div className="text-xs text-gray-500">
-                    {admin.role === 'super_admin' ? 'Super Administrateur' : 'Administrateur'}
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="hidden md:block text-xs text-gray-400">
+                  {admin.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                </span>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition font-medium text-sm flex items-center gap-2"
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition text-xs font-medium flex items-center gap-1.5"
                 >
                   <span>🚪</span>
                   <span className="hidden sm:inline">Déconnexion</span>
