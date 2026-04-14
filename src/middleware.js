@@ -108,7 +108,7 @@ export async function middleware(request) {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval requis par Next.js dev
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      `img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in`,
+      `img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://images.unsplash.com https://plus.unsplash.com https://industries.ma https://*.googleusercontent.com https://*.googleapis.com https://lh3.googleusercontent.com https://*.cloudinary.com https://*.amazonaws.com`,
       `connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://api.resend.com`,
       "frame-ancestors 'self'",
       "base-uri 'self'",

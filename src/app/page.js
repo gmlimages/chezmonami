@@ -323,14 +323,12 @@ export default function Home() {
           </div>
           {/* Bouton Inscription Centré */}
           <div className="text-center my-8">
-            <a 
-              href="https://forms.gle/sr4PmgJ4YjDKP7xm6"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/entreprise/inscription"
               className="inline-block px-8 py-4 bg-white text-primary border-2 border-primary rounded-lg font-bold text-lg hover:bg-primary hover:text-white transition-all shadow-lg"
             >
               ✍️ Inscrivez votre entreprise
-            </a>
+            </Link>
           </div>
         </div>
       </section>
