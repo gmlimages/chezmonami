@@ -30,18 +30,34 @@ function Avatar({ nom, size = 'md' }) {
 /* ─────────────────────────────────────────────
    Sous-composant : panneau de demandes
 ───────────────────────────────────────────── */
-function PanneauDemandes({ demandes, onOuvrirConversation, formatDate: fmt }) {
+function PanneauDemandes({ demandes, onOuvrirConversation, onSupprimerDemande, formatDate: fmt }) {
+  const nbRefusees = (demandes.envoyees || []).filter(d => d.statut === 'refusee').length;
+
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-5">
+
       {/* Envoyées */}
       <div>
-        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Mes demandes envoyées</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mes demandes envoyées</h3>
+          {nbRefusees > 0 && (
+            <button
+              onClick={() => onSupprimerDemande('vider_refusees')}
+              className="text-xs text-red-500 hover:text-red-700 font-medium transition"
+            >
+              🗑️ Vider les refusées ({nbRefusees})
+            </button>
+          )}
+        </div>
+
         {demandes.envoyees.length === 0 ? (
           <p className="text-sm text-gray-400 italic">Aucune demande envoyée</p>
         ) : (
           <div className="space-y-2">
             {demandes.envoyees.map(d => (
-              <div key={d.id} className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-xl">
+              <div key={d.id} className={`flex items-start gap-3 p-3 rounded-xl border ${
+                d.statut === 'refusee' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
+              }`}>
                 <Avatar nom={d.destinataire?.nom_contact} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">
@@ -50,6 +66,11 @@ function PanneauDemandes({ demandes, onOuvrirConversation, formatDate: fmt }) {
                   </p>
                   {d.destinataire?.structures?.nom && (
                     <p className="text-xs text-gray-500 truncate">{d.destinataire.structures.nom}</p>
+                  )}
+                  {d.statut === 'refusee' && (
+                    <p className="text-xs text-red-600 font-medium mt-0.5">
+                      ❌ Demande refusée par l&apos;administration
+                    </p>
                   )}
                   <p className="text-xs text-gray-400 mt-0.5">{fmt(d.created_at)}</p>
                 </div>
@@ -73,6 +94,16 @@ function PanneauDemandes({ demandes, onOuvrirConversation, formatDate: fmt }) {
                   {d.statut === 'refusee' && (
                     <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Refusée</span>
                   )}
+                  {/* Bouton supprimer pour refusée ou approuvée */}
+                  {(d.statut === 'refusee' || d.statut === 'approuvee') && (
+                    <button
+                      onClick={() => onSupprimerDemande(d.id)}
+                      className="text-gray-300 hover:text-red-500 transition text-sm leading-none mt-0.5"
+                      title="Supprimer de ma liste"
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -80,7 +111,7 @@ function PanneauDemandes({ demandes, onOuvrirConversation, formatDate: fmt }) {
         )}
       </div>
 
-      {/* Reçues */}
+      {/* Reçues — uniquement les approuvées (les en_attente ne sont pas visibles ici) */}
       {demandes.recues.length > 0 && (
         <div>
           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Demandes reçues</h3>
@@ -97,15 +128,12 @@ function PanneauDemandes({ demandes, onOuvrirConversation, formatDate: fmt }) {
                     <p className="text-xs text-gray-500 truncate">{d.demandeur.structures.nom}</p>
                   )}
                   {d.message_demande && (
-                    <p className="text-xs text-gray-500 italic mt-0.5 line-clamp-2">"{d.message_demande}"</p>
+                    <p className="text-xs text-gray-500 italic mt-0.5 line-clamp-2">&ldquo;{d.message_demande}&rdquo;</p>
                   )}
                   <p className="text-xs text-gray-400 mt-0.5">{fmt(d.created_at)}</p>
                 </div>
-                <div className="flex-shrink-0">
-                  {d.statut === 'en_attente' && (
-                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold whitespace-nowrap">Admin valide</span>
-                  )}
-                  {d.statut === 'approuvee' && d.conversation?.id && (
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  {d.conversation?.id && (
                     <button
                       onClick={() => onOuvrirConversation(d.conversation.id)}
                       className="px-2 py-0.5 bg-primary text-white rounded-full text-xs font-semibold hover:bg-primary/90 transition"
@@ -113,6 +141,13 @@ function PanneauDemandes({ demandes, onOuvrirConversation, formatDate: fmt }) {
                       Ouvrir
                     </button>
                   )}
+                  <button
+                    onClick={() => onSupprimerDemande(d.id)}
+                    className="text-gray-300 hover:text-red-500 transition text-sm leading-none"
+                    title="Supprimer de ma liste"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
             ))}
@@ -445,6 +480,29 @@ export default function ReseauEntreprise() {
     setEnvoyant(false);
   };
 
+  /* ── Supprimer une demande ── */
+  const supprimerDemande = async (demandeId) => {
+    if (demandeId === 'vider_refusees') {
+      const refusees = (demandes.envoyees || []).filter(d => d.statut === 'refusee');
+      await Promise.all(
+        refusees.map(d =>
+          fetch('/api/entreprise/contacts', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ demande_id: d.id }),
+          })
+        )
+      );
+    } else {
+      await fetch('/api/entreprise/contacts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ demande_id: demandeId }),
+      });
+    }
+    chargerTout(token);
+  };
+
   /* ── Compteurs ── */
   const totalNonLus = conversations.reduce((acc, c) => acc + (c.nonLus || 0), 0);
   const demandesEnAttente = (demandes.recues || []).filter(d => d.statut === 'en_attente').length;
@@ -576,6 +634,7 @@ export default function ReseauEntreprise() {
         <PanneauDemandes
           demandes={demandes}
           onOuvrirConversation={(id) => { ouvrirConversation(id); setPanneauGauche('conversations'); }}
+          onSupprimerDemande={supprimerDemande}
           formatDate={formatDate}
         />
       )}

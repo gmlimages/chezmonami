@@ -13,6 +13,7 @@ export default function EntrepriseLayout({ children, titre }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nbMessages, setNbMessages] = useState(0);
   const [nbB2b, setNbB2b] = useState(0);
+  const [nbAppels, setNbAppels] = useState(0);
 
   const deconnecter = useCallback(async () => {
     const auth = localStorage.getItem('entrepriseAuth');
@@ -55,6 +56,7 @@ export default function EntrepriseLayout({ children, titre }) {
         if (d) {
           setNbMessages(d.nb_messages || 0);
           setNbB2b(d.nb_b2b || 0);
+          setNbAppels(d.nb_appels || 0);
         }
       }).catch(() => {});
     };
@@ -82,7 +84,7 @@ export default function EntrepriseLayout({ children, titre }) {
 
   const menuItems = [
     { href: '/entreprise/dashboard', label: 'Tableau de bord', icon: '📊', exact: true },
-    { href: '/entreprise/dashboard/appels-offres', label: "Appels d'offres", icon: '📋' },
+    { href: '/entreprise/dashboard/appels-offres', label: "Appels d'offres", icon: '📋', badge: nbAppels },
     { href: '/entreprise/dashboard/messages', label: 'Messages', icon: '💬', badge: nbMessages },
     { href: '/entreprise/dashboard/reseau', label: 'Réseau', icon: '🤝', badge: nbB2b },
     { href: '/entreprise/dashboard/documents', label: 'Documents', icon: '📁' },

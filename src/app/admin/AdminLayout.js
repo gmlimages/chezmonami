@@ -14,6 +14,7 @@ export default function AdminLayout({ children, titre, sousTitre }) {
   const [tempsRestant, setTempsRestant] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [nbNouveauxMessages, setNbNouveauxMessages] = useState(0);
+  const [nbAppelsOffres, setNbAppelsOffres] = useState(0);
 
   const INACTIVITE_MAX = 30 * 60 * 1000; // 30 minutes
   const SESSION_MAX = 2 * 60 * 60 * 1000; // 2 heures
@@ -82,10 +83,14 @@ export default function AdminLayout({ children, titre, sousTitre }) {
 
     setAdmin(JSON.parse(adminAuth));
 
-    // Charger le badge messages
+    // Charger les badges notifications
     const chargerBadge = () => {
       fetch('/api/admin/notifications').then(r => r.ok ? r.json() : null).then(d => {
-        if (d) setNbNouveauxMessages(d.nb_messages || 0);
+        if (d) {
+          setNbNouveauxMessages(d.nb_messages || 0);
+          setNbAppelsOffres(d.nb_appels || 0);
+          // nb_docs est géré séparément par le dashboard
+        }
       }).catch(() => {});
     };
     chargerBadge();
@@ -135,6 +140,7 @@ export default function AdminLayout({ children, titre, sousTitre }) {
           formatTemps={formatTemps}
           onLogout={handleLogout}
           nbNouveauxMessages={nbNouveauxMessages}
+          nbAppelsOffres={nbAppelsOffres}
         />
       </aside>
 

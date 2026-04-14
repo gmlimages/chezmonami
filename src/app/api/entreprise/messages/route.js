@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin, getCompteFromToken, hasFullAccess } from '@/lib/supabaseAdmin';
+import { supabaseAdmin, getCompteFromToken } from '@/lib/supabaseAdmin';
 
 // GET — messages du compte connecté
 export async function GET(request) {
@@ -29,10 +29,6 @@ export async function POST(request) {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
     const compte = await getCompteFromToken(token);
     if (!compte) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
-    if (!hasFullAccess(compte)) {
-      return NextResponse.json({ error: 'Abonnement requis', code: 'ABONNEMENT_REQUIS' }, { status: 403 });
-    }
 
     const contentType = request.headers.get('content-type') || '';
     let sujet, contenu;

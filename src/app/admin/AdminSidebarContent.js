@@ -65,7 +65,7 @@ const MENU_GROUPS = [
 // ─────────────────────────────────────────────
 // Composant principal
 // ─────────────────────────────────────────────
-export default function AdminSidebarContent({ isOpen, admin, tempsRestant, formatTemps, onLogout, nbNouveauxMessages = 0 }) {
+export default function AdminSidebarContent({ isOpen, admin, tempsRestant, formatTemps, onLogout, nbNouveauxMessages = 0, nbAppelsOffres = 0 }) {
   const pathname = usePathname();
 
   // Calculer quels groupes contiennent la page active
@@ -210,7 +210,11 @@ export default function AdminSidebarContent({ isOpen, admin, tempsRestant, forma
                   <div className="mt-1 ml-3 pl-3 border-l-2 border-gray-100 space-y-1">
                     {group.items.map((item) => {
                       const actif = isItemActive(item.href);
-                      const badge = item.href === '/admin/messages' ? nbNouveauxMessages : 0;
+                      const badge = item.href === '/admin/messages'
+                        ? nbNouveauxMessages
+                        : item.href === '/admin/appels-offres'
+                        ? nbAppelsOffres
+                        : 0;
                       return (
                         <Link
                           key={item.href}

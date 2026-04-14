@@ -11,22 +11,35 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Statut invalide' }, { status: 400 });
     }
 
-    const { data: doc, error } = await supabaseAdmin
+    // 1. Mettre à jour le document
+    const { error: updateError } = await supabaseAdmin
       .from('documents_entreprises')
       .update({
         statut,
         commentaire_admin: commentaire_admin?.trim() || null,
         updated_at: new Date().toISOString(),
       })
+      .eq('id', id);
+
+    if (updateError) throw updateError;
+
+    // 2. Récupérer le document mis à jour
+    const { data: doc, error: selectError } = await supabaseAdmin
+      .from('documents_entreprises')
+      .select('*')
       .eq('id', id)
-      .select('*, comptes_structures(id, nom_contact, badge_verifie)')
       .single();
 
-    if (error) throw error;
+    if (selectError) throw selectError;
 
-    const compte = doc.comptes_structures;
+    // 3. Récupérer le compte associé séparément
+    const { data: compte } = await supabaseAdmin
+      .from('comptes_structures')
+      .select('id, nom_contact, badge_verifie')
+      .eq('id', doc.compte_id)
+      .single();
 
-    // Notification en message pour la société
+    // 4. Notification en message pour la société
     if (compte && (statut === 'valide' || statut === 'refuse')) {
       const typeLabel = {
         registre_commerce: 'Registre de commerce',
@@ -43,18 +56,22 @@ export async function PATCH(request, { params }) {
         ? `Votre document "${typeLabel}" a été vérifié et validé par notre équipe.${commentaire_admin ? `\n\nNote : ${commentaire_admin}` : ''}\n\nMerci pour votre confiance.`
         : `Votre document "${typeLabel}" n'a pas pu être validé.${commentaire_admin ? `\n\nMotif : ${commentaire_admin}` : ''}\n\nVeuillez soumettre un nouveau document conforme.`;
 
-      await supabaseAdmin.from('messages_entreprises').insert({
-        compte_id: compte.id,
-        sujet: sujetMsg,
-        contenu: contenuMsg,
-        statut: 'repondu',
-        de_admin: true,
-        lu_par_entreprise: false,
-        traite_par: nom_admin || 'Administration',
-      }).catch(() => {});
+      try {
+        await supabaseAdmin.from('messages_entreprises').insert({
+          compte_id: compte.id,
+          sujet: sujetMsg,
+          contenu: contenuMsg,
+          statut: 'repondu',
+          de_admin: true,
+          lu_par_entreprise: false,
+          traite_par: nom_admin || 'Administration',
+        });
+      } catch (msgErr) {
+        console.warn('Notification message non envoyée:', msgErr?.message);
+      }
     }
 
-    // Si tous les documents obligatoires sont validés → activer le badge vérifié
+    // 5. Si tous les documents obligatoires sont validés → activer le badge vérifié
     if (statut === 'valide' && compte) {
       const { data: tousDoc } = await supabaseAdmin
         .from('documents_entreprises')
@@ -73,15 +90,19 @@ export async function PATCH(request, { params }) {
           .eq('id', compte.id);
 
         // Notification badge vérifié
-        await supabaseAdmin.from('messages_entreprises').insert({
-          compte_id: compte.id,
-          sujet: '🏅 Badge vérifié obtenu !',
-          contenu: 'Félicitations ! Tous vos documents obligatoires ont été validés. Votre compte affiche désormais le badge "Vérifié" ✅ qui renforce votre crédibilité sur la plateforme.',
-          statut: 'repondu',
-          de_admin: true,
-          lu_par_entreprise: false,
-          traite_par: nom_admin || 'Administration',
-        }).catch(() => {});
+        try {
+          await supabaseAdmin.from('messages_entreprises').insert({
+            compte_id: compte.id,
+            sujet: '🏅 Badge vérifié obtenu !',
+            contenu: 'Félicitations ! Tous vos documents obligatoires ont été validés. Votre compte affiche désormais le badge "Vérifié" ✅ qui renforce votre crédibilité sur la plateforme.',
+            statut: 'repondu',
+            de_admin: true,
+            lu_par_entreprise: false,
+            traite_par: nom_admin || 'Administration',
+          });
+        } catch (badgeErr) {
+          console.warn('Notification badge non envoyée:', badgeErr?.message);
+        }
       }
     }
 

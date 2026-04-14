@@ -38,6 +38,12 @@ export default function AdminMessages() {
   const composeFichierRef = useRef(null);
   const [envoyantCompose, setEnvoyantCompose] = useState(false);
 
+  // ── Recherche nouveau compte (initier conversation) ───────────────────────
+  const [showRechercheCompte, setShowRechercheCompte] = useState(false);
+  const [rechercheQuery, setRechercheQuery] = useState('');
+  const [rechercheResultats, setRechercheResultats] = useState([]);
+  const [rechercheLoading, setRechercheLoading] = useState(false);
+
   // ── B2B ───────────────────────────────────────────────────────────────────
   const [convB2B, setConvB2B] = useState([]);
   const [loadingB2B, setLoadingB2B] = useState(false);
@@ -243,6 +249,22 @@ export default function AdminMessages() {
   };
 
   // ── B2B ───────────────────────────────────────────────────────────────────
+  const supprimerConvB2B = async (convId) => {
+    if (!confirm('Supprimer définitivement cette conversation et tous ses messages ? Cette action est irréversible.')) return;
+    try {
+      const res = await fetch(`/api/admin/conversations-b2b/${convId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setConvB2B(prev => prev.filter(c => c.id !== convId));
+        if (convSelectionnee?.id === convId) setConvSelectionnee(null);
+        afficherToast('Conversation supprimée.');
+      } else {
+        afficherToast('Erreur lors de la suppression', 'erreur');
+      }
+    } catch {
+      afficherToast('Erreur réseau', 'erreur');
+    }
+  };
+
   const chargerConvB2B = async () => {
     setLoadingB2B(true);
     try {
@@ -289,6 +311,34 @@ export default function AdminMessages() {
   };
 
   const nbDemandesEnAttente = demandes.filter(d => d.statut === 'en_attente').length;
+
+  // ── Recherche de compte pour nouvelle conversation ────────────────────────
+  useEffect(() => {
+    if (!showRechercheCompte) { setRechercheQuery(''); setRechercheResultats([]); return; }
+  }, [showRechercheCompte]);
+
+  useEffect(() => {
+    if (rechercheQuery.length < 2) { setRechercheResultats([]); return; }
+    const t = setTimeout(async () => {
+      setRechercheLoading(true);
+      try {
+        const res = await fetch(`/api/admin/comptes-entreprises?q=${encodeURIComponent(rechercheQuery)}`);
+        if (res.ok) {
+          const { comptes } = await res.json();
+          setRechercheResultats(comptes || []);
+        }
+      } catch {}
+      setRechercheLoading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [rechercheQuery]);
+
+  const selectionnerCompteRecherche = (c) => {
+    ouvrirCompte(c);
+    setShowRechercheCompte(false);
+    setRechercheQuery('');
+    setRechercheResultats([]);
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -346,8 +396,15 @@ export default function AdminMessages() {
 
             {/* Colonne gauche — liste des entreprises */}
             <div className={`${vueMobile === 'thread' ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 flex-shrink-0 border-r border-gray-200`}>
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-2">
                 <p className="text-sm font-bold text-gray-700">Entreprises ({comptesUniques.length})</p>
+                <button
+                  onClick={() => setShowRechercheCompte(true)}
+                  className="flex items-center gap-1 text-xs font-semibold text-primary hover:bg-primary/10 px-2 py-1 rounded-lg transition"
+                  title="Nouvelle conversation"
+                >
+                  ✏️ Nouveau
+                </button>
               </div>
               {comptesUniques.length === 0 ? (
                 <div className="flex flex-col items-center justify-center flex-1 p-6 text-center">
@@ -511,29 +568,6 @@ export default function AdminMessages() {
                               </div>
                             )}
 
-                            {/* Zone de réponse si pas encore répondu */}
-                            {!msg.reponse_admin && (
-                              <div className="flex justify-start">
-                                <div className="w-full max-w-[90%]">
-                                  <textarea
-                                    rows={2}
-                                    placeholder="Répondre à ce message…"
-                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none bg-gray-50"
-                                    value={reponses[msg.id] || ''}
-                                    onChange={e => setReponses(prev => ({ ...prev, [msg.id]: e.target.value }))}
-                                  />
-                                  <div className="flex justify-end mt-1">
-                                    <button
-                                      onClick={() => envoyerReponse(msg.id)}
-                                      disabled={envoyant || !reponses[msg.id]?.trim()}
-                                      className="px-4 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 transition disabled:opacity-50"
-                                    >
-                                      {envoyant ? 'Envoi…' : '📤 Répondre'}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                           </>
                         )}
                       </div>
@@ -588,6 +622,65 @@ export default function AdminMessages() {
         )
       )}
 
+      {/* Modal recherche compte pour nouvelle conversation */}
+      {showRechercheCompte && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4 bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-gray-800">Nouvelle conversation</h3>
+              <button onClick={() => setShowRechercheCompte(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 text-sm">✕</button>
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                autoFocus
+                placeholder="Rechercher un compte société..."
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10"
+                value={rechercheQuery}
+                onChange={e => setRechercheQuery(e.target.value)}
+              />
+              {rechercheLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+            {rechercheResultats.length > 0 && (
+              <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                {rechercheResultats.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => selectionnerCompteRecherche(c)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary/5 transition text-left"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0 overflow-hidden">
+                      {c.photo_profil
+                        ? <img src={c.photo_profil} alt={c.nom_contact} className="w-full h-full object-cover" />
+                        : <span>{c.nom_contact?.charAt(0)?.toUpperCase() || '?'}</span>
+                      }
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-gray-800 text-sm truncate">
+                        {c.nom_contact}
+                        {c.badge_verifie && <span className="ml-1 text-green-500 text-xs">✓</span>}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">{c.email}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {rechercheQuery.length >= 2 && !rechercheLoading && rechercheResultats.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-3">Aucun compte trouvé pour &quot;{rechercheQuery}&quot;</p>
+            )}
+            {rechercheQuery.length < 2 && (
+              <p className="text-xs text-gray-400 text-center">Tapez au moins 2 caractères pour rechercher</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ══════════ ONGLET B2B ══════════ */}
       {onglet === 'b2b' && (
         loadingB2B ? (
@@ -618,12 +711,21 @@ export default function AdminMessages() {
                       </span>
                     </div>
                     <p className="text-xs text-gray-400">{conv.nb_messages} message{conv.nb_messages > 1 ? 's' : ''}</p>
-                    <button
-                      onClick={() => setConvSelectionnee(conv)}
-                      className="mt-auto w-full py-2 rounded-lg bg-primary/10 text-primary font-semibold text-sm hover:bg-primary hover:text-white transition"
-                    >
-                      Voir la conversation
-                    </button>
+                    <div className="mt-auto flex gap-2">
+                      <button
+                        onClick={() => setConvSelectionnee(conv)}
+                        className="flex-1 py-2 rounded-lg bg-primary/10 text-primary font-semibold text-sm hover:bg-primary hover:text-white transition"
+                      >
+                        Voir
+                      </button>
+                      <button
+                        onClick={() => supprimerConvB2B(conv.id)}
+                        className="px-3 py-2 rounded-lg bg-red-50 text-red-500 text-sm hover:bg-red-100 hover:text-red-700 transition flex-shrink-0"
+                        title="Supprimer cette conversation"
+                      >
+                        🗑
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -642,7 +744,15 @@ export default function AdminMessages() {
                       </h2>
                       <p className="text-xs text-gray-400 mt-0.5">Lecture seule</p>
                     </div>
-                    <button onClick={() => setConvSelectionnee(null)} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold">✕</button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => supprimerConvB2B(convSelectionnee.id)}
+                        className="px-3 py-1.5 rounded-lg bg-red-50 text-red-500 text-xs font-semibold hover:bg-red-100 hover:text-red-700 transition"
+                      >
+                        🗑 Supprimer
+                      </button>
+                      <button onClick={() => setConvSelectionnee(null)} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold">✕</button>
+                    </div>
                   </div>
                   <div className="flex-1 overflow-y-auto p-5 space-y-3">
                     {(convSelectionnee.messages_b2b || [])

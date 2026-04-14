@@ -8,7 +8,7 @@ export default function EntrepriseDashboard() {
   const [stats, setStats] = useState({ appels: 0, appelsNouveaux: 0, messages: 0, documents: 0 });
   const [appelsRecents, setAppelsRecents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [notifs, setNotifs] = useState({ nb_messages: 0, nb_b2b: 0 });
+  const [notifs, setNotifs] = useState({ nb_messages: 0, nb_b2b: 0, nb_appels: 0, total_messages: 0, total_documents: 0 });
 
   useEffect(() => {
     const auth = localStorage.getItem('entrepriseAuth');
@@ -114,18 +114,33 @@ export default function EntrepriseDashboard() {
           </Link>
         )}
 
+        {notifs.nb_appels > 0 && (
+          <Link href="/entreprise/dashboard/appels-offres" className="block bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center gap-3 hover:bg-orange-100 transition">
+            <span className="text-2xl flex-shrink-0">📋</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-orange-800">
+                {notifs.nb_appels} appel{notifs.nb_appels > 1 ? 's' : ''} d&apos;offres {notifs.nb_appels > 1 ? 'sans réponse' : 'sans réponse'}
+              </p>
+              <p className="text-sm text-orange-600 mt-0.5">Cliquez pour consulter et soumettre votre dossier</p>
+            </div>
+            <span className="bg-orange-600 text-white text-xs font-bold rounded-full min-w-[1.5rem] h-6 flex items-center justify-center px-2 flex-shrink-0">
+              {notifs.nb_appels}
+            </span>
+          </Link>
+        )}
+
         {/* Cartes stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
-            { label: "Appels d'offres", value: stats.appels, icon: '📋', color: 'blue', href: '/entreprise/dashboard/appels-offres' },
-            { label: 'Sans réponse', value: stats.appelsNouveaux, icon: '🔔', color: 'orange', href: '/entreprise/dashboard/appels-offres' },
-            { label: 'Messages', value: stats.messages, icon: '💬', color: 'green', href: '/entreprise/dashboard/messages' },
-            { label: 'Documents', value: stats.documents, icon: '📁', color: 'purple', href: '/entreprise/dashboard/documents' },
+            { label: "Appels d'offres", value: stats.appels, icon: '📋', color: 'blue', href: '/entreprise/dashboard/appels-offres', useLoading: true },
+            { label: 'Sans réponse', value: stats.appelsNouveaux, icon: '🔔', color: 'orange', href: '/entreprise/dashboard/appels-offres', useLoading: true },
+            { label: 'Messages', value: notifs.total_messages, icon: '💬', color: 'green', href: '/entreprise/dashboard/messages', useLoading: false },
+            { label: 'Documents', value: notifs.total_documents, icon: '📁', color: 'purple', href: '/entreprise/dashboard/documents', useLoading: false },
           ].map(card => (
             <Link key={card.label} href={card.href} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition group">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-2xl">{card.icon}</span>
-                <span className={`text-2xl font-bold text-${card.color}-600`}>{loading ? '...' : card.value}</span>
+                <span className={`text-2xl font-bold text-${card.color}-600`}>{(card.useLoading && loading) ? '...' : card.value}</span>
               </div>
               <p className="text-xs sm:text-sm text-gray-600 font-medium group-hover:text-primary transition">{card.label}</p>
             </Link>

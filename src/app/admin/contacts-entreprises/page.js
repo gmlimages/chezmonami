@@ -1,6 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 
 const STATUT_BADGE = {
@@ -16,10 +15,18 @@ export default function ContactsEntreprisesAdmin() {
   const [modalDemande, setModalDemande] = useState(null);
   const [noteAdmin, setNoteAdmin] = useState('');
   const [traitant, setTraitant] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+
+  const afficherToast = (texte, type = 'succes') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ texte, type });
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     charger();
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
   }, []);
 
   const charger = async () => {
@@ -36,7 +43,6 @@ export default function ContactsEntreprisesAdmin() {
 
   const traiter = async (action) => {
     setTraitant(true);
-    setMessage({ type: '', text: '' });
     try {
       const res = await fetch(`/api/admin/contacts-entreprises/${modalDemande.id}`, {
         method: 'PATCH',
@@ -45,15 +51,33 @@ export default function ContactsEntreprisesAdmin() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'succes', text: `Demande ${action === 'approuver' ? 'approuvée' : action === 'refuser' ? 'refusée' : action === 'suspendre' ? 'suspendue' : 'réactivée'} avec succès` });
+        const labels = {
+          approuver: '✅ Demande approuvée ! La conversation a été créée.',
+          refuser: '❌ Demande refusée.',
+          suspendre: '⏸ Conversation suspendue.',
+          reactiver: '▶ Conversation réactivée.',
+        };
+        afficherToast(labels[action] || 'Action effectuée avec succès.');
+        // Mise à jour optimiste locale
+        const demandeId = modalDemande.id;
+        if (action === 'approuver') {
+          setDemandes(prev => prev.map(d => d.id === demandeId ? { ...d, statut: 'approuvee' } : d));
+        } else if (action === 'refuser') {
+          setDemandes(prev => prev.map(d => d.id === demandeId ? { ...d, statut: 'refusee' } : d));
+        } else if (action === 'suspendre') {
+          setDemandes(prev => prev.map(d => d.id === demandeId && d.conversation ? { ...d, conversation: { ...d.conversation, active: false } } : d));
+        } else if (action === 'reactiver') {
+          setDemandes(prev => prev.map(d => d.id === demandeId && d.conversation ? { ...d, conversation: { ...d.conversation, active: true } } : d));
+        }
         setModalDemande(null);
         setNoteAdmin('');
+        // Recharger en arrière-plan pour sync complète
         charger();
       } else {
-        setMessage({ type: 'erreur', text: data.error });
+        afficherToast(data.error || 'Erreur lors du traitement', 'erreur');
       }
     } catch {
-      setMessage({ type: 'erreur', text: 'Erreur réseau' });
+      afficherToast('Erreur réseau', 'erreur');
     }
     setTraitant(false);
   };
@@ -64,7 +88,17 @@ export default function ContactsEntreprisesAdmin() {
   const enAttente = demandes.filter(d => d.statut === 'en_attente').length;
 
   return (
-    <AdminLayout>
+    <AdminLayout titre="Contacts inter-entreprises">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[100] px-5 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-3 ${
+          toast.type === 'succes' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+        }`}>
+          {toast.texte}
+          <button onClick={() => setToast(null)} className="ml-2 opacity-80 hover:opacity-100">✕</button>
+        </div>
+      )}
+
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -77,15 +111,6 @@ export default function ContactsEntreprisesAdmin() {
             </span>
           )}
         </div>
-
-        {/* Message global */}
-        {message.text && (
-          <div className={`p-4 rounded-xl text-sm font-medium ${
-            message.type === 'succes' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {message.type === 'succes' ? '✅ ' : '❌ '}{message.text}
-          </div>
-        )}
 
         {/* Filtres */}
         <div className="flex flex-wrap gap-2">

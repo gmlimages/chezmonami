@@ -286,12 +286,24 @@ export default function AdminComptesEntreprises() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut, commentaire_admin: commentaireDoc[docId] || null, nom_admin: nomAdmin }),
       });
-      if (!res.ok) throw new Error('Erreur');
-      afficherMessage(statut === 'valide' ? 'Document validé.' : 'Document refusé.');
-      chargerDocumentsCompte(compteSelectionne.id);
-      chargerComptes(); // recharger pour mise à jour du badge
-    } catch {
-      afficherMessage('Erreur lors de la mise à jour du document.', 'erreur');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur');
+
+      // Mise à jour optimiste locale du document
+      setDocuments(prev => prev.map(d =>
+        d.id === docId ? { ...d, statut, commentaire_admin: commentaireDoc[docId] || null } : d
+      ));
+
+      afficherMessage(statut === 'valide' ? '✅ Document validé avec succès.' : '❌ Document refusé.');
+
+      // Si badge potentiellement obtenu → recharger le compte
+      if (statut === 'valide') {
+        chargerComptes();
+        // Recharger pour récupérer badge_verifie mis à jour
+        setTimeout(() => chargerDocumentsCompte(compteSelectionne.id), 500);
+      }
+    } catch (err) {
+      afficherMessage(err.message || 'Erreur lors de la mise à jour du document.', 'erreur');
     } finally {
       setActionEnCours(null);
     }

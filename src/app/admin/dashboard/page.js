@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   const [admin, setAdmin] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [nbNouveauxMessages, setNbNouveauxMessages] = useState(0);
+  const [nbAppelsOffres, setNbAppelsOffres] = useState(0);
   const [nbDocsPending, setNbDocsPending] = useState(0);
   const [stats, setStats] = useState({
     structures: 0,
@@ -73,15 +74,13 @@ export default function AdminDashboard() {
 
   const chargerBadges = async () => {
     try {
-      const [notifRes, docsRes] = await Promise.all([
-        fetch('/api/admin/notifications'),
-        supabase.from('documents_entreprises').select('id', { count: 'exact', head: true }).eq('statut', 'en_attente'),
-      ]);
-      if (notifRes.ok) {
-        const d = await notifRes.json();
+      const res = await fetch('/api/admin/notifications');
+      if (res.ok) {
+        const d = await res.json();
         setNbNouveauxMessages(d.nb_messages || 0);
+        setNbDocsPending(d.nb_docs || 0);
+        setNbAppelsOffres(d.nb_appels || 0);
       }
-      setNbDocsPending(docsRes.count || 0);
     } catch {}
   };
 
@@ -279,6 +278,7 @@ export default function AdminDashboard() {
           formatTemps={null}
           onLogout={handleLogout}
           nbNouveauxMessages={nbNouveauxMessages}
+          nbAppelsOffres={nbAppelsOffres}
         />
       </aside>
 
@@ -344,11 +344,11 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <>
-              {/* Alertes messages / documents en attente */}
-              {(nbNouveauxMessages > 0 || nbDocsPending > 0) && (
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              {/* Alertes messages / documents / appels d'offres en attente */}
+              {(nbNouveauxMessages > 0 || nbDocsPending > 0 || nbAppelsOffres > 0) && (
+                <div className="flex flex-col sm:flex-row gap-3 mb-6 flex-wrap">
                   {nbNouveauxMessages > 0 && (
-                    <Link href="/admin/messages" className="flex-1 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 hover:bg-blue-100 transition">
+                    <Link href="/admin/messages" className="flex-1 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 hover:bg-blue-100 transition min-w-[200px]">
                       <span className="text-2xl">💬</span>
                       <div>
                         <p className="font-semibold text-blue-800 text-sm">
@@ -360,7 +360,7 @@ export default function AdminDashboard() {
                     </Link>
                   )}
                   {nbDocsPending > 0 && (
-                    <Link href="/admin/comptes-entreprises" className="flex-1 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 hover:bg-amber-100 transition">
+                    <Link href="/admin/comptes-entreprises" className="flex-1 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 hover:bg-amber-100 transition min-w-[200px]">
                       <span className="text-2xl">📄</span>
                       <div>
                         <p className="font-semibold text-amber-800 text-sm">
@@ -369,6 +369,18 @@ export default function AdminDashboard() {
                         <p className="text-xs text-amber-600">En attente de validation</p>
                       </div>
                       <span className="ml-auto text-amber-500 text-lg">→</span>
+                    </Link>
+                  )}
+                  {nbAppelsOffres > 0 && (
+                    <Link href="/admin/appels-offres" className="flex-1 flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 hover:bg-green-100 transition min-w-[200px]">
+                      <span className="text-2xl">📋</span>
+                      <div>
+                        <p className="font-semibold text-green-800 text-sm">
+                          {nbAppelsOffres} réponse{nbAppelsOffres > 1 ? 's' : ''} aux appels d&apos;offres
+                        </p>
+                        <p className="text-xs text-green-600">Dossiers soumis à examiner</p>
+                      </div>
+                      <span className="ml-auto text-green-500 text-lg">→</span>
                     </Link>
                   )}
                 </div>

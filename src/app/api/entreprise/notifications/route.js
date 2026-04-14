@@ -31,13 +31,43 @@ export async function GET(request) {
       });
     }
 
+    // Appels d'offres actifs sans réponse de cette société
+    let nbAppels = 0;
+    const maintenant = new Date().toISOString();
+    const { data: appels } = await supabaseAdmin
+      .from('appels_offres')
+      .select('id, reponses_appels_offres(compte_id)')
+      .eq('statut', 'actif')
+      .gt('date_limite', maintenant);
+
+    if (appels) {
+      nbAppels = appels.filter(a =>
+        !(a.reponses_appels_offres || []).some(r => r.compte_id === compte.id)
+      ).length;
+    }
+
+    // Totaux pour les cartes stats du dashboard
+    const [{ count: totalMessages }, { count: totalDocuments }] = await Promise.all([
+      supabaseAdmin
+        .from('messages_entreprises')
+        .select('id', { count: 'exact', head: true })
+        .eq('compte_id', compte.id),
+      supabaseAdmin
+        .from('documents_entreprises')
+        .select('id', { count: 'exact', head: true })
+        .eq('compte_id', compte.id),
+    ]);
+
     return NextResponse.json({
       nb_messages: nbMessages || 0,
       nb_b2b: nbB2b,
+      nb_appels: nbAppels,
+      total_messages: totalMessages || 0,
+      total_documents: totalDocuments || 0,
     });
   } catch (error) {
     console.error('GET entreprise notifications:', error);
-    return NextResponse.json({ nb_messages: 0, nb_b2b: 0 });
+    return NextResponse.json({ nb_messages: 0, nb_b2b: 0, nb_appels: 0, total_messages: 0, total_documents: 0 });
   }
 }
 
