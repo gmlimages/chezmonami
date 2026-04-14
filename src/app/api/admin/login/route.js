@@ -29,24 +29,22 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Email et mot de passe requis' }, { status: 400 });
     }
 
-    const { data: compte, error: compteError } = await supabaseAdmin
-      .from('comptes_structures')
-      .select(`
-        id, email, mot_de_passe, nom_contact, statut, abonnement,
-        badge_verifie, structure_id, telephone_contact, email_contact,
-        tentatives_connexion, bloque_jusqu_a,
-        structures (id, nom, categorie_id, verifie)
-      `)
+    // Récupérer l'admin (via service role — pas exposé au client)
+    const { data: admin, error: adminError } = await supabaseAdmin
+      .from('admins')
+      .select('id, nom, email, role, mot_de_passe, bloque_jusqu_a, tentatives_connexion, doit_changer_mdp')
       .eq('email', email.toLowerCase().trim())
-      .maybeSingle();
+      .single();
 
-    if (compteError || !compte) {
+    if (adminError || !admin) {
+      // Même délai pour éviter l'énumération de comptes
+      await new Promise(r => setTimeout(r, 300));
       return NextResponse.json({ error: 'Email ou mot de passe incorrect' }, { status: 401 });
     }
 
     // Compte bloqué ?
-    if (compte.bloque_jusqu_a && new Date(compte.bloque_jusqu_a) > new Date()) {
-      const secondes = Math.ceil((new Date(compte.bloque_jusqu_a) - new Date()) / 1000);
+    if (admin.bloque_jusqu_a && new Date(admin.bloque_jusqu_a) > new Date()) {
+      const secondes = Math.ceil((new Date(admin.bloque_jusqu_a) - new Date()) / 1000);
       return NextResponse.json({
         error: `Compte bloqué. Réessayez dans ${Math.ceil(secondes / 60)} minute(s).`,
         bloque: true,
@@ -54,11 +52,23 @@ export async function POST(request) {
       }, { status: 403 });
     }
 
-    // Vérifier mot de passe
-    const isValid = await bcrypt.compare(mot_de_passe, compte.mot_de_passe);
+    // Vérifier le mot de passe avec bcrypt
+    let isValid = false;
+    if (admin.mot_de_passe?.startsWith('$2')) {
+      // Hash bcrypt existant
+      isValid = await bcrypt.compare(mot_de_passe, admin.mot_de_passe);
+    } else {
+      // Mot de passe en clair (legacy) — comparer et migrer vers bcrypt
+      isValid = mot_de_passe === admin.mot_de_passe;
+      if (isValid) {
+        // Migrer vers bcrypt en arrière-plan
+        const hash = await bcrypt.hash(mot_de_passe, 12);
+        await supabaseAdmin.from('admins').update({ mot_de_passe: hash }).eq('id', admin.id);
+      }
+    }
 
     if (!isValid) {
-      const nouvelles = (compte.tentatives_connexion || 0) + 1;
+      const nouvelles = (admin.tentatives_connexion || 0) + 1;
       const updateData = { tentatives_connexion: nouvelles };
 
       if (nouvelles >= 5) {
@@ -67,7 +77,10 @@ export async function POST(request) {
         updateData.bloque_jusqu_a = blocage.toISOString();
       }
 
-      await supabaseAdmin.from('comptes_structures').update(updateData).eq('id', compte.id);
+      await supabaseAdmin.from('admins').update(updateData).eq('id', admin.id);
+      try {
+        await supabaseAdmin.from('admin_login_attempts').insert({ email: email.toLowerCase(), success: false });
+      } catch {}
 
       const restantes = Math.max(0, 5 - nouvelles);
       return NextResponse.json({
@@ -77,52 +90,42 @@ export async function POST(request) {
       }, { status: 401 });
     }
 
-    // Statut du compte
-    if (compte.statut === 'suspendu') {
-      return NextResponse.json({ error: 'Votre compte a été suspendu. Contactez l\'administration.' }, { status: 403 });
-    }
-    if (compte.statut === 'refuse') {
-      return NextResponse.json({ error: 'Votre inscription a été refusée. Contactez l\'administration.' }, { status: 403 });
-    }
-
-    // Connexion réussie — réinitialiser tentatives
-    await supabaseAdmin.from('comptes_structures').update({
+    // Connexion réussie — réinitialiser compteur
+    await supabaseAdmin.from('admins').update({
       tentatives_connexion: 0,
       bloque_jusqu_a: null,
       derniere_connexion: new Date().toISOString(),
-    }).eq('id', compte.id);
+    }).eq('id', admin.id);
+
+    try {
+      await supabaseAdmin.from('admin_login_attempts').insert({ email: email.toLowerCase(), success: true });
+    } catch {}
 
     // Créer session (8h)
     const token = generateToken();
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 8);
 
-    await supabaseAdmin.from('comptes_sessions').insert({
-      compte_id: compte.id,
+    await supabaseAdmin.from('admin_sessions').insert({
+      admin_id: admin.id,
       token,
       expires_at: expiresAt.toISOString(),
     });
 
-    // Retourner sans le hash du mot de passe
     return NextResponse.json({
       success: true,
       token,
-      compte: {
-        id: compte.id,
-        email: compte.email,
-        nom_contact: compte.nom_contact,
-        statut: compte.statut,
-        abonnement: compte.abonnement,
-        badge_verifie: compte.badge_verifie,
-        structure_id: compte.structure_id,
-        telephone_contact: compte.telephone_contact,
-        email_contact: compte.email_contact,
-        structure: compte.structures,
+      admin: {
+        id: admin.id,
+        nom: admin.nom,
+        email: admin.email,
+        role: admin.role,
+        doit_changer_mdp: admin.doit_changer_mdp || false,
       },
     });
 
   } catch (error) {
-    console.error('Erreur connexion:', error);
+    console.error('Erreur connexion admin:', error);
     return NextResponse.json({ error: 'Erreur serveur. Veuillez réessayer.' }, { status: 500 });
   }
 }

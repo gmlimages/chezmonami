@@ -1,9 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import bcrypt from 'bcryptjs';
+import { rateLimit } from '@/lib/rateLimit';
 
 export async function POST(request) {
   try {
+    // Rate limiting : 5 inscriptions par IP par heure
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown';
+    const rl = rateLimit(`inscription:${ip}`, { limit: 5, windowMs: 60 * 60_000 });
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Trop de tentatives. Réessayez plus tard.' },
+        { status: 429 }
+      );
+    }
+
     const { email, mot_de_passe, nom_contact } = await request.json();
 
     if (!email || !mot_de_passe || !nom_contact) {

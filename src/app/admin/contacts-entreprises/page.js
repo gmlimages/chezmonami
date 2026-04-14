@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
+import { adminFetch } from '@/lib/adminFetch';
 
 const STATUT_BADGE = {
   en_attente: { label: 'En attente', color: 'bg-amber-100 text-amber-700' },
@@ -32,7 +33,7 @@ export default function ContactsEntreprisesAdmin() {
   const charger = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/contacts-entreprises');
+      const res = await adminFetch('/api/admin/contacts-entreprises');
       if (res.ok) {
         const { demandes: d } = await res.json();
         setDemandes(d);
@@ -44,7 +45,7 @@ export default function ContactsEntreprisesAdmin() {
   const traiter = async (action) => {
     setTraitant(true);
     try {
-      const res = await fetch(`/api/admin/contacts-entreprises/${modalDemande.id}`, {
+      const res = await adminFetch(`/api/admin/contacts-entreprises/${modalDemande.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, note_admin: noteAdmin }),

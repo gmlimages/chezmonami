@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import { adminFetch } from '@/lib/adminFetch';
 
 const TYPES_APPEL = [
   { value: 'appel_offres', label: "Appel d'offres" },
@@ -179,7 +180,7 @@ export default function AdminAppelsOffres() {
       if (nouveauStatut === 'supprimer') {
         const adminAuth = localStorage.getItem('adminAuth');
         const adminToken = adminAuth ? JSON.parse(adminAuth).token || '' : '';
-        const res = await fetch(`/api/admin/appels-offres/${appelId}`, {
+        const res = await adminFetch(`/api/admin/appels-offres/${appelId}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${adminToken}` },
         });
@@ -211,7 +212,7 @@ export default function AdminAppelsOffres() {
     try {
       const adminAuth = localStorage.getItem('adminAuth');
       const adminToken = adminAuth ? JSON.parse(adminAuth).token || '' : '';
-      const res = await fetch(`/api/admin/appels-offres/reponses/${reponseId}`, {
+      const res = await adminFetch(`/api/admin/appels-offres/reponses/${reponseId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${adminToken}` },
       });
@@ -269,7 +270,7 @@ export default function AdminAppelsOffres() {
       fd.append('cree_par', adminId || '');
       formFichiers.forEach(f => fd.append('fichiers', f));
 
-      const res = await fetch('/api/admin/appels-offres', {
+      const res = await adminFetch('/api/admin/appels-offres', {
         method: 'POST',
         headers: { Authorization: `Bearer ${adminToken}` },
         body: fd,

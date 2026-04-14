@@ -66,15 +66,23 @@ export default function AdminDashboard() {
     if (!adminAuth) {
       router.push('/dashboard-chezmonami');
     } else {
-      setAdmin(JSON.parse(adminAuth));
+      const parsed = JSON.parse(adminAuth);
+      setAdmin(parsed);
       chargerStats();
-      chargerBadges();
+      chargerBadges(parsed.sessionToken);
     }
   }, [router]);
 
-  const chargerBadges = async () => {
+  const getToken = () => {
+    try { return JSON.parse(localStorage.getItem('adminAuth') || '{}').sessionToken || ''; } catch { return ''; }
+  };
+
+  const chargerBadges = async (token) => {
     try {
-      const res = await fetch('/api/admin/notifications');
+      const t = token || getToken();
+      const res = await fetch('/api/admin/notifications', {
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+      });
       if (res.ok) {
         const d = await res.json();
         setNbNouveauxMessages(d.nb_messages || 0);

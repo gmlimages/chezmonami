@@ -81,15 +81,18 @@ export default function AdminLayout({ children, titre, sousTitre }) {
     if (!sessionStart) localStorage.setItem('adminSessionStart', Date.now().toString());
     if (!lastActivity) localStorage.setItem('adminLastActivity', Date.now().toString());
 
-    setAdmin(JSON.parse(adminAuth));
+    const parsedAdmin = JSON.parse(adminAuth);
+    setAdmin(parsedAdmin);
+    const token = parsedAdmin.sessionToken || '';
 
     // Charger les badges notifications
     const chargerBadge = () => {
-      fetch('/api/admin/notifications').then(r => r.ok ? r.json() : null).then(d => {
+      fetch('/api/admin/notifications', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).then(r => r.ok ? r.json() : null).then(d => {
         if (d) {
           setNbNouveauxMessages(d.nb_messages || 0);
           setNbAppelsOffres(d.nb_appels || 0);
-          // nb_docs est géré séparément par le dashboard
         }
       }).catch(() => {});
     };

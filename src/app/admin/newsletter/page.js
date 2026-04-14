@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import AdminNewsletterQueue from '@/components/admin/AdminNewsletterQueue';
+import { adminFetch } from '@/lib/adminFetch';
 
 export default function AdminNewsletter() {
   const [onglet, setOnglet] = useState('queue');
@@ -24,7 +25,7 @@ export default function AdminNewsletter() {
 
   const chargerStats = async () => {
     try {
-      const res = await fetch('/api/admin/newsletter/abonnes?stats=1');
+      const res = await adminFetch('/api/admin/newsletter/abonnes?stats=1');
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -37,7 +38,7 @@ export default function AdminNewsletter() {
   const chargerAbonnes = async () => {
     setLoadingAbonnes(true);
     try {
-      const res = await fetch('/api/admin/newsletter/abonnes');
+      const res = await adminFetch('/api/admin/newsletter/abonnes');
       if (res.ok) {
         const { abonnes: data } = await res.json();
         setAbonnes(data || []);
@@ -68,7 +69,7 @@ export default function AdminNewsletter() {
     if (!form.sujet.trim() || !form.contenu.trim()) return;
     setEnvoi({ loading: true, resultat: null });
     try {
-      const res = await fetch('/api/admin/newsletter/message-libre', {
+      const res = await adminFetch('/api/admin/newsletter/message-libre', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -88,7 +89,7 @@ export default function AdminNewsletter() {
 
   const handleDesabonner = async (id) => {
     if (!confirm('Désabonner cet abonné ?')) return;
-    await fetch(`/api/admin/newsletter/abonnes/${id}`, {
+    await adminFetch(`/api/admin/newsletter/abonnes/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ actif: false }),
@@ -98,7 +99,7 @@ export default function AdminNewsletter() {
   };
 
   const handleReabonner = async (id) => {
-    await fetch(`/api/admin/newsletter/abonnes/${id}`, {
+    await adminFetch(`/api/admin/newsletter/abonnes/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ actif: true }),

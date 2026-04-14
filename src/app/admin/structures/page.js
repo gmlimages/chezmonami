@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import ImageUploader from '@/components/ImageUploader';
 import { structuresAPI, categoriesAPI, paysAPI, villesAPI } from '@/lib/api';
+import { adminFetch } from '@/lib/adminFetch';
 
 // Types de CTA disponibles
 const CTA_TYPES = [
@@ -134,7 +135,7 @@ export default function AdminStructures() {
     try {
       setLoading(true);
       const [structuresRes, categoriesData, paysData] = await Promise.all([
-        fetch('/api/admin/structures').then(r => r.json()),
+        adminFetch('/api/admin/structures').then(r => r.json()),
         categoriesAPI.getAll(),
         paysAPI.getAll()
       ]);
@@ -279,7 +280,7 @@ export default function AdminStructures() {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette structure ?')) return;
 
     try {
-      const res = await fetch(`/api/admin/structures/${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/structures/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error((await res.json()).error);
       alert('✅ Structure supprimée avec succès !');
       chargerDonnees();
@@ -339,7 +340,7 @@ export default function AdminStructures() {
 
     let res;
     if (structureEnCours) {
-      res = await fetch(`/api/admin/structures/${structureEnCours.id}`, {
+      res = await adminFetch(`/api/admin/structures/${structureEnCours.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSave),
@@ -347,7 +348,7 @@ export default function AdminStructures() {
       if (!res.ok) throw new Error((await res.json()).error);
       alert('✅ Structure modifiée avec succès !');
     } else {
-      res = await fetch('/api/admin/structures', {
+      res = await adminFetch('/api/admin/structures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSave),
@@ -366,7 +367,7 @@ export default function AdminStructures() {
 
   const validerStructure = async (id) => {
     try {
-      const res = await fetch(`/api/admin/structures/${id}`, {
+      const res = await adminFetch(`/api/admin/structures/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut: 'publie' }),

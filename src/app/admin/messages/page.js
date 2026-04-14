@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
+import { adminFetch } from '@/lib/adminFetch';
 
 function formatDate(d) {
   if (!d) return '—';
@@ -77,7 +78,7 @@ export default function AdminMessages() {
   const chargerMessages = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/messages');
+      const res = await adminFetch('/api/admin/messages');
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages || []);
@@ -133,7 +134,7 @@ export default function AdminMessages() {
     // Marquer tous ses messages "nouveau" comme lus
     const nouveaux = messages.filter(m => m.comptes_structures?.id === compte.id && m.statut === 'nouveau');
     await Promise.all(nouveaux.map(m =>
-      fetch(`/api/admin/messages/${m.id}`, {
+      adminFetch(`/api/admin/messages/${m.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut: 'lu' }),
@@ -153,7 +154,7 @@ export default function AdminMessages() {
     if (!reponses[msgId]?.trim()) return;
     setEnvoyant(true);
     try {
-      const res = await fetch(`/api/admin/messages/${msgId}`, {
+      const res = await adminFetch(`/api/admin/messages/${msgId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reponse_admin: reponses[msgId], traite_par: nomAdminRef.current }),
@@ -175,7 +176,7 @@ export default function AdminMessages() {
   const supprimerTousMessages = async (compteId) => {
     if (!confirm('Supprimer tous les messages de cette entreprise ? Cette action est irréversible.')) return;
     const msgs = messages.filter(m => m.comptes_structures?.id === compteId);
-    await Promise.all(msgs.map(m => fetch(`/api/admin/messages/${m.id}`, { method: 'DELETE' })));
+    await Promise.all(msgs.map(m => adminFetch(`/api/admin/messages/${m.id}`, { method: 'DELETE' })));
     setMessages(prev => prev.filter(m => m.comptes_structures?.id !== compteId));
     if (compteActif?.id === compteId) { setCompteActif(null); setVueMobile('liste'); }
     afficherToast('Messages supprimés');
@@ -185,7 +186,7 @@ export default function AdminMessages() {
   const supprimerMessage = async (id) => {
     if (!confirm('Supprimer ce message définitivement ?')) return;
     try {
-      const res = await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setMessages(prev => prev.filter(m => m.id !== id));
         afficherToast('Message supprimé');
@@ -221,9 +222,9 @@ export default function AdminMessages() {
         fd.append('contenu', compose.contenu.trim());
         fd.append('traite_par', nomAdminRef.current);
         fd.append('fichier', composeFichier);
-        res = await fetch('/api/admin/messages', { method: 'POST', body: fd });
+        res = await adminFetch('/api/admin/messages', { method: 'POST', body: fd });
       } else {
-        res = await fetch('/api/admin/messages', {
+        res = await adminFetch('/api/admin/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -252,7 +253,7 @@ export default function AdminMessages() {
   const supprimerConvB2B = async (convId) => {
     if (!confirm('Supprimer définitivement cette conversation et tous ses messages ? Cette action est irréversible.')) return;
     try {
-      const res = await fetch(`/api/admin/conversations-b2b/${convId}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/conversations-b2b/${convId}`, { method: 'DELETE' });
       if (res.ok) {
         setConvB2B(prev => prev.filter(c => c.id !== convId));
         if (convSelectionnee?.id === convId) setConvSelectionnee(null);
@@ -268,7 +269,7 @@ export default function AdminMessages() {
   const chargerConvB2B = async () => {
     setLoadingB2B(true);
     try {
-      const res = await fetch('/api/admin/conversations-b2b');
+      const res = await adminFetch('/api/admin/conversations-b2b');
       if (res.ok) {
         const { conversations } = await res.json();
         setConvB2B(conversations || []);
@@ -281,7 +282,7 @@ export default function AdminMessages() {
   const chargerDemandes = async () => {
     setLoadingDemandes(true);
     try {
-      const res = await fetch('/api/admin/demandes-contact-structure');
+      const res = await adminFetch('/api/admin/demandes-contact-structure');
       if (res.ok) {
         const { demandes: data } = await res.json();
         setDemandes(data || []);
@@ -293,7 +294,7 @@ export default function AdminMessages() {
   const traiterDemande = async (id, action) => {
     setTraitant(true);
     try {
-      const res = await fetch(`/api/admin/demandes-contact-structure/${id}`, {
+      const res = await adminFetch(`/api/admin/demandes-contact-structure/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, note_admin: noteAdmin }),
@@ -322,7 +323,7 @@ export default function AdminMessages() {
     const t = setTimeout(async () => {
       setRechercheLoading(true);
       try {
-        const res = await fetch(`/api/admin/comptes-entreprises?q=${encodeURIComponent(rechercheQuery)}`);
+        const res = await adminFetch(`/api/admin/comptes-entreprises?q=${encodeURIComponent(rechercheQuery)}`);
         if (res.ok) {
           const { comptes } = await res.json();
           setRechercheResultats(comptes || []);

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET — compter les badges admin : messages non traités, documents en attente, réponses appels d'offres
-export async function GET() {
+export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const [messagesRes, docsRes, appelsRes] = await Promise.all([
       supabaseAdmin

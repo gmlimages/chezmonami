@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import { adminFetch } from '@/lib/adminFetch';
 
 const TYPES_DOCUMENTS = [
   { value: 'registre_commerce', label: 'Registre de commerce', icon: '📋' },
@@ -90,7 +91,7 @@ export default function AdminComptesEntreprises() {
 
   const chargerNbReclamations = async () => {
     try {
-      const res = await fetch('/api/admin/reclamations?statut=en_attente');
+      const res = await adminFetch('/api/admin/reclamations?statut=en_attente');
       if (res.ok) {
         const { reclamations: data } = await res.json();
         setNbReclamationsEnAttente(data?.length || 0);
@@ -147,7 +148,7 @@ export default function AdminComptesEntreprises() {
   const validerCompte = async (id) => {
     setActionEnCours(id + '_valider');
     try {
-      const res = await fetch(`/api/admin/valider-compte/${id}`, { method: 'POST' });
+      const res = await adminFetch(`/api/admin/valider-compte/${id}`, { method: 'POST' });
       if (!res.ok) throw new Error('Erreur lors de la validation');
       afficherMessage('Compte validé avec succès. Email de confirmation envoyé.');
       await chargerComptes();
@@ -179,7 +180,7 @@ export default function AdminComptesEntreprises() {
   const toggleBadge = async (id, valeurActuelle) => {
     setActionEnCours(id + '_badge');
     try {
-      const res = await fetch(`/api/admin/badge-verifie/${id}`, {
+      const res = await adminFetch(`/api/admin/badge-verifie/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ badge_verifie: !valeurActuelle }),
@@ -201,7 +202,7 @@ export default function AdminComptesEntreprises() {
     if (!compteSelectionne) return;
     setSavingAbonnement(true);
     try {
-      const res = await fetch(`/api/admin/abonnement/${compteSelectionne.id}`, {
+      const res = await adminFetch(`/api/admin/abonnement/${compteSelectionne.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -268,7 +269,7 @@ export default function AdminComptesEntreprises() {
 
   const chargerReclamations = async (compteId) => {
     try {
-      const res = await fetch(`/api/admin/reclamations?compte_id=${compteId}`);
+      const res = await adminFetch(`/api/admin/reclamations?compte_id=${compteId}`);
       if (res.ok) {
         const { reclamations: data } = await res.json();
         setReclamations(data || []);
@@ -281,7 +282,7 @@ export default function AdminComptesEntreprises() {
     try {
       let nomAdmin = 'Administration';
       try { nomAdmin = JSON.parse(localStorage.getItem('adminAuth') || '{}').nom || 'Administration'; } catch {}
-      const res = await fetch(`/api/admin/documents/${docId}`, {
+      const res = await adminFetch(`/api/admin/documents/${docId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut, commentaire_admin: commentaireDoc[docId] || null, nom_admin: nomAdmin }),
@@ -313,7 +314,7 @@ export default function AdminComptesEntreprises() {
     setActionEnCours('reclam_' + reclamId);
     const msg = messageReclamAdmin[reclamId] || null;
     try {
-      const res = await fetch(`/api/admin/reclamations/${reclamId}`, {
+      const res = await adminFetch(`/api/admin/reclamations/${reclamId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut, message_admin: msg }),
@@ -334,7 +335,7 @@ export default function AdminComptesEntreprises() {
     if (!confirm('Supprimer cette réclamation ?')) return;
     setActionEnCours('reclam_del_' + reclamId);
     try {
-      const res = await fetch(`/api/admin/reclamations/${reclamId}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/reclamations/${reclamId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erreur');
       afficherMessage('Réclamation supprimée.');
       chargerReclamations(compteSelectionne.id);
@@ -380,7 +381,7 @@ export default function AdminComptesEntreprises() {
     if (!confirm('Supprimer définitivement ce compte ? Cette action est irréversible.')) return;
     setActionEnCours('suppr_' + id);
     try {
-      const res = await fetch(`/api/admin/suppressions/${id}`, {
+      const res = await adminFetch(`/api/admin/suppressions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'supprimer' }),
@@ -399,7 +400,7 @@ export default function AdminComptesEntreprises() {
   const rejeterSuppression = async (id) => {
     setActionEnCours('rejeter_' + id);
     try {
-      const res = await fetch(`/api/admin/suppressions/${id}`, {
+      const res = await adminFetch(`/api/admin/suppressions/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'rejeter' }),
