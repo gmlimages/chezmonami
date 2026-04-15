@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // PATCH — valider ou refuser un document (admin)
 export async function PATCH(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
     const { statut, commentaire_admin, nom_admin } = await request.json();

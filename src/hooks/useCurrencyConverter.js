@@ -30,7 +30,7 @@ export function useCurrencyConverter() {
           }
         } catch (cfError) {
           // MÉTHODE 2: IP-API (backup)
-          const ipResponse = await fetch('http://ip-api.com/json/');
+          const ipResponse = await fetch('https://ip-api.com/json/');
           const ipData = await ipResponse.json();
           
           if (ipData.countryCode) {

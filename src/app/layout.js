@@ -2,6 +2,7 @@ import './globals.css'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/footer'
 import CookieConsent from '@/components/CookieConsent'
+import AdminBar from '@/components/AdminBar'
 import Script from 'next/script'
 
 export const metadata = {
@@ -40,6 +41,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
+        <AdminBar />
         <Header />
         <main className="min-h-screen">
           {children}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // Durées en mois selon le type
 const DUREES = {
@@ -10,6 +11,8 @@ const DUREES = {
 };
 
 export async function PATCH(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
     const body = await request.json();

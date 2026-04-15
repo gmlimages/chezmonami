@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET — lister toutes les demandes de contact inter-entreprises
-export async function GET() {
+export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { data, error } = await supabaseAdmin
       .from('demandes_contact')

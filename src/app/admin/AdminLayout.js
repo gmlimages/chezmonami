@@ -7,7 +7,7 @@ import AdminSidebarContent from './AdminSidebarContent';
 
 const POLLING_INTERVAL = 60 * 1000; // 1 minute
 
-export default function AdminLayout({ children, titre, sousTitre }) {
+export default function AdminLayout({ children, titre, sousTitre, breadcrumb }) {
   const router = useRouter();
   const pathname = usePathname();
   const [admin, setAdmin] = useState(null);
@@ -78,6 +78,24 @@ export default function AdminLayout({ children, titre, sousTitre }) {
       return;
     }
 
+    // ── Vérifier que la session a un token valide (nouveau système) ──
+    // Les anciennes sessions (avant sécurisation) n'ont pas de sessionToken.
+    // Dans ce cas on force la reconnexion proprement.
+    try {
+      const parsed = JSON.parse(adminAuth);
+      if (!parsed.sessionToken) {
+        localStorage.removeItem('adminAuth');
+        localStorage.removeItem('adminSessionStart');
+        localStorage.removeItem('adminLastActivity');
+        router.push('/dashboard-chezmonami');
+        return;
+      }
+    } catch {
+      localStorage.removeItem('adminAuth');
+      router.push('/dashboard-chezmonami');
+      return;
+    }
+
     if (!sessionStart) localStorage.setItem('adminSessionStart', Date.now().toString());
     if (!lastActivity) localStorage.setItem('adminLastActivity', Date.now().toString());
 
@@ -130,9 +148,9 @@ export default function AdminLayout({ children, titre, sousTitre }) {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
+      {/* Sidebar — démarre sous le header public (top-20 = 5rem) */}
       <aside
-        className={`fixed top-0 left-0 h-screen lg:top-20 lg:h-[calc(100vh-5rem)] bg-white border-r border-gray-200 shadow-xl transition-all duration-300 z-40 overflow-hidden ${
+        className={`fixed top-20 left-0 h-[calc(100vh-5rem)] bg-white border-r border-gray-200 shadow-xl transition-all duration-300 z-40 overflow-hidden ${
           sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 w-64 lg:w-20'
         }`}
       >
@@ -167,27 +185,56 @@ export default function AdminLayout({ children, titre, sousTitre }) {
 
       {/* Contenu Principal */}
       <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
-        {/* Header */}
+        {/* Sous-header breadcrumb */}
         <header className="bg-white shadow-sm sticky top-20 z-20 border-b border-gray-100">
-          <div className="px-4 lg:px-8 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 text-sm">
+          <div className="px-4 lg:px-8 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm min-w-0 flex-1">
+              {/* Bouton menu mobile */}
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden bg-primary text-white p-2 rounded-lg shadow"
+                className="lg:hidden bg-primary text-white p-2 rounded-lg shadow flex-shrink-0"
               >
                 {sidebarOpen ? '✕' : '☰'}
               </button>
-              <Link href="/admin/dashboard" className="text-primary hover:text-primary-dark font-medium">
-                Dashboard
-              </Link>
-              <span className="text-gray-300">/</span>
-              <span className="text-gray-700 font-semibold">{titre}</span>
+
+              {/* Breadcrumb */}
+              <nav className="flex items-center gap-1 flex-wrap">
+                <Link href="/admin/dashboard" className="text-primary hover:text-primary-dark font-medium flex-shrink-0">
+                  🏠 Dashboard
+                </Link>
+                {/* Breadcrumb custom passé en prop */}
+                {breadcrumb ? breadcrumb.map((item, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <span className="text-gray-300">›</span>
+                    {item.href ? (
+                      <Link href={item.href} className="text-primary hover:text-primary-dark font-medium flex-shrink-0">
+                        {item.label}
+                      </Link>
+                    ) : item.onClick ? (
+                      <button onClick={item.onClick} className="text-primary hover:text-primary-dark font-medium flex-shrink-0">
+                        {item.label}
+                      </button>
+                    ) : (
+                      <span className="text-gray-700 font-semibold truncate">{item.label}</span>
+                    )}
+                  </span>
+                )) : (
+                  <>
+                    <span className="text-gray-300">›</span>
+                    <span className="text-gray-700 font-semibold truncate">{titre}</span>
+                  </>
+                )}
+              </nav>
             </div>
-            {tempsRestant && (
-              <div className="hidden lg:flex px-3 py-1 bg-gray-100 rounded-lg">
-                <span className="text-xs text-gray-500">⏱️ {formatTemps(tempsRestant)}</span>
-              </div>
-            )}
+
+            {/* Temps restant + bouton retour rapide */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {tempsRestant && (
+                <div className="hidden lg:flex px-3 py-1 bg-gray-100 rounded-lg">
+                  <span className="text-xs text-gray-500">⏱️ {formatTemps(tempsRestant)}</span>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

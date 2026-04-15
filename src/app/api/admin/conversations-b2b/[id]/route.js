@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // DELETE — supprimer une conversation B2B et tous ses messages (admin uniquement)
 export async function DELETE(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
 

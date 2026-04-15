@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // POST — envoyer une notification depuis la file d'attente
 // body: { itemId: string }
 export async function POST(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { itemId } = await request.json();
     if (!itemId) return NextResponse.json({ error: 'itemId requis' }, { status: 400 });

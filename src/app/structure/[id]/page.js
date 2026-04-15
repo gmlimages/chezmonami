@@ -31,8 +31,19 @@ export default function StructureDetail() {
   // Auth entreprise — accès réservé aux comptes connectés
   const [compteConnecte, setCompteConnecte] = useState(null);
   const [authVerifie, setAuthVerifie] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false); // admin connecté → bypass toutes les gates
 
   useEffect(() => {
+    // Vérifier session admin (bypass abonnement)
+    try {
+      const raw = localStorage.getItem('adminAuth');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.sessionToken) { setIsAdmin(true); setAuthVerifie(true); return; }
+      }
+    } catch {}
+
+    // Sinon vérifier session entreprise
     const auth = localStorage.getItem('entrepriseAuth');
     if (auth) {
       try { setCompteConnecte(JSON.parse(auth).compte); } catch {}
@@ -273,8 +284,8 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
   setModalChambreOuverte(true);
 };
 
-  // Gate 1 : non connecté
-  if (authVerifie && !compteConnecte) {
+  // Gate 1 : non connecté (bypassed si admin)
+  if (authVerifie && !compteConnecte && !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
@@ -308,14 +319,14 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
     );
   }
 
-  // Gate 2 : connecté mais abonnement gratuit ou expiré
+  // Gate 2 : connecté mais abonnement gratuit ou expiré (bypassed si admin)
   const typePayant = ['mensuel', 'trimestriel', 'semestriel', 'annuel'];
   const estPayant = typePayant.includes(compteConnecte?.abonnement);
   const dateFin = compteConnecte?.date_fin_abonnement ? new Date(compteConnecte.date_fin_abonnement) : null;
   const abonnementValide = estPayant && (!dateFin || dateFin > new Date());
   const abonnementExpire = estPayant && dateFin && dateFin <= new Date();
 
-  if (authVerifie && compteConnecte && !abonnementValide) {
+  if (authVerifie && compteConnecte && !abonnementValide && !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
@@ -1186,11 +1197,11 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
           </button>
 
           {/* Image */}
-          <div className="relative max-w-6xl max-h-[90vh] w-full" onClick={(e) => e.stopPropagation()}>
-            <img 
-              src={typeof galerie[indexGalerie] === 'string' ? galerie[indexGalerie] : galerie[indexGalerie].url} 
-              alt="Photo galerie" 
-              className="w-full h-full object-contain rounded-lg"
+          <div className="relative max-w-6xl w-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={typeof galerie[indexGalerie] === 'string' ? galerie[indexGalerie] : galerie[indexGalerie].url}
+              alt="Photo galerie"
+              className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg mx-auto block"
             />
 
             {/* Navigation */}

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET — liste toutes les conversations B2B (lecture seule admin)
-export async function GET() {
+export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { data, error } = await supabaseAdmin
       .from('conversations_b2b')

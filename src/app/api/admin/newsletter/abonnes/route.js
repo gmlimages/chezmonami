@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET — liste des abonnés + stats
 export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { searchParams } = new URL(request.url);
     const statsOnly = searchParams.get('stats') === '1';

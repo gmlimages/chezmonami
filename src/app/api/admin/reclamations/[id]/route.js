@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // PATCH — approuver ou refuser une réclamation
 export async function PATCH(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
     const { statut, message_admin } = await request.json();
@@ -47,6 +50,8 @@ export async function PATCH(request, { params }) {
 
 // DELETE — supprimer une réclamation
 export async function DELETE(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
     const { error } = await supabaseAdmin.from('reclamations').delete().eq('id', id);

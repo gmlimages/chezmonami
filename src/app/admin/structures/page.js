@@ -412,11 +412,22 @@ export default function AdminStructures() {
                     categorieSelectionnee?.nom?.toLowerCase().includes('production');
 
     return (
-      <AdminLayout 
+      <AdminLayout
         titre={structureEnCours ? 'Modifier une structure' : 'Ajouter une structure'}
         sousTitre="Remplissez tous les champs obligatoires"
+        breadcrumb={[
+          { label: 'Structures', href: null, onClick: () => setMode('liste') },
+          { label: structureEnCours ? 'Modifier' : 'Ajouter' },
+        ]}
       >
         <div className="max-w-5xl mx-auto">
+          {/* Bouton retour liste */}
+          <button
+            onClick={() => setMode('liste')}
+            className="mb-4 flex items-center gap-2 text-sm text-gray-600 hover:text-primary transition font-medium"
+          >
+            ← Retour à la liste des structures
+          </button>
           <div className="bg-white rounded-xl shadow-lg p-8">
             {/* Informations de base */}
             <div className="space-y-6 mb-8">

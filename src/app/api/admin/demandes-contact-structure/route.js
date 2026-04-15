@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET — liste toutes les demandes de mise en relation (depuis la page structure publique)
 export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { searchParams } = new URL(request.url);
     const statut = searchParams.get('statut');

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // DELETE — supprimer un message (admin uniquement)
 export async function DELETE(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
 
@@ -30,6 +33,8 @@ export async function DELETE(request, { params }) {
 
 // PATCH — marquer comme lu, répondre, ou mettre à jour traite_par
 export async function PATCH(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
     if (!id) return NextResponse.json({ error: 'Identifiant requis' }, { status: 400 });

@@ -172,6 +172,30 @@ export default function AdminMessages() {
     setEnvoyant(false);
   };
 
+  // ── Télécharger un fichier joint ─────────────────────────────────────────
+  const telechargerFichier = async (msgId, nom) => {
+    try {
+      const res = await adminFetch(`/api/admin/messages/${msgId}/fichier`);
+      if (!res.ok) { afficherToast('Impossible d\'ouvrir le fichier', 'erreur'); return; }
+      // Créer une URL blob locale — l'URL Supabase n'est jamais exposée au navigateur
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const estVisualisable = blob.type.startsWith('image/') || blob.type === 'application/pdf';
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      if (estVisualisable) {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      } else {
+        a.download = nom || 'fichier';
+      }
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    } catch { afficherToast('Erreur lors de l\'ouverture du fichier', 'erreur'); }
+  };
+
   // ── Supprimer tous les messages d'une entreprise ─────────────────────────
   const supprimerTousMessages = async (compteId) => {
     if (!confirm('Supprimer tous les messages de cette entreprise ? Cette action est irréversible.')) return;
@@ -512,10 +536,15 @@ export default function AdminMessages() {
                               <div className="bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
                                 <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{msg.contenu}</p>
                                 {msg.fichier_nom && (
-                                  <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-600 border border-gray-300 rounded-lg px-2 py-1 w-fit bg-white">
+                                  <button
+                                    onClick={() => telechargerFichier(msg.id, msg.fichier_nom)}
+                                    className="mt-2 flex items-center gap-1.5 text-xs text-gray-600 border border-gray-300 rounded-lg px-2 py-1 w-fit bg-white hover:bg-gray-50 transition cursor-pointer"
+                                    title="Télécharger le fichier"
+                                  >
                                     📎 {msg.fichier_nom}
                                     {msg.fichier_taille && <span className="text-gray-400">({(msg.fichier_taille / 1024).toFixed(0)} Ko)</span>}
-                                  </div>
+                                    <span className="text-gray-400 ml-0.5">↓</span>
+                                  </button>
                                 )}
                               </div>
                             </div>
@@ -537,10 +566,15 @@ export default function AdminMessages() {
                                   <p className="text-xs font-semibold text-primary mb-1">{msg.sujet}</p>
                                   <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{msg.contenu}</p>
                                   {msg.fichier_nom && (
-                                    <div className="mt-2 flex items-center gap-1.5 text-xs text-primary border border-primary/20 rounded-lg px-2 py-1 w-fit bg-white">
+                                    <button
+                                      onClick={() => telechargerFichier(msg.id, msg.fichier_nom)}
+                                      className="mt-2 flex items-center gap-1.5 text-xs text-primary border border-primary/20 rounded-lg px-2 py-1 w-fit bg-white hover:bg-primary/5 transition cursor-pointer"
+                                      title="Télécharger le fichier"
+                                    >
                                       📎 {msg.fichier_nom}
                                       {msg.fichier_taille && <span className="text-gray-400">({(msg.fichier_taille / 1024).toFixed(0)} Ko)</span>}
-                                    </div>
+                                      <span className="text-primary/60 ml-0.5">↓</span>
+                                    </button>
                                   )}
                                 </div>
                               </div>

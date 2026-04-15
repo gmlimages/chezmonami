@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET /api/admin/appels-offres/fichiers?path=offres/123/file.pdf&nom=file.pdf
 // Proxy de visualisation de fichier joint à un appel d'offres (masque l'URL Supabase)
 export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { searchParams } = new URL(request.url);
     const path = searchParams.get('path');

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET — liste tous les messages (admin)
 export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { searchParams } = new URL(request.url);
     const statut = searchParams.get('statut');
@@ -28,6 +31,8 @@ export async function GET(request) {
 
 // POST — admin initie un message vers une société (avec fichier optionnel)
 export async function POST(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const contentType = request.headers.get('content-type') || '';
     let compte_id, sujet, contenu, traite_par = null;

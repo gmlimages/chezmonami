@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET — liste toutes les structures (admin)
-export async function GET() {
+export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { data, error } = await supabaseAdmin
       .from('structures')
@@ -24,6 +27,8 @@ export async function GET() {
 
 // POST — créer une structure (admin — publiée directement)
 export async function POST(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const body = await request.json();
 

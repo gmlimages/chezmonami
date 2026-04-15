@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET — rechercher des comptes société (pour initier une conversation depuis l'admin)
 export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') || '').trim();

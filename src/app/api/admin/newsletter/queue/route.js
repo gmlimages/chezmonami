@@ -1,9 +1,12 @@
 // /api/admin/newsletter/queue/route.js
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // GET — file d'attente newsletter
-export async function GET() {
+export async function GET(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { data, error } = await supabaseAdmin
       .from('newsletter_queue')
@@ -20,6 +23,8 @@ export async function GET() {
 
 // DELETE — suppression d'un ou plusieurs éléments
 export async function DELETE(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { ids } = await request.json();
     if (!ids || !Array.isArray(ids) || ids.length === 0) {

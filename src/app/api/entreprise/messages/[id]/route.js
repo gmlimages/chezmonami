@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, getCompteFromToken } from '@/lib/supabaseAdmin';
 
-// DELETE — la société supprime l'un de ses propres messages
+// DELETE — suppression douce côté société (masque le message, ne supprime pas en DB)
 export async function DELETE(request, { params }) {
   try {
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
@@ -13,19 +13,19 @@ export async function DELETE(request, { params }) {
     // Vérifier que le message appartient bien à ce compte
     const { data: msg } = await supabaseAdmin
       .from('messages_entreprises')
-      .select('id, compte_id, fichier_url')
+      .select('id, compte_id')
       .eq('id', id)
       .single();
 
     if (!msg) return NextResponse.json({ error: 'Message introuvable' }, { status: 404 });
     if (msg.compte_id !== compte.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
 
-    // Supprimer le fichier attaché si présent
-    if (msg.fichier_url) {
-      await supabaseAdmin.storage.from('messages').remove([msg.fichier_url]).catch(() => {});
-    }
+    // Suppression douce : on masque le message côté société sans le supprimer
+    const { error } = await supabaseAdmin
+      .from('messages_entreprises')
+      .update({ supprime_par_societe: true })
+      .eq('id', id);
 
-    const { error } = await supabaseAdmin.from('messages_entreprises').delete().eq('id', id);
     if (error) throw error;
 
     return NextResponse.json({ success: true });

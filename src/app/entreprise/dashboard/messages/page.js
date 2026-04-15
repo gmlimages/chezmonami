@@ -173,6 +173,31 @@ export default function MessagesPage() {
     } catch { afficherToast('Erreur réseau', 'error'); }
   };
 
+  const telechargerFichier = async (msgId, nom) => {
+    try {
+      const res = await fetch(`/api/entreprise/messages/${msgId}/fichier`, {
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
+      });
+      if (!res.ok) { afficherToast('Impossible d\'ouvrir le fichier', 'error'); return; }
+      // Créer une URL blob locale — l'URL Supabase n'est jamais exposée au navigateur
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const estVisualisable = blob.type.startsWith('image/') || blob.type === 'application/pdf';
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      if (estVisualisable) {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      } else {
+        a.download = nom || 'fichier';
+      }
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    } catch { afficherToast('Erreur lors de l\'ouverture du fichier', 'error'); }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -232,8 +257,8 @@ export default function MessagesPage() {
                     {item.canDelete && (
                       <button
                         onClick={() => supprimerMessage(item.msgId)}
-                        className="text-base text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100"
-                        title="Supprimer"
+                        className="text-base text-gray-300 hover:text-red-500 transition opacity-50 hover:opacity-100"
+                        title="Supprimer ce message"
                       >
                         🗑
                       </button>
@@ -248,16 +273,21 @@ export default function MessagesPage() {
                   }`}>
                     <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{item.contenu}</p>
                     {item.fichier_nom && (
-                      <div className={`mt-2 flex items-center gap-1.5 text-xs border rounded-lg px-2 py-1 w-fit ${
-                        item.side === 'right'
-                          ? 'border-white/30 bg-white/10 text-white'
-                          : 'border-gray-300 bg-white text-gray-600'
-                      }`}>
+                      <button
+                        onClick={() => telechargerFichier(item.id, item.fichier_nom)}
+                        className={`mt-2 flex items-center gap-1.5 text-xs border rounded-lg px-2 py-1 w-fit transition hover:opacity-80 cursor-pointer ${
+                          item.side === 'right'
+                            ? 'border-white/30 bg-white/10 text-white'
+                            : 'border-gray-300 bg-white text-gray-600'
+                        }`}
+                        title="Télécharger le fichier"
+                      >
                         📎 {item.fichier_nom}
                         {item.fichier_taille && (
                           <span className="opacity-70">({(item.fichier_taille / 1024).toFixed(0)} Ko)</span>
                         )}
-                      </div>
+                        <span className="opacity-60 ml-0.5">↓</span>
+                      </button>
                     )}
                   </div>
                 </div>

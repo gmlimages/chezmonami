@@ -16,7 +16,10 @@ export async function GET(request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ messages });
+    // Filtrer les messages supprimés côté société (colonne optionnelle — fonctionne même avant migration SQL)
+    const visibles = (messages || []).filter(m => !m.supprime_par_societe);
+
+    return NextResponse.json({ messages: visibles });
   } catch (error) {
     console.error('Erreur GET messages entreprise:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

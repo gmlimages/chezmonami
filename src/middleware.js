@@ -17,69 +17,42 @@ export async function middleware(request) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-pathname', pathname);
 
-  // ── 2. Protection des routes /api/admin/ ──────────────────────────
+  // ── 2. Enrichissement des routes /api/admin/ (non bloquant) ────────
+  // Le middleware ne bloque plus — chaque route handler fait sa propre
+  // vérification via requireAdmin(). Le middleware enrichit juste les
+  // headers pour passer l'admin_id si le token est valide.
   if (pathname.startsWith('/api/admin/')) {
-    // La route de login est publique
     if (!ADMIN_PUBLIC_ROUTES.some(r => pathname.startsWith(r))) {
       const authHeader = request.headers.get('Authorization');
       const token = authHeader?.replace('Bearer ', '').trim();
 
-      if (!token) {
-        return NextResponse.json(
-          { error: 'Non autorisé — token manquant' },
-          { status: 401 }
-        );
-      }
+      if (token) {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-      // Vérifier le token via Supabase (fetch direct pour éviter l'import edge)
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-      if (supabaseUrl && serviceKey) {
-        try {
-          const res = await fetch(
-            `${supabaseUrl}/rest/v1/admin_sessions?token=eq.${encodeURIComponent(token)}&select=id,expires_at,admin_id`,
-            {
-              headers: {
-                apikey: serviceKey,
-                Authorization: `Bearer ${serviceKey}`,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-
-          if (!res.ok) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-          }
-
-          const sessions = await res.json();
-          const session = sessions?.[0];
-
-          if (!session) {
-            return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
-          }
-
-          if (new Date(session.expires_at) < new Date()) {
-            // Session expirée — nettoyer en arrière-plan (fire and forget)
-            fetch(
-              `${supabaseUrl}/rest/v1/admin_sessions?id=eq.${session.id}`,
+        if (supabaseUrl && serviceKey) {
+          try {
+            const res = await fetch(
+              `${supabaseUrl}/rest/v1/admin_sessions?token=eq.${encodeURIComponent(token)}&select=id,expires_at,admin_id`,
               {
-                method: 'DELETE',
                 headers: {
                   apikey: serviceKey,
                   Authorization: `Bearer ${serviceKey}`,
+                  'Content-Type': 'application/json',
                 },
               }
-            ).catch(() => {});
+            );
 
-            return NextResponse.json({ error: 'Session expirée. Veuillez vous reconnecter.' }, { status: 401 });
+            if (res.ok) {
+              const sessions = await res.json();
+              const session = sessions?.[0];
+              if (session && new Date(session.expires_at) >= new Date()) {
+                requestHeaders.set('x-admin-id', session.admin_id);
+              }
+            }
+          } catch {
+            // Erreur réseau — le handler de la route valide lui-même
           }
-
-          // Token valide — transmettre l'admin_id dans les headers
-          requestHeaders.set('x-admin-id', session.admin_id);
-        } catch {
-          // En cas d'erreur réseau, on laisse passer (degraded mode)
-          // Le handler de la route peut faire sa propre vérification
         }
       }
     }
@@ -108,8 +81,8 @@ export async function middleware(request) {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval requis par Next.js dev
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      `img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in https://images.unsplash.com https://plus.unsplash.com https://industries.ma https://*.googleusercontent.com https://*.googleapis.com https://lh3.googleusercontent.com https://*.cloudinary.com https://*.amazonaws.com`,
-      `connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://api.resend.com`,
+      `img-src 'self' data: blob: https:`,
+      `connect-src 'self' https: wss://*.supabase.co`,
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // POST — envoyer un message libre aux abonnés
 // body: { sujet, contenu, cible }
 export async function POST(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { sujet, contenu, cible } = await request.json();
 
