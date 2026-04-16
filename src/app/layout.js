@@ -3,7 +3,6 @@ import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/footer'
 import CookieConsent from '@/components/CookieConsent'
 import AdminBar from '@/components/AdminBar'
-import Script from 'next/script'
 
 const BASE_URL = 'https://chezmonami.ma';
 
@@ -108,14 +107,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="fr">
       <head>
-        {/* Google Analytics 4 */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-CT6ZQF3D4P"
-          strategy="afterInteractive"
-        />
-        <Script
-          id="ga4-init"
-          strategy="afterInteractive"
+        {/* Google Analytics 4 — scripts natifs dans <head> pour que Google Search Console puisse les détecter */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-CT6ZQF3D4P" />
+        <script
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
