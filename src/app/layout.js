@@ -9,20 +9,21 @@ const BASE_URL = 'https://chezmonami.ma';
 export const metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: 'ChezMonAmi — Trouvez les meilleures adresses en Afrique',
+    default: 'ChezMonAmi - Trouvez les partenaires d\'affaires pour vos business',
     template: '%s | ChezMonAmi',
   },
   description:
-    "ChezMonAmi répertorie les meilleurs restaurants, salons, boutiques, hôtels et services de proximité à travers toute l'Afrique. Trouvez, comparez et contactez les professionnels près de chez vous.",
+    "Bienvenue sur ChezMonAmi, la plateforme panafricaine de BtoB qui vous connecte aux Apporteurs d'Affaires et partenaires commerciaux en toute confiance, maîtrisant les marchés locaux, les décideurs et circuits de distribution dans 10 pays Africains.",
   keywords: [
-    'annuaire afrique',
-    'restaurants afrique',
-    'boutiques maroc',
-    'services proximité',
-    'trouver professionnel afrique',
-    'hôtels afrique',
-    'salons beauté afrique',
+    'plateforme BtoB afrique',
+    'apporteur affaires afrique',
+    'partenaires commerciaux afrique',
+    'business afrique',
+    'réseau professionnel afrique',
+    'marché local afrique',
     'chezmonami',
+    'partenariat commercial',
+    '10 pays africains',
   ],
   authors: [{ name: 'ChezMonAmi', url: BASE_URL }],
   creator: 'ChezMonAmi',
@@ -42,9 +43,9 @@ export const metadata = {
     locale: 'fr_MA',
     url: BASE_URL,
     siteName: 'ChezMonAmi',
-    title: 'ChezMonAmi — Trouvez les meilleures adresses en Afrique',
+    title: "ChezMonAmi - Trouvez les partenaires d'affaires pour vos business",
     description:
-      'Restaurants, salons, boutiques, hôtels… Trouvez et contactez les professionnels près de chez vous partout en Afrique.',
+      "La plateforme panafricaine de BtoB qui vous connecte aux Apporteurs d'Affaires et partenaires commerciaux maîtrisant les marchés locaux dans 10 pays Africains.",
     images: [
       {
         url: '/images/chezmonami.jpeg',
@@ -56,9 +57,9 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ChezMonAmi — Trouvez les meilleures adresses en Afrique',
+    title: "ChezMonAmi - Trouvez les partenaires d'affaires pour vos business",
     description:
-      'Restaurants, salons, boutiques, hôtels… Trouvez et contactez les professionnels près de chez vous partout en Afrique.',
+      "La plateforme panafricaine de BtoB qui vous connecte aux Apporteurs d'Affaires et partenaires commerciaux maîtrisant les marchés locaux dans 10 pays Africains.",
     images: ['/images/chezmonami.jpeg'],
     creator: '@chezmonami',
   },
@@ -75,7 +76,7 @@ const jsonLdOrganization = {
   url: BASE_URL,
   logo: `${BASE_URL}/images/chezmonami.jpeg`,
   description:
-    'Annuaire en ligne des professionnels et commerces en Afrique : restaurants, salons, boutiques, hôtels et services de proximité.',
+    "Plateforme panafricaine de BtoB connectant les entreprises aux Apporteurs d'Affaires et partenaires commerciaux dans 10 pays Africains.",
   sameAs: [],
   contactPoint: {
     '@type': 'ContactPoint',
