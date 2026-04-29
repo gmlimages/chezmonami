@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
+import { adminFetch } from '@/lib/adminFetch';
 import { produitsAPI } from '@/lib/api';
 
 const TYPES_REDUCTION = [
@@ -64,23 +64,10 @@ export default function AdminPromotions() {
     try {
       setLoading(true);
       
-      // Charger promotions avec produits et devise
-      const { data: promosData, error: promosError } = await supabase
-        .from('promotions')
-        .select(`
-          *,
-          produits (
-            id,
-            nom,
-            prix,
-            images,
-            ville:villes(nom),
-            pays:pays(nom, devise)
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (promosError) throw promosError;
+      const resPromos = await adminFetch('/api/admin/promotions');
+      const jsonPromos = await resPromos.json();
+      if (!resPromos.ok) throw new Error(jsonPromos.error || 'Erreur chargement');
+      const promosData = jsonPromos.promotions || [];
 
       // Charger tous les produits
       const produitsData = await produitsAPI.getAll();
@@ -140,12 +127,8 @@ export default function AdminPromotions() {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette promotion ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('promotions')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const res = await adminFetch(`/api/admin/promotions/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       alert('✅ Promotion supprimée !');
       chargerDonnees();
     } catch (error) {
@@ -156,12 +139,12 @@ export default function AdminPromotions() {
 
   const toggleActif = async (id, actif) => {
     try {
-      const { error } = await supabase
-        .from('promotions')
-        .update({ actif: !actif })
-        .eq('id', id);
-
-      if (error) throw error;
+      const res = await adminFetch(`/api/admin/promotions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actif: !actif }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       chargerDonnees();
     } catch (error) {
       console.error('❌ Erreur:', error);
@@ -223,21 +206,21 @@ export default function AdminPromotions() {
         dataToSave.stock_limite = parseInt(formData.stock_limite);
       }
 
-      let result;
+      let res;
       if (promoEnCours) {
-        result = await supabase
-          .from('promotions')
-          .update(dataToSave)
-          .eq('id', promoEnCours.id)
-          .select();
+        res = await adminFetch(`/api/admin/promotions/${promoEnCours.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataToSave),
+        });
       } else {
-        result = await supabase
-          .from('promotions')
-          .insert(dataToSave)
-          .select();
+        res = await adminFetch('/api/admin/promotions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataToSave),
+        });
       }
-
-      if (result.error) throw result.error;
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
 
       alert(`✅ Promotion ${promoEnCours ? 'modifiée' : 'ajoutée'} !`);
       setMode('liste');

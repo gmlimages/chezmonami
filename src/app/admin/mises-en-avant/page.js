@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
+import { adminFetch } from '@/lib/adminFetch';
 import { structuresAPI } from '@/lib/api';
 
 const POSITIONS = [
@@ -41,18 +41,11 @@ export default function AdminMisesEnAvant() {
       
       console.log('🔄 Chargement mises en avant...');
       
-      // Charger SANS relation d'abord
-      const { data: misesData, error: misesError } = await supabase
-        .from('mises_en_avant')
-        .select('*')
-        .order('ordre', { ascending: true });
-
-      if (misesError) {
-        console.error('❌ Erreur:', misesError);
-        throw misesError;
-      }
-
-      console.log('✅ Mises en avant:', misesData?.length);
+      const res = await adminFetch('/api/admin/mises-en-avant');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erreur chargement');
+      const misesData = json.mises_en_avant || [];
+      console.log('✅ Mises en avant:', misesData.length);
 
       // Charger structures séparément
       const structuresData = await structuresAPI.getAll();
@@ -112,12 +105,8 @@ export default function AdminMisesEnAvant() {
     if (!confirm('Supprimer cette mise en avant ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('mises_en_avant')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const res = await adminFetch(`/api/admin/mises-en-avant/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       alert('✅ Supprimée !');
       chargerDonnees();
     } catch (error) {
@@ -128,12 +117,12 @@ export default function AdminMisesEnAvant() {
 
   const toggleActif = async (id, actif) => {
     try {
-      const { error } = await supabase
-        .from('mises_en_avant')
-        .update({ actif: !actif })
-        .eq('id', id);
-
-      if (error) throw error;
+      const res = await adminFetch(`/api/admin/mises-en-avant/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actif: !actif }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       chargerDonnees();
     } catch (error) {
       console.error('❌ Erreur:', error);
@@ -158,21 +147,21 @@ export default function AdminMisesEnAvant() {
         actif: formData.actif
       };
 
-      let result;
+      let res;
       if (miseEnCours) {
-        result = await supabase
-          .from('mises_en_avant')
-          .update(dataToSave)
-          .eq('id', miseEnCours.id)
-          .select();
+        res = await adminFetch(`/api/admin/mises-en-avant/${miseEnCours.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataToSave),
+        });
       } else {
-        result = await supabase
-          .from('mises_en_avant')
-          .insert(dataToSave)
-          .select();
+        res = await adminFetch('/api/admin/mises-en-avant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataToSave),
+        });
       }
-
-      if (result.error) throw result.error;
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
 
       alert(`✅ ${miseEnCours ? 'Modifiée' : 'Ajoutée'} !`);
       setMode('liste');

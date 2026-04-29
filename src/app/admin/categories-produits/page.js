@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
-import { categoriesProduitsAPI } from '@/lib/api';
+import { adminFetch } from '@/lib/adminFetch';
 
 export default function CategoriesProduitsAdmin() {
   const [categories, setCategories] = useState([]);
@@ -25,8 +25,9 @@ export default function CategoriesProduitsAdmin() {
   const chargerCategories = async () => {
     try {
       setLoading(true);
-      const data = await categoriesProduitsAPI.getAll();
-      setCategories(data);
+      const res = await adminFetch('/api/admin/categories-produits');
+      const data = await res.json();
+      setCategories(data.categories || []);
     } catch (error) {
       console.error('Erreur chargement catégories:', error);
       alert('Erreur lors du chargement des catégories');
@@ -82,14 +83,23 @@ export default function CategoriesProduitsAdmin() {
     }
 
     try {
+      let res;
       if (modeEdition && categorieEnCours) {
-        await categoriesProduitsAPI.update(categorieEnCours.id, formData);
-        alert('✅ Catégorie modifiée avec succès !');
+        res = await adminFetch(`/api/admin/categories-produits/${categorieEnCours.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        if (res.ok) alert('✅ Catégorie modifiée avec succès !');
       } else {
-        await categoriesProduitsAPI.create(formData);
-        alert('✅ Catégorie créée avec succès !');
+        res = await adminFetch('/api/admin/categories-produits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        if (res.ok) alert('✅ Catégorie créée avec succès !');
       }
-      
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       await chargerCategories();
       fermerFormulaire();
     } catch (error) {
@@ -104,7 +114,8 @@ export default function CategoriesProduitsAdmin() {
     }
 
     try {
-      await categoriesProduitsAPI.delete(id);
+      const res = await adminFetch(`/api/admin/categories-produits/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       alert('✅ Catégorie supprimée avec succès !');
       await chargerCategories();
     } catch (error) {

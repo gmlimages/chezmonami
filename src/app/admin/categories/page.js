@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
-import { categoriesAPI } from '@/lib/api';
+import { adminFetch } from '@/lib/adminFetch';
 
 export default function AdminCategories() {
   const [categories, setCategories] = useState([]);
@@ -37,8 +37,9 @@ export default function AdminCategories() {
   const chargerCategories = async () => {
     try {
       setLoading(true);
-      const data = await categoriesAPI.getAll();
-      setCategories(data);
+      const res = await adminFetch('/api/admin/categories');
+      const data = await res.json();
+      setCategories(data.categories || []);
     } catch (error) {
       console.error('Erreur chargement:', error);
       alert('❌ Erreur lors du chargement des catégories');
@@ -77,20 +78,26 @@ export default function AdminCategories() {
     }
 
     try {
+      let res;
       if (modeFormulaire === 'edition') {
-        // Modification
-        await categoriesAPI.update(categorieEnCours.id, {
-          nom: formData.nom,
-          icon: formData.icon,
-          color: formData.color
+        res = await adminFetch(`/api/admin/categories/${categorieEnCours.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nom: formData.nom, icon: formData.icon, color: formData.color }),
         });
-        alert('✅ Catégorie modifiée avec succès !');
+        if (res.ok) alert('✅ Catégorie modifiée avec succès !');
       } else {
-        // Ajout
-        await categoriesAPI.create(formData);
-        alert('✅ Catégorie ajoutée avec succès !');
+        res = await adminFetch('/api/admin/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        if (res.ok) alert('✅ Catégorie ajoutée avec succès !');
       }
-      
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur serveur');
+      }
       fermerFormulaire();
       chargerCategories();
     } catch (error) {
@@ -103,7 +110,8 @@ export default function AdminCategories() {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer cette catégorie ?\n\n⚠️ ATTENTION : Toutes les structures utilisant cette catégorie seront affectées !`)) return;
 
     try {
-      await categoriesAPI.delete(id);
+      const res = await adminFetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Suppression échouée');
       alert('✅ Catégorie supprimée avec succès !');
       chargerCategories();
     } catch (error) {

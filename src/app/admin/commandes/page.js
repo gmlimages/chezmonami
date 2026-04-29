@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
+import { adminFetch } from '@/lib/adminFetch';
 
 const STATUTS = {
   'nouvelle': { label: 'Nouvelle', couleur: 'bg-blue-500', icon: '🆕' },
@@ -43,18 +43,11 @@ export default function AdminCommandes() {
   const chargerCommandes = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from('commandes')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (filtreStatut !== 'tous') {
-        query = query.eq('statut', filtreStatut);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setCommandes(data || []);
+      const params = filtreStatut !== 'tous' ? `?statut=${filtreStatut}` : '';
+      const res = await adminFetch(`/api/admin/commandes${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setCommandes(data.commandes || []);
     } catch (error) {
       console.error('Erreur chargement commandes:', error);
       alert('❌ Erreur lors du chargement des commandes');
@@ -65,14 +58,9 @@ export default function AdminCommandes() {
 
   const chargerHistorique = async (commandeId) => {
     try {
-      const { data, error } = await supabase
-        .from('commandes_historique')
-        .select('*')
-        .eq('commande_id', commandeId)
-        .order('date_modification', { ascending: true });
-
-      if (error) throw error;
-      setHistorique(data || []);
+      const res = await adminFetch(`/api/admin/commandes/${commandeId}`);
+      const data = await res.json();
+      setHistorique(data.historique || []);
     } catch (error) {
       console.error('Erreur chargement historique:', error);
     }
@@ -105,32 +93,22 @@ export default function AdminCommandes() {
     }
 
     try {
-      const { error } = await supabase
-        .from('commandes')
-        .update({
+      const res = await adminFetch(`/api/admin/commandes/${commandeSelectionnee.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           client_nom: formInfosClient.client_nom,
           client_telephone: formInfosClient.client_telephone,
           client_email: formInfosClient.client_email || null,
           client_adresse: formInfosClient.client_adresse || null,
-          client_message: formInfosClient.client_message || null
-        })
-        .eq('id', commandeSelectionnee.id);
-
-      if (error) throw error;
-
+          client_message: formInfosClient.client_message || null,
+        }),
+      });
+      if (!res.ok) throw new Error('Mise à jour échouée');
+      const { commande } = await res.json();
       alert('✅ Informations client mises à jour avec succès !');
-      // Recharger pour voir les changements
       chargerCommandes();
-      // Mettre à jour la commande sélectionnée
-      const { data: updatedCommande } = await supabase
-        .from('commandes')
-        .select('*')
-        .eq('id', commandeSelectionnee.id)
-        .single();
-      
-      if (updatedCommande) {
-        setCommandeSelectionnee(updatedCommande);
-      }
+      if (commande) setCommandeSelectionnee(commande);
     } catch (error) {
       console.error('❌ Erreur mise à jour:', error);
       alert('❌ Erreur lors de la mise à jour');
@@ -144,28 +122,24 @@ export default function AdminCommandes() {
     }
 
     try {
-      const { error } = await supabase
-        .from('commandes')
-        .update({
-          statut: formStatut.statut,
-          tracking_number: formStatut.tracking_number || null,
-          notes_admin: formStatut.commentaire || null
-        })
-        .eq('id', commandeSelectionnee.id);
-
-      if (error) throw error;
-
-      // Si commentaire, l'ajouter à l'historique
+      const body = {
+        statut: formStatut.statut,
+        tracking_number: formStatut.tracking_number || null,
+        notes_admin: formStatut.commentaire || null,
+      };
       if (formStatut.commentaire) {
-        await supabase
-          .from('commandes_historique')
-          .insert({
-            commande_id: commandeSelectionnee.id,
-            ancien_statut: commandeSelectionnee.statut,
-            nouveau_statut: formStatut.statut,
-            commentaire: formStatut.commentaire
-          });
+        body.historique = {
+          ancien_statut: commandeSelectionnee.statut,
+          nouveau_statut: formStatut.statut,
+          commentaire: formStatut.commentaire,
+        };
       }
+      const res = await adminFetch(`/api/admin/commandes/${commandeSelectionnee.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Mise à jour échouée');
 
       alert('✅ Statut mis à jour avec succès !');
       setMode('liste');
@@ -180,12 +154,8 @@ export default function AdminCommandes() {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('commandes')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const res = await adminFetch(`/api/admin/commandes/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Suppression échouée');
       alert('✅ Commande supprimée avec succès !');
       chargerCommandes();
     } catch (error) {

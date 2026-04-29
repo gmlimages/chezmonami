@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { adminFetch } from '@/lib/adminFetch';
 
 export default function ChangerMotDePasse() {
   const router = useRouter();
@@ -66,42 +66,19 @@ export default function ChangerMotDePasse() {
         return;
       }
 
-      // Vérifier l'ancien mot de passe
-      const { data: adminData, error: adminError } = await supabase
-        .from('admins')
-        .select('mot_de_passe')
-        .eq('id', admin.id)
-        .single();
+      const res = await adminFetch('/api/admin/changer-mot-de-passe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ancienMdp: formData.ancienMdp, nouveauMdp: formData.nouveauMdp }),
+      });
+      const result = await res.json();
 
-      if (adminError || !adminData) {
-        setErreurs({ general: 'Erreur lors de la vérification' });
-        setLoading(false);
-        return;
-      }
-
-      // ⚠️ EN PRODUCTION: Utilisez bcrypt
-      // const isValid = await bcrypt.compare(formData.ancienMdp, adminData.mot_de_passe);
-      const isValid = formData.ancienMdp === adminData.mot_de_passe;
-
-      if (!isValid) {
-        setErreurs({ ancien: 'Mot de passe actuel incorrect' });
-        setLoading(false);
-        return;
-      }
-
-      // Mettre à jour le mot de passe
-      // ⚠️ EN PRODUCTION: Hash avec bcrypt avant d'enregistrer
-      // const hashedPassword = await bcrypt.hash(formData.nouveauMdp, 10);
-      const { error: updateError } = await supabase
-        .from('admins')
-        .update({
-          mot_de_passe: formData.nouveauMdp,
-          doit_changer_mdp: false
-        })
-        .eq('id', admin.id);
-
-      if (updateError) {
-        setErreurs({ general: 'Erreur lors de la mise à jour' });
+      if (!res.ok) {
+        if (result.error?.includes('actuel')) {
+          setErreurs({ ancien: result.error });
+        } else {
+          setErreurs({ general: result.error || 'Erreur lors de la mise à jour' });
+        }
         setLoading(false);
         return;
       }

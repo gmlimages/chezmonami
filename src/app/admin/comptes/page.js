@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/app/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
+import { adminFetch } from '@/lib/adminFetch';
 
 export default function AdminComptes() {
   const router = useRouter();
@@ -41,13 +41,10 @@ export default function AdminComptes() {
   const chargerAdmins = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('admins')
-        .select('*')
-        .order('date_creation', { ascending: false });
-
-      if (error) throw error;
-      setAdmins(data || []);
+      const res = await adminFetch('/api/admin/comptes');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAdmins(data.admins || []);
     } catch (error) {
       console.error('Erreur chargement admins:', error);
       alert('❌ Erreur lors du chargement des comptes');
@@ -97,13 +94,8 @@ export default function AdminComptes() {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce compte admin ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('admins')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      
+      const res = await adminFetch(`/api/admin/comptes/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Suppression échouée');
       alert('✅ Compte supprimé avec succès !');
       chargerAdmins();
     } catch (error) {
@@ -118,19 +110,12 @@ export default function AdminComptes() {
     if (!confirm(`Réinitialiser le mot de passe de ${admin.nom} ?\n\nUn nouveau mot de passe temporaire sera généré.`)) return;
 
     try {
-      // ⚠️ EN PRODUCTION: Hash avec bcrypt
-      const { error } = await supabase
-        .from('admins')
-        .update({
-          mot_de_passe: nouveauMdp,
-          doit_changer_mdp: true,
-          tentatives_connexion: 0,
-          bloque_jusqu_a: null
-        })
-        .eq('id', admin.id);
-
-      if (error) throw error;
-
+      const res = await adminFetch(`/api/admin/comptes/${admin.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mot_de_passe: nouveauMdp, doit_changer_mdp: true, tentatives_connexion: 0, bloque_jusqu_a: null }),
+      });
+      if (!res.ok) throw new Error('Réinitialisation échouée');
       alert(`✅ Mot de passe réinitialisé pour ${admin.nom} !\n\nNouveau mot de passe temporaire : ${nouveauMdp}\n\n⚠️ Communiquez-le de manière sécurisée.\nL'admin devra le changer à la prochaine connexion.`);
       chargerAdmins();
     } catch (error) {
@@ -151,45 +136,25 @@ export default function AdminComptes() {
     }
 
     try {
+      let res;
       if (adminEnCours) {
-        // Modification
-        const updateData = {
-          nom: formData.nom,
-          email: formData.email,
-          role: formData.role
-        };
-
-        // Si nouveau mot de passe fourni
-        if (formData.motDePasse) {
-          updateData.mot_de_passe = formData.motDePasse;
-          updateData.doit_changer_mdp = true;
-        }
-
-        const { error } = await supabase
-          .from('admins')
-          .update(updateData)
-          .eq('id', adminEnCours.id);
-
-        if (error) throw error;
-        alert('✅ Compte admin modifié avec succès !');
+        const updateData = { nom: formData.nom, email: formData.email, role: formData.role };
+        if (formData.motDePasse) { updateData.mot_de_passe = formData.motDePasse; updateData.doit_changer_mdp = true; }
+        res = await adminFetch(`/api/admin/comptes/${adminEnCours.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData),
+        });
+        if (res.ok) alert('✅ Compte admin modifié avec succès !');
       } else {
-        // Création
-        // ⚠️ EN PRODUCTION: Hash avec bcrypt
-        const { error } = await supabase
-          .from('admins')
-          .insert({
-            nom: formData.nom,
-            email: formData.email,
-            mot_de_passe: formData.motDePasse,
-            role: formData.role,
-            doit_changer_mdp: true
-          });
-
-        if (error) throw error;
-        
-        alert(`✅ Compte admin créé avec succès !\n\nEmail : ${formData.email}\nMot de passe temporaire : ${formData.motDePasse}\n\n⚠️ Communiquez ces identifiants de manière sécurisée.\nL'admin devra changer son mot de passe à la première connexion.`);
+        res = await adminFetch('/api/admin/comptes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nom: formData.nom, email: formData.email, mot_de_passe: formData.motDePasse, role: formData.role }),
+        });
+        if (res.ok) alert(`✅ Compte admin créé !\n\nEmail : ${formData.email}\nMot de passe temporaire : ${formData.motDePasse}\n\n⚠️ Communiquez ces identifiants de manière sécurisée.`);
       }
-      
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       setMode('liste');
       chargerAdmins();
     } catch (error) {
