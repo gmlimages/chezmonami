@@ -9,6 +9,9 @@ export default function AdminLoginSecure() {
   const [loading, setLoading] = useState(false);
   const [bloque, setBloque] = useState(false);
   const [tempsRestant, setTempsRestant] = useState(0);
+  // Flow 2FA
+  const [challenge, setChallenge] = useState(null);
+  const [code2fa, setCode2fa] = useState('');
 
   useEffect(() => {
     const adminAuth = localStorage.getItem('adminAuth');
@@ -49,6 +52,12 @@ export default function AdminLoginSecure() {
         return;
       }
 
+      // Étape 2FA — un code a été envoyé par email, on attend la saisie
+      if (data.tfa_required) {
+        setChallenge(data.challenge);
+        return;
+      }
+
       // Stocker le token + infos non-sensibles
       localStorage.setItem('adminAuth', JSON.stringify({
         id: data.admin.id,
@@ -73,6 +82,40 @@ export default function AdminLoginSecure() {
     }
   };
 
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    setErreur('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/login/verify-2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge, code: code2fa.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErreur(data.error || 'Code incorrect');
+        return;
+      }
+      localStorage.setItem('adminAuth', JSON.stringify({
+        id: data.admin.id,
+        nom: data.admin.nom,
+        email: data.admin.email,
+        role: data.admin.role,
+        sessionToken: data.token,
+      }));
+      localStorage.setItem('adminSessionStart', Date.now().toString());
+      localStorage.setItem('adminLastActivity', Date.now().toString());
+
+      if (data.admin.doit_changer_mdp) router.push('/admin/changer-mot-de-passe');
+      else router.push('/admin/dashboard');
+    } catch {
+      setErreur('Erreur réseau. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary via-primary-dark to-primary-light flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
@@ -84,7 +127,45 @@ export default function AdminLoginSecure() {
           <p className="text-gray-600">Chez Mon Ami</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        {challenge ? (
+          <form onSubmit={handleVerify2FA} className="space-y-5">
+            {erreur && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {erreur}
+              </div>
+            )}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              📧 Un code à 6 chiffres a été envoyé à votre adresse email. Il expire dans 10 minutes.
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Code de vérification</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                required
+                placeholder="000000"
+                className="input-field tracking-[0.4em] text-center text-2xl font-mono"
+                value={code2fa}
+                onChange={(e) => setCode2fa(e.target.value.replace(/\D/g, ''))}
+                disabled={loading}
+                autoFocus
+              />
+            </div>
+            <button type="submit" className="w-full btn-primary disabled:opacity-50" disabled={loading || code2fa.length !== 6}>
+              {loading ? 'Vérification…' : 'Valider le code'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setChallenge(null); setCode2fa(''); setErreur(''); }}
+              className="w-full text-sm text-gray-500 hover:text-gray-700 underline"
+            >
+              ← Recommencer la connexion
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleLogin} className="space-y-5">
           {erreur && (
             <div className={`border px-4 py-3 rounded-lg text-sm ${
               bloque
@@ -134,6 +215,7 @@ export default function AdminLoginSecure() {
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
+        )}
 
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <p className="text-sm font-semibold text-blue-900 mb-2">🔐 Sécurité</p>

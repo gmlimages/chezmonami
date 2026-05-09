@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireAdmin } from '@/lib/adminAuth';
+import { logAdminAction } from '@/lib/auditLog';
 
 // PATCH — valider (supprimer) ou rejeter une demande de suppression
 export async function PATCH(request, { params }) {
@@ -43,6 +44,15 @@ export async function PATCH(request, { params }) {
 
       if (deleteError) throw deleteError;
 
+      await logAdminAction({
+        request,
+        admin,
+        action: 'compte.suppression_validee',
+        cibleType: 'compte_structure',
+        cibleId: id,
+        details: { nom_contact: compte.nom_contact, motif: compte.motif_suppression },
+      });
+
       return NextResponse.json({ success: true });
     }
 
@@ -58,6 +68,15 @@ export async function PATCH(request, { params }) {
         .eq('id', id);
 
       if (updateError) throw updateError;
+
+      await logAdminAction({
+        request,
+        admin,
+        action: 'compte.suppression_rejetee',
+        cibleType: 'compte_structure',
+        cibleId: id,
+        details: { nom_contact: compte.nom_contact },
+      });
 
       return NextResponse.json({ success: true });
     }

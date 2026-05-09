@@ -2,13 +2,19 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import EntrepriseLayout from '../EntrepriseLayout';
+import { useT } from '@/lib/i18n/LangProvider';
+import PanneauQuetes from '@/components/entreprise/PanneauQuetes';
+import BandeauParrainage from '@/components/entreprise/BandeauParrainage';
 
 export default function EntrepriseDashboard() {
+  const { t, lang } = useT();
   const [compte, setCompte] = useState(null);
   const [stats, setStats] = useState({ appels: 0, appelsNouveaux: 0, messages: 0, documents: 0 });
   const [appelsRecents, setAppelsRecents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notifs, setNotifs] = useState({ nb_messages: 0, nb_b2b: 0, nb_appels: 0, total_messages: 0, total_documents: 0 });
+  const [structureFull, setStructureFull] = useState(null);
+  const [nbDocsValides, setNbDocsValides] = useState(0);
 
   useEffect(() => {
     const auth = localStorage.getItem('entrepriseAuth');
@@ -38,21 +44,32 @@ export default function EntrepriseDashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (resProfil.ok) {
-        const { compte: profilComplet } = await resProfil.json();
+        const { compte: profilComplet, nb_docs_valides } = await resProfil.json();
         if (profilComplet) setCompte(profilComplet);
+        setNbDocsValides(nb_docs_valides || 0);
+      }
+
+      // Charger la structure complète (pour les quêtes)
+      const resStruct = await fetch('/api/entreprise/ma-structure', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (resStruct.ok) {
+        const data = await resStruct.json();
+        setStructureFull(data?.structure || null);
       }
     } catch {}
     setLoading(false);
   };
 
-  const formatDate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  const localeDate = lang === 'ar' ? 'ar' : lang === 'en' ? 'en-GB' : 'fr-FR';
+  const formatDate = (d) => new Date(d).toLocaleDateString(localeDate, { day: '2-digit', month: 'short', year: 'numeric' });
   const isExpireBientot = (d) => {
     const diff = new Date(d) - new Date();
     return diff > 0 && diff < 7 * 24 * 60 * 60 * 1000;
   };
 
   return (
-    <EntrepriseLayout titre="Tableau de bord">
+    <EntrepriseLayout titre={t('dashboard.tableau_bord')}>
       <div className="space-y-6">
 
         {/* Message de bienvenue */}
@@ -62,22 +79,25 @@ export default function EntrepriseDashboard() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-gray-800">
-              Bienvenue, {compte?.nom_contact || '…'} 👋
+              {t('dashboard.bienvenue_nom').replace('{{nom}}', compte?.nom_contact || '…')}
             </h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              Gérez votre espace entreprise et suivez vos activités depuis ce tableau de bord.
+              {t('dashboard.gerez_espace')}
             </p>
           </div>
         </div>
+
+        {/* Bandeau parrainage (s'affiche tant que le programme est actif côté admin) */}
+        <BandeauParrainage />
 
         {/* Alerte compte en attente */}
         {compte?.statut === 'en_attente' && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="text-3xl">⏳</div>
             <div>
-              <p className="font-semibold text-amber-800">Compte en attente de validation</p>
+              <p className="font-semibold text-amber-800">{t('dashboard.compte_en_attente')}</p>
               <p className="text-sm text-amber-600 mt-0.5">
-                L&apos;administration ChezMonAmi examine votre dossier. Vous pourrez accéder à toutes les fonctionnalités après validation.
+                {t('dashboard.compte_attente_desc')}
               </p>
             </div>
           </div>
@@ -85,13 +105,13 @@ export default function EntrepriseDashboard() {
 
         {/* Notifications */}
         {notifs.nb_messages > 0 && (
-          <Link href="/entreprise/dashboard/messages" className="block bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3 hover:bg-blue-100 transition">
+          <Link href="/entreprise/dashboard/messages" className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3 hover:bg-blue-100 transition">
             <span className="text-2xl flex-shrink-0">💬</span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-blue-800">
-                {notifs.nb_messages} nouveau{notifs.nb_messages > 1 ? 'x' : ''} message{notifs.nb_messages > 1 ? 's' : ''} de l&apos;administration
+                {notifs.nb_messages} {notifs.nb_messages > 1 ? t('dashboard.nouveaux_messages_admin') : t('dashboard.nouveau_message_admin')}
               </p>
-              <p className="text-sm text-blue-600 mt-0.5">Cliquez pour consulter vos messages</p>
+              <p className="text-sm text-blue-600 mt-0.5">{t('dashboard.cliquez_consulter_messages')}</p>
             </div>
             <span className="bg-blue-600 text-white text-xs font-bold rounded-full min-w-[1.5rem] h-6 flex items-center justify-center px-2 flex-shrink-0">
               {notifs.nb_messages}
@@ -100,13 +120,13 @@ export default function EntrepriseDashboard() {
         )}
 
         {notifs.nb_b2b > 0 && (
-          <Link href="/entreprise/dashboard/reseau" className="block bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 hover:bg-green-100 transition">
+          <Link href="/entreprise/dashboard/reseau" className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 hover:bg-green-100 transition">
             <span className="text-2xl flex-shrink-0">🤝</span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-green-800">
-                {notifs.nb_b2b} nouveau{notifs.nb_b2b > 1 ? 'x' : ''} message{notifs.nb_b2b > 1 ? 's' : ''} dans votre réseau B2B
+                {notifs.nb_b2b} {notifs.nb_b2b > 1 ? t('dashboard.nouveaux_msg_b2b') : t('dashboard.nouveau_msg_b2b')}
               </p>
-              <p className="text-sm text-green-600 mt-0.5">Cliquez pour consulter vos échanges</p>
+              <p className="text-sm text-green-600 mt-0.5">{t('dashboard.cliquez_consulter_echanges')}</p>
             </div>
             <span className="bg-green-600 text-white text-xs font-bold rounded-full min-w-[1.5rem] h-6 flex items-center justify-center px-2 flex-shrink-0">
               {notifs.nb_b2b}
@@ -115,13 +135,13 @@ export default function EntrepriseDashboard() {
         )}
 
         {notifs.nb_appels > 0 && (
-          <Link href="/entreprise/dashboard/appels-offres" className="block bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center gap-3 hover:bg-orange-100 transition">
+          <Link href="/entreprise/dashboard/appels-offres" className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center gap-3 hover:bg-orange-100 transition">
             <span className="text-2xl flex-shrink-0">📋</span>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-orange-800">
-                {notifs.nb_appels} appel{notifs.nb_appels > 1 ? 's' : ''} d&apos;offres {notifs.nb_appels > 1 ? 'sans réponse' : 'sans réponse'}
+                {notifs.nb_appels} {notifs.nb_appels > 1 ? t('dashboard.appels_sans_reponse') : t('dashboard.appel_sans_reponse')}
               </p>
-              <p className="text-sm text-orange-600 mt-0.5">Cliquez pour consulter et soumettre votre dossier</p>
+              <p className="text-sm text-orange-600 mt-0.5">{t('dashboard.cliquez_soumettre')}</p>
             </div>
             <span className="bg-orange-600 text-white text-xs font-bold rounded-full min-w-[1.5rem] h-6 flex items-center justify-center px-2 flex-shrink-0">
               {notifs.nb_appels}
@@ -132,10 +152,10 @@ export default function EntrepriseDashboard() {
         {/* Cartes stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
-            { label: "Appels d'offres", value: stats.appels, icon: '📋', color: 'blue', href: '/entreprise/dashboard/appels-offres', useLoading: true },
-            { label: 'Sans réponse', value: stats.appelsNouveaux, icon: '🔔', color: 'orange', href: '/entreprise/dashboard/appels-offres', useLoading: true },
-            { label: 'Messages', value: notifs.total_messages, icon: '💬', color: 'green', href: '/entreprise/dashboard/messages', useLoading: false },
-            { label: 'Documents', value: notifs.total_documents, icon: '📁', color: 'purple', href: '/entreprise/dashboard/documents', useLoading: false },
+            { label: t('dashboard.stat_appels'), value: stats.appels, icon: '📋', color: 'blue', href: '/entreprise/dashboard/appels-offres', useLoading: true },
+            { label: t('dashboard.stat_sans_reponse'), value: stats.appelsNouveaux, icon: '🔔', color: 'orange', href: '/entreprise/dashboard/appels-offres', useLoading: true },
+            { label: t('dashboard.stat_messages'), value: notifs.nb_messages, icon: '💬', color: 'green', href: '/entreprise/dashboard/messages', useLoading: false },
+            { label: t('dashboard.stat_documents'), value: notifs.total_documents, icon: '📁', color: 'purple', href: '/entreprise/dashboard/documents', useLoading: false },
           ].map(card => (
             <Link key={card.label} href={card.href} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition group">
               <div className="flex items-center justify-between mb-2">
@@ -167,9 +187,9 @@ export default function EntrepriseDashboard() {
             : 'border-gray-200 bg-gray-50/50';
 
           const labelStatut = estValide
-            ? bientotExpire ? '⚠️ Expire bientôt' : '✅ Actif'
-            : estExpire ? '❌ Expiré'
-            : '🔒 Gratuit';
+            ? bientotExpire ? t('dashboard.statut_expire_bientot') : t('dashboard.statut_actif')
+            : estExpire ? t('dashboard.statut_expire')
+            : t('dashboard.statut_gratuit');
 
           const badgeCouleur = estValide
             ? bientotExpire ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
@@ -182,13 +202,13 @@ export default function EntrepriseDashboard() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">💳</span>
-                    <h2 className="font-bold text-gray-800">Mon abonnement</h2>
+                    <h2 className="font-bold text-gray-800">{t('dashboard.mon_abonnement')}</h2>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badgeCouleur}`}>
                       {labelStatut}
                     </span>
                   </div>
                   <p className="text-sm text-gray-500 capitalize">
-                    {compte.abonnement || 'Gratuit'}{estPayant && compte.montant_paiement ? ` — ${Number(compte.montant_paiement).toLocaleString('fr-FR')} €` : ''}
+                    {compte.abonnement || t('dashboard.gratuit')}{estPayant && compte.montant_paiement ? ` — ${Number(compte.montant_paiement).toLocaleString(localeDate)} €` : ''}
                   </p>
                 </div>
                 {!estValide && (
@@ -196,7 +216,7 @@ export default function EntrepriseDashboard() {
                     href="/entreprise/dashboard/messages"
                     className="inline-flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:opacity-90 transition flex-shrink-0"
                   >
-                    📩 Contacter l&apos;admin
+                    {t('dashboard.contacter_admin')}
                   </a>
                 )}
               </div>
@@ -205,17 +225,17 @@ export default function EntrepriseDashboard() {
                 <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                   {compte.date_paiement && (
                     <div className="bg-white/70 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 mb-0.5">Date de paiement</p>
+                      <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.date_paiement')}</p>
                       <p className="font-semibold text-gray-800">
-                        {new Date(compte.date_paiement).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {new Date(compte.date_paiement).toLocaleDateString(localeDate, { day: '2-digit', month: 'short', year: 'numeric' })}
                       </p>
                     </div>
                   )}
                   {dateFin && (
                     <div className="bg-white/70 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 mb-0.5">Date de fin</p>
+                      <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.date_fin')}</p>
                       <p className={`font-semibold ${estExpire ? 'text-red-600' : bientotExpire ? 'text-orange-600' : 'text-gray-800'}`}>
-                        {dateFin.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {dateFin.toLocaleDateString(localeDate, { day: '2-digit', month: 'short', year: 'numeric' })}
                       </p>
                     </div>
                   )}
@@ -225,9 +245,9 @@ export default function EntrepriseDashboard() {
               {estValide && dateFin && (
                 <div className="mt-3">
                   <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Temps restant</span>
+                    <span>{t('dashboard.temps_restant')}</span>
                     <span className={bientotExpire ? 'text-orange-600 font-semibold' : 'text-gray-600'}>
-                      {joursRestants} jour{joursRestants > 1 ? 's' : ''}
+                      {joursRestants} {joursRestants > 1 ? t('dashboard.jour_pluriel') : t('dashboard.jour_singulier')}
                     </span>
                   </div>
                   {(() => {
@@ -250,51 +270,58 @@ export default function EntrepriseDashboard() {
 
               {!estPayant && (
                 <p className="mt-3 text-xs text-gray-500">
-                  Votre compte est en mode gratuit. Souscrivez à un abonnement pour accéder aux fiches détaillées, aux appels d&apos;offres et à la messagerie.
+                  {t('dashboard.mode_gratuit_desc')}
                 </p>
               )}
               {estExpire && (
                 <p className="mt-3 text-xs text-red-600 font-medium">
-                  Votre abonnement a expiré le {dateFin.toLocaleDateString('fr-FR')}. Contactez l&apos;administration pour le renouveler.
+                  {t('dashboard.abo_expire_le').replace('{{date}}', dateFin.toLocaleDateString(localeDate))}
                 </p>
               )}
             </div>
           );
         })()}
 
+        {/* Panneau de quêtes — progression du profil */}
+        <PanneauQuetes
+          compte={compte}
+          structure={structureFull}
+          extras={{ nbDocsValides }}
+        />
+
         {/* Mon profil rapide */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-            <h2 className="text-lg font-bold text-gray-800">Mon entreprise</h2>
+            <h2 className="text-lg font-bold text-gray-800">{t('dashboard.mon_entreprise')}</h2>
             <Link href="/entreprise/dashboard/profil" className="text-sm text-primary hover:underline font-medium">
-              Modifier le profil →
+              {t('dashboard.modifier_profil')}
             </Link>
           </div>
           {compte && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-0.5">Responsable</p>
+                <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.responsable')}</p>
                 <p className="font-semibold text-gray-800 text-sm">{compte.nom_contact}</p>
               </div>
               <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-0.5">Email</p>
+                <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.email_label')}</p>
                 <p className="font-semibold text-gray-800 text-sm truncate">{compte.email}</p>
               </div>
               {compte.structure?.nom && (
                 <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-0.5">Structure liée</p>
+                  <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.structure_liee')}</p>
                   <p className="font-semibold text-gray-800 text-sm">{compte.structure.nom}</p>
                 </div>
               )}
               <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500 mb-0.5">Statut</p>
+                <p className="text-xs text-gray-500 mb-0.5">{t('dashboard.statut_label')}</p>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
                   compte.statut === 'actif' ? 'bg-green-100 text-green-700' :
                   compte.statut === 'en_attente' ? 'bg-amber-100 text-amber-700' :
                   'bg-red-100 text-red-700'
                 }`}>
-                  {compte.statut === 'actif' ? '✅ Actif' :
-                   compte.statut === 'en_attente' ? '⏳ En attente' : '❌ Suspendu'}
+                  {compte.statut === 'actif' ? t('dashboard.statut_actif') :
+                   compte.statut === 'en_attente' ? t('dashboard.en_attente_short') : t('dashboard.suspendu_short')}
                 </span>
               </div>
             </div>
@@ -304,9 +331,9 @@ export default function EntrepriseDashboard() {
         {/* Appels d'offres récents */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <h2 className="text-lg font-bold text-gray-800">Appels d&apos;offres récents</h2>
+            <h2 className="text-lg font-bold text-gray-800">{t('dashboard.appels_recents')}</h2>
             <Link href="/entreprise/dashboard/appels-offres" className="text-sm text-primary hover:underline font-medium">
-              Voir tous →
+              {t('dashboard.voir_tous')}
             </Link>
           </div>
 
@@ -319,7 +346,7 @@ export default function EntrepriseDashboard() {
           ) : appelsRecents.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
               <p className="text-4xl mb-2">📋</p>
-              <p className="text-sm">Aucun appel d&apos;offres disponible pour le moment</p>
+              <p className="text-sm">{t('dashboard.aucun_appel')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -334,14 +361,14 @@ export default function EntrepriseDashboard() {
                       {appel.titre}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {appel.categories?.nom || 'Tous secteurs'} •{' '}
-                      {appel.international ? '🌍 International' : appel.pays?.nom || 'National'}
+                      {appel.categories?.nom || t('dashboard.tous_secteurs')} •{' '}
+                      {appel.international ? t('dashboard.international') : appel.pays?.nom || t('dashboard.national')}
                     </p>
                   </div>
                   <div className="flex-shrink-0 text-right">
                     {appel.ma_reponse ? (
                       <span className="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                        ✅ Répondu
+                        {t('dashboard.repondu')}
                       </span>
                     ) : (
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${

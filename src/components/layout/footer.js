@@ -1,9 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useT } from '@/lib/i18n/LangProvider';
 
 export default function Footer() {
   const [currentYear, setCurrentYear] = useState('2024');
+  const { t } = useT();
 
   useEffect(() => {
     setCurrentYear(new Date().getFullYear().toString());
@@ -11,39 +13,39 @@ export default function Footer() {
 
   const groupesCategories = [
     {
-      titre: "Production & Industries",
+      titre: t('footer.groupes.production.titre'),
       icon: "🏭",
-      description: "Producteurs, usines, artisanat",
+      description: t('footer.groupes.production.desc'),
       categories: ['producteurs', 'usines', 'laboratoires', 'agriculture', 'mines', 'artisanat', 'bois', 'textile', 'conserves', 'miel', 'terroir']
     },
     {
-      titre: "Commerce & Distribution",
+      titre: t('footer.groupes.commerce.titre'),
       icon: "🛒",
-      description: "Import-export, distribution, vente",
+      description: t('footer.groupes.commerce.desc'),
       categories: ['importateurs', 'exportateurs', 'distribution', 'grossistes', 'commercants', 'franchises', 'commercial', 'apporteurs']
     },
     {
-      titre: "Bâtiment & Environnement",
+      titre: t('footer.groupes.batiment.titre'),
       icon: "🏗️",
-      description: "Construction, énergie, immobilier",
+      description: t('footer.groupes.batiment.desc'),
       categories: ['gros_oeuvre', 'batiment', 'immobilier', 'energies_renouvelables', 'eau', 'jardinage']
     },
     {
-      titre: "Services aux Entreprises",
+      titre: t('footer.groupes.services.titre'),
       icon: "💼",
-      description: "Conseil, gestion, services pros",
+      description: t('footer.groupes.services.desc'),
       categories: ['prestataires', 'comptable', 'conseil', 'archivage', 'digitalisation', 'conciergerie', 'securite', 'transporteurs', 'main_oeuvre']
     },
     {
-      titre: "Santé & Éducation",
+      titre: t('footer.groupes.sante.titre'),
       icon: "🎓",
-      description: "Cliniques, écoles, formations",
+      description: t('footer.groupes.sante.desc'),
       categories: ['clinique', 'paramedical', 'laboratoire_medical', 'ecole', 'lycee', 'formation']
     },
     {
-      titre: "Finance & Tourisme",
+      titre: t('footer.groupes.finance.titre'),
       icon: "🏦",
-      description: "Banques, hôtels, restaurants",
+      description: t('footer.groupes.finance.desc'),
       categories: ['banques', 'assurances', 'location_voiture', 'hotel', 'restaurant']
     }
   ];
@@ -106,7 +108,7 @@ export default function Footer() {
   const appsMobiles = [
     {
       nom: 'Google Play',
-      sousTitre: 'Disponible sur',
+      sousTitre: t('footer.app_dispo_sur'),
       href: null,  // ← remplacer par : 'https://play.google.com/store/apps/details?id=com.chezmonami'
       icon: (
         <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
@@ -116,7 +118,7 @@ export default function Footer() {
     },
     {
       nom: 'App Store',
-      sousTitre: 'Télécharger sur l\'',
+      sousTitre: t('footer.app_telecharger'),
       href: null,  // ← remplacer par : 'https://apps.apple.com/app/chezmonami/idXXXXXXXXX'
       icon: (
         <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
@@ -141,17 +143,16 @@ export default function Footer() {
               />
             </div>
             <p className="text-green-100 text-sm leading-relaxed mb-4">
-              Votre marketplace de proximité en Afrique. Découvrez les meilleurs partenaires,
-              clients, fournisseurs, prospects, services, annonces et opportunités d'affaires du continent.
+              {t('footer.description')}
             </p>
             <p className="text-green-200 text-xs italic mb-5">
-              Connecter l'Afrique, une communauté à la fois.
+              {t('footer.tagline')}
             </p>
 
             {/* ✅ Réseaux sociaux */}
             <div>
               <p className="text-green-200 text-xs font-semibold uppercase tracking-wider mb-3">
-                Suivez-nous
+                {t('footer.suivez_nous')}
               </p>
               <div className="flex items-center gap-2">
                 {reseauxSociaux.map((rs) => (
@@ -173,16 +174,16 @@ export default function Footer() {
           {/* Navigation rapide */}
           <div>
             <h3 className="text-lg font-bold mb-4 border-b border-white/20 pb-2">
-              Navigation
+              {t('footer.navigation')}
             </h3>
             <ul className="space-y-2">
               {[
-                { href: '/',              icon: '🏠', label: 'Accueil' },
-                { href: '/structures',    icon: '🏪', label: 'Structures' },
-                { href: '/boutique',      icon: '🛍️', label: 'Boutique' },
-                { href: '/mes-commandes', icon: '📦', label: 'Mes Commandes' },
-                { href: '/annonces',      icon: '📢', label: 'Annonces' },
-                { href: '/contact',       icon: '📧', label: 'Contact' },
+                { href: '/',              icon: '🏠', label: t('header.accueil') },
+                { href: '/structures',    icon: '🏪', label: t('footer.structures') },
+                { href: '/boutique',      icon: '🛍️', label: t('footer.boutique') },
+                { href: '/mes-commandes', icon: '📦', label: t('header.mes_commandes') },
+                { href: '/annonces',      icon: '📢', label: t('header.annonces') },
+                { href: '/contact',       icon: '📧', label: t('header.contact') },
               ].map((item) => (
                 <li key={item.href}>
                   <Link
@@ -199,7 +200,7 @@ export default function Footer() {
           {/* Secteurs 1/2 */}
           <div>
             <h3 className="text-lg font-bold mb-4 border-b border-white/20 pb-2">
-              Secteurs d'activités 1/2
+              {t('footer.secteurs_1')}
             </h3>
             <ul className="space-y-2 text-sm">
               {groupesCategories.slice(0, 3).map((groupe, index) => (
@@ -222,7 +223,7 @@ export default function Footer() {
           {/* Secteurs 2/2 */}
           <div>
             <h3 className="text-lg font-bold mb-4 border-b border-white/20 pb-2">
-              Secteurs d'activités 2/2
+              {t('footer.secteurs_2')}
             </h3>
             <ul className="space-y-2 text-sm">
               {groupesCategories.slice(3, 6).map((groupe, index) => (
@@ -247,10 +248,10 @@ export default function Footer() {
         <div className="mt-8 pt-8 border-t border-white/20">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: '📧', label: 'Email', content: <a href="mailto:contact@chezmonami.ma" className="text-white hover:text-green-200 transition text-sm">contact@chezmonami.ma</a> },
-              { icon: '📱', label: 'WhatsApp', content: <a href="https://wa.me/212693908389" target="_blank" rel="noopener noreferrer" className="text-white hover:text-green-200 transition text-sm">+212 693 908 389</a> },
-              { icon: '📍', label: 'Couverture', content: <p className="text-white text-sm">Afrique entière</p> },
-              { icon: '⏰', label: 'Disponibilité', content: <p className="text-white text-sm">24h/24, 7j/7</p> },
+              { icon: '📧', label: t('footer.email'), content: <a href="mailto:contact@chezmonami.ma" className="text-white hover:text-green-200 transition text-sm">contact@chezmonami.ma</a> },
+              { icon: '📱', label: t('footer.whatsapp'), content: <a href="https://wa.me/212693908389" target="_blank" rel="noopener noreferrer" className="text-white hover:text-green-200 transition text-sm">+212 693 908 389</a> },
+              { icon: '📍', label: t('footer.couverture'), content: <p className="text-white text-sm">{t('footer.afrique_entiere')}</p> },
+              { icon: '⏰', label: t('footer.disponibilite'), content: <p className="text-white text-sm">{t('footer.dispo_24_7')}</p> },
             ].map((item, i) => (
               <div key={i} className="flex items-start gap-3">
                 <span className="text-2xl">{item.icon}</span>
@@ -267,9 +268,9 @@ export default function Footer() {
         <div className="mt-8 pt-8 border-t border-white/20">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
-              <p className="text-white font-semibold mb-1">📲 Application mobile</p>
+              <p className="text-white font-semibold mb-1">{t('footer.app_titre')}</p>
               <p className="text-green-200 text-sm">
-                Bientôt disponible sur iOS et Android !
+                {t('footer.app_soustitre')}
               </p>
             </div>
 
@@ -291,7 +292,7 @@ export default function Footer() {
                       </p>
                       {!app.href && (
                         <p className="text-yellow-300 text-xs mt-0.5 leading-none">
-                          Bientôt disponible
+                          {t('footer.app_bientot')}
                         </p>
                       )}
                     </div>
@@ -322,13 +323,13 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-green-100 text-sm">
-              &copy; {currentYear} <span className="font-semibold">Chez Mon Ami</span>. Tous droits réservés.
+              &copy; {currentYear} <span className="font-semibold">Chez Mon Ami</span>. {t('footer.droits')}.
             </p>
             <div className="flex items-center gap-6 text-sm">
               {[
-                { href: '/mentions-legales', label: 'Mentions légales' },
-                { href: '/confidentialite',  label: 'Confidentialité' },
-                { href: '/conditions',       label: "Conditions d'utilisation" },
+                { href: '/mentions-legales', label: t('footer.mentions') },
+                { href: '/confidentialite',  label: t('footer.confidentialite') },
+                { href: '/conditions',       label: t('footer.conditions') },
               ].map((item) => (
                 <Link
                   key={item.href}
@@ -342,7 +343,7 @@ export default function Footer() {
             <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full">
               <span className="text-xl">🌍</span>
               <span className="text-green-100 text-xs font-medium">
-                Fait avec ❤️ en Afrique
+                {t('footer.fait_avec')}
               </span>
             </div>
           </div>

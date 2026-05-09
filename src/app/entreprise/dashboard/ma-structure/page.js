@@ -583,7 +583,7 @@ export default function MaStructurePage() {
             </div>
           </div>
           <Link
-            href={`/structure/${structure.id}`}
+            href={`/structure/${structure.slug || structure.id}`}
             target="_blank"
             className="text-xs text-primary hover:underline flex-shrink-0 font-medium"
           >

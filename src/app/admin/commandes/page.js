@@ -1,5 +1,6 @@
 // src/app/admin/commandes/page.js - ADMIN AVEC COMPLETION INFOS
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { adminFetch } from '@/lib/adminFetch';
@@ -50,7 +51,7 @@ export default function AdminCommandes() {
       setCommandes(data.commandes || []);
     } catch (error) {
       console.error('Erreur chargement commandes:', error);
-      alert('❌ Erreur lors du chargement des commandes');
+      toast.error('Erreur lors du chargement des commandes');
     } finally {
       setLoading(false);
     }
@@ -88,7 +89,7 @@ export default function AdminCommandes() {
   const completerInfosClient = async () => {
     // Validation
     if (!formInfosClient.client_nom || !formInfosClient.client_telephone) {
-      alert('⚠️ Le nom et le téléphone sont obligatoires');
+      toast.warning('Le nom et le téléphone sont obligatoires');
       return;
     }
 
@@ -106,18 +107,18 @@ export default function AdminCommandes() {
       });
       if (!res.ok) throw new Error('Mise à jour échouée');
       const { commande } = await res.json();
-      alert('✅ Informations client mises à jour avec succès !');
+      toast.success('Informations client mises à jour avec succès !');
       chargerCommandes();
       if (commande) setCommandeSelectionnee(commande);
     } catch (error) {
       console.error('❌ Erreur mise à jour:', error);
-      alert('❌ Erreur lors de la mise à jour');
+      toast.error('Erreur lors de la mise à jour');
     }
   };
 
   const mettreAJourStatut = async () => {
     if (!formStatut.statut) {
-      alert('⚠️ Veuillez sélectionner un statut');
+      toast.warning('Veuillez sélectionner un statut');
       return;
     }
 
@@ -141,26 +142,26 @@ export default function AdminCommandes() {
       });
       if (!res.ok) throw new Error('Mise à jour échouée');
 
-      alert('✅ Statut mis à jour avec succès !');
+      toast.success('Statut mis à jour avec succès !');
       setMode('liste');
       chargerCommandes();
     } catch (error) {
       console.error('Erreur mise à jour:', error);
-      alert('❌ Erreur lors de la mise à jour');
+      toast.error('Erreur lors de la mise à jour');
     }
   };
 
   const supprimerCommande = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) return;
+    if (!(await confirmDialog({ message: 'Êtes-vous sûr de vouloir supprimer cette commande ?', danger: true }))) return;
 
     try {
       const res = await adminFetch(`/api/admin/commandes/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Suppression échouée');
-      alert('✅ Commande supprimée avec succès !');
+      toast.success('Commande supprimée avec succès !');
       chargerCommandes();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert('❌ Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 

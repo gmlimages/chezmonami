@@ -3,6 +3,9 @@ import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/footer'
 import CookieConsent from '@/components/CookieConsent'
 import AdminBar from '@/components/AdminBar'
+import ToastContainer from '@/components/ui/Toast'
+import ConfirmDialogContainer from '@/components/ui/ConfirmDialog'
+import { LangProvider } from '@/lib/i18n/LangProvider'
 
 const BASE_URL = 'https://chezmonami.ma';
 
@@ -65,6 +68,12 @@ export const metadata = {
   },
   alternates: {
     canonical: BASE_URL,
+    languages: {
+      'fr': `${BASE_URL}/?lang=fr`,
+      'en': `${BASE_URL}/?lang=en`,
+      'ar': `${BASE_URL}/?lang=ar`,
+      'x-default': BASE_URL,
+    },
   },
 };
 
@@ -133,13 +142,17 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <AdminBar />
-        <Header />
-        <main className="min-h-screen">
-          {children}
-        </main>
-        <Footer />
-        <CookieConsent />
+        <LangProvider>
+          <AdminBar />
+          <Header />
+          <main className="min-h-screen">
+            {children}
+          </main>
+          <Footer />
+          <CookieConsent />
+          <ToastContainer />
+          <ConfirmDialogContainer />
+        </LangProvider>
       </body>
     </html>
   )

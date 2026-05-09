@@ -1,18 +1,25 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import EntrepriseLayout from '../../EntrepriseLayout';
+import { useT } from '@/lib/i18n/LangProvider';
+import { lireContexteDepuisURL, messageContextuelDepuis } from '@/lib/messagesContextuels';
 
 /* ─────────────────────────────────────────────
    Helper : formatage date relative
 ───────────────────────────────────────────── */
-function formatDate(d) {
-  if (!d) return '';
-  const date = new Date(d);
-  const diff = Date.now() - date.getTime();
-  if (diff < 60_000) return 'À l\'instant';
-  if (diff < 3_600_000) return `Il y a ${Math.floor(diff / 60_000)} min`;
-  if (diff < 86_400_000) return `Il y a ${Math.floor(diff / 3_600_000)}h`;
-  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+function makeFormatDate(t, lang) {
+  const localeDate = lang === 'ar' ? 'ar' : lang === 'en' ? 'en-GB' : 'fr-FR';
+  return function formatDate(d) {
+    if (!d) return '';
+    const date = new Date(d);
+    const diff = Date.now() - date.getTime();
+    if (diff < 60_000) return t('reseau_page.a_l_instant');
+    const ilYa = t('reseau_page.il_y_a');
+    if (diff < 3_600_000) return `${ilYa ? ilYa + ' ' : ''}${Math.floor(diff / 60_000)} ${t('reseau_page.min_suffix')}`.trim();
+    if (diff < 86_400_000) return `${ilYa ? ilYa + ' ' : ''}${Math.floor(diff / 3_600_000)}${t('reseau_page.heure_suffix')}`.trim();
+    return date.toLocaleDateString(localeDate, { day: '2-digit', month: 'short' });
+  };
 }
 
 /* ─────────────────────────────────────────────
@@ -31,6 +38,7 @@ function Avatar({ nom, size = 'md' }) {
    Sous-composant : panneau de demandes
 ───────────────────────────────────────────── */
 function PanneauDemandes({ demandes, onOuvrirConversation, onSupprimerDemande, formatDate: fmt }) {
+  const { t } = useT();
   const nbRefusees = (demandes.envoyees || []).filter(d => d.statut === 'refusee').length;
 
   return (
@@ -39,19 +47,19 @@ function PanneauDemandes({ demandes, onOuvrirConversation, onSupprimerDemande, f
       {/* Envoyées */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mes demandes envoyées</h3>
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t('reseau_page.mes_demandes_envoyees')}</h3>
           {nbRefusees > 0 && (
             <button
               onClick={() => onSupprimerDemande('vider_refusees')}
               className="text-xs text-red-500 hover:text-red-700 font-medium transition"
             >
-              🗑️ Vider les refusées ({nbRefusees})
+              {t('reseau_page.vider_refusees')} ({nbRefusees})
             </button>
           )}
         </div>
 
         {demandes.envoyees.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">Aucune demande envoyée</p>
+          <p className="text-sm text-gray-400 italic">{t('reseau_page.aucune_demande_envoyee')}</p>
         ) : (
           <div className="space-y-2">
             {demandes.envoyees.map(d => (
@@ -69,37 +77,37 @@ function PanneauDemandes({ demandes, onOuvrirConversation, onSupprimerDemande, f
                   )}
                   {d.statut === 'refusee' && (
                     <p className="text-xs text-red-600 font-medium mt-0.5">
-                      ❌ Demande refusée par l&apos;administration
+                      {t('reseau_page.demande_refusee_admin')}
                     </p>
                   )}
                   <p className="text-xs text-gray-400 mt-0.5">{fmt(d.created_at)}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
                   {d.statut === 'en_attente' && (
-                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold whitespace-nowrap">En attente</span>
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold whitespace-nowrap">{t('reseau_page.en_attente')}</span>
                   )}
                   {d.statut === 'approuvee' && (
                     <>
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Approuvée</span>
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">{t('reseau_page.approuvee')}</span>
                       {d.conversation?.id && (
                         <button
                           onClick={() => onOuvrirConversation(d.conversation.id)}
                           className="px-2 py-0.5 bg-primary text-white rounded-full text-xs font-semibold hover:bg-primary/90 transition"
                         >
-                          Ouvrir
+                          {t('reseau_page.ouvrir')}
                         </button>
                       )}
                     </>
                   )}
                   {d.statut === 'refusee' && (
-                    <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Refusée</span>
+                    <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">{t('reseau_page.refusee')}</span>
                   )}
                   {/* Bouton supprimer pour refusée ou approuvée */}
                   {(d.statut === 'refusee' || d.statut === 'approuvee') && (
                     <button
                       onClick={() => onSupprimerDemande(d.id)}
                       className="text-gray-300 hover:text-red-500 transition text-sm leading-none mt-0.5"
-                      title="Supprimer de ma liste"
+                      title={t('reseau_page.supprimer_liste')}
                     >
                       🗑️
                     </button>
@@ -114,7 +122,7 @@ function PanneauDemandes({ demandes, onOuvrirConversation, onSupprimerDemande, f
       {/* Reçues — uniquement les approuvées (les en_attente ne sont pas visibles ici) */}
       {demandes.recues.length > 0 && (
         <div>
-          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Demandes reçues</h3>
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{t('reseau_page.demandes_recues')}</h3>
           <div className="space-y-2">
             {demandes.recues.map(d => (
               <div key={d.id} className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-xl">
@@ -138,13 +146,13 @@ function PanneauDemandes({ demandes, onOuvrirConversation, onSupprimerDemande, f
                       onClick={() => onOuvrirConversation(d.conversation.id)}
                       className="px-2 py-0.5 bg-primary text-white rounded-full text-xs font-semibold hover:bg-primary/90 transition"
                     >
-                      Ouvrir
+                      {t('reseau_page.ouvrir')}
                     </button>
                   )}
                   <button
                     onClick={() => onSupprimerDemande(d.id)}
                     className="text-gray-300 hover:text-red-500 transition text-sm leading-none"
-                    title="Supprimer de ma liste"
+                    title={t('reseau_page.supprimer_liste')}
                   >
                     🗑️
                   </button>
@@ -161,14 +169,34 @@ function PanneauDemandes({ demandes, onOuvrirConversation, onSupprimerDemande, f
 /* ─────────────────────────────────────────────
    Sous-composant : drawer nouvelle demande
 ───────────────────────────────────────────── */
-function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
+function DrawerNouvelleDemande({ token, onSuccess, onClose, prefillStructureId = null, prefillMessage = '' }) {
+  const { t } = useT();
   const [query, setQuery] = useState('');
   const [resultats, setResultats] = useState([]); // tableau de { structure_id, nom, ville, categorie, a_compte, compte }
   const [rechercheLoading, setRechercheLoading] = useState(false);
   const [selectionne, setSelectionne] = useState(null); // structure sélectionnée
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(prefillMessage || '');
   const [envoyant, setEnvoyant] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', text: '' });
+
+  // Pré-sélection automatique d'une structure depuis un lien contextuel
+  useEffect(() => {
+    if (!prefillStructureId || !token) return;
+    let annule = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/entreprise/structures/recherche?q=${encodeURIComponent('id:' + prefillStructureId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!annule && res.ok) {
+          const { structures } = await res.json();
+          const found = (structures || []).find(s => String(s.structure_id) === String(prefillStructureId));
+          if (found) setSelectionne(found);
+        }
+      } catch {}
+    })();
+    return () => { annule = true; };
+  }, [prefillStructureId, token]);
 
   useEffect(() => {
     if (query.length < 2) { setResultats([]); return; }
@@ -201,16 +229,16 @@ function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setFeedback({ type: 'succes', text: 'Demande envoyée ! L\'admin validera la mise en relation.' });
+        setFeedback({ type: 'succes', text: t('reseau_page.demande_envoyee') });
         setSelectionne(null);
         setQuery('');
         setMessage('');
         setTimeout(() => onSuccess(), 1500);
       } else {
-        setFeedback({ type: 'erreur', text: data.error || 'Une erreur est survenue' });
+        setFeedback({ type: 'erreur', text: data.error || t('reseau_page.erreur_generique') });
       }
     } catch {
-      setFeedback({ type: 'erreur', text: 'Erreur réseau' });
+      setFeedback({ type: 'erreur', text: t('reseau_page.erreur_reseau') });
     }
     setEnvoyant(false);
   };
@@ -221,12 +249,12 @@ function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
       <div className="relative bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800">Nouvelle demande de contact</h2>
+          <h2 className="text-lg font-bold text-gray-800">{t('reseau_page.nouvelle_demande_titre')}</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition text-sm">✕</button>
         </div>
 
         <p className="text-sm text-gray-500">
-          Recherchez une structure par son nom. L&apos;admin valide avant que vous puissiez échanger.
+          {t('reseau_page.recherche_desc')}
         </p>
 
         {/* Feedback */}
@@ -241,7 +269,7 @@ function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Rechercher par nom de structure..."
+                placeholder={t('reseau_page.placeholder_recherche')}
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary pr-10"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
@@ -266,8 +294,8 @@ function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold text-gray-800 text-sm">{s.nom}</p>
                       {s.a_compte
-                        ? <span className="text-xs text-green-600 font-medium flex-shrink-0">✓ Compte actif</span>
-                        : <span className="text-xs text-gray-400 flex-shrink-0">Sans compte</span>
+                        ? <span className="text-xs text-green-600 font-medium flex-shrink-0">{t('reseau_page.compte_actif')}</span>
+                        : <span className="text-xs text-gray-400 flex-shrink-0">{t('reseau_page.sans_compte')}</span>
                       }
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -280,7 +308,7 @@ function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
             )}
 
             {query.length >= 2 && !rechercheLoading && resultats.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-3 mt-2">Aucune structure trouvée pour &quot;{query}&quot;</p>
+              <p className="text-sm text-gray-400 text-center py-3 mt-2">{t('reseau_page.aucune_structure').replace('{{q}}', query)}</p>
             )}
           </div>
         ) : !selectionne.a_compte ? (
@@ -297,15 +325,15 @@ function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
               <button type="button" onClick={() => setSelectionne(null)} className="text-gray-400 hover:text-gray-600 text-sm flex-shrink-0">✕</button>
             </div>
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm text-orange-800">
-              <p className="font-semibold mb-1">⚠️ Cette structure n&apos;a pas encore de compte enregistré</p>
-              <p>Veuillez contacter l&apos;administration ChezMonAmi pour plus d&apos;information sur la procédure de mise en relation.</p>
+              <p className="font-semibold mb-1">{t('reseau_page.pas_de_compte_titre')}</p>
+              <p>{t('reseau_page.pas_de_compte_desc')}</p>
             </div>
             <button
               type="button"
               onClick={() => setSelectionne(null)}
               className="w-full py-2.5 border border-gray-300 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition"
             >
-              ← Choisir une autre structure
+              {t('reseau_page.choisir_autre')}
             </button>
           </div>
         ) : (
@@ -326,10 +354,10 @@ function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Message (optionnel)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('reseau_page.message_optionnel')}</label>
               <textarea
                 rows={3}
-                placeholder="Présentez-vous et expliquez l'objet de votre démarche..."
+                placeholder={t('reseau_page.placeholder_presentation')}
                 className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                 value={message}
                 onChange={e => setMessage(e.target.value)}
@@ -338,16 +366,16 @@ function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
 
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
               <p className="text-xs text-amber-700">
-                Votre demande sera examinée par l&apos;administration. Une fois approuvée, vous pourrez échanger directement.
+                {t('reseau_page.info_examen')}
               </p>
             </div>
 
             <div className="flex gap-3">
               <button type="button" onClick={() => setSelectionne(null)} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700 text-sm font-medium hover:bg-gray-50 transition">
-                Changer
+                {t('reseau_page.changer')}
               </button>
               <button type="submit" disabled={envoyant} className="flex-1 bg-primary text-white py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 hover:bg-primary/90 transition">
-                {envoyant ? 'Envoi...' : 'Envoyer la demande'}
+                {envoyant ? t('reseau_page.envoi') : t('reseau_page.envoyer_demande')}
               </button>
             </div>
           </form>
@@ -360,7 +388,17 @@ function DrawerNouvelleDemande({ token, onSuccess, onClose }) {
 /* ─────────────────────────────────────────────
    Page principale
 ───────────────────────────────────────────── */
-export default function ReseauEntreprise() {
+export default function ReseauEntreprisePage() {
+  return (
+    <Suspense fallback={<EntrepriseLayout titre="Mon réseau"><div className="flex items-center justify-center py-20"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div></EntrepriseLayout>}>
+      <ReseauEntreprise />
+    </Suspense>
+  );
+}
+
+function ReseauEntreprise() {
+  const { t, lang } = useT();
+  const formatDate = makeFormatDate(t, lang);
   const [token, setToken] = useState('');
   const [compte, setCompte] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -383,16 +421,31 @@ export default function ReseauEntreprise() {
   const [showDrawerDemande, setShowDrawerDemande] = useState(false);
   const [panneauGauche, setPanneauGauche] = useState('conversations'); // 'conversations' | 'demandes'
 
+  // Pré-remplissage contextuel (?contact=&from=&ref=)
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [prefillStructureId, setPrefillStructureId] = useState(null);
+  const [prefillMessage, setPrefillMessage] = useState('');
+
+  useEffect(() => {
+    const ctx = lireContexteDepuisURL(searchParams);
+    if (ctx?.structureId) {
+      setPrefillStructureId(ctx.structureId);
+      setPrefillMessage(messageContextuelDepuis(ctx, t));
+      setShowDrawerDemande(true);
+    }
+  }, [searchParams, t]);
+
   const messagesEndRef = useRef(null);
 
   /* ── Init ── */
   useEffect(() => {
     const auth = localStorage.getItem('entrepriseAuth');
     if (!auth) return;
-    const { token: t, compte: c } = JSON.parse(auth);
-    setToken(t);
+    const { token: tk, compte: c } = JSON.parse(auth);
+    setToken(tk);
     setCompte(c);
-    chargerTout(t);
+    chargerTout(tk);
   }, []);
 
   /* ── Scroll messages ── */
@@ -403,12 +456,12 @@ export default function ReseauEntreprise() {
   }, [convActiveData?.messages]);
 
   /* ── Chargement liste ── */
-  const chargerTout = async (t) => {
+  const chargerTout = async (tk) => {
     setLoading(true);
     try {
       const [resConv, resDemandes] = await Promise.all([
-        fetch('/api/entreprise/conversations', { headers: { Authorization: `Bearer ${t}` } }),
-        fetch('/api/entreprise/contacts', { headers: { Authorization: `Bearer ${t}` } }),
+        fetch('/api/entreprise/conversations', { headers: { Authorization: `Bearer ${tk}` } }),
+        fetch('/api/entreprise/contacts', { headers: { Authorization: `Bearer ${tk}` } }),
       ]);
       if (resConv.ok) {
         const { conversations: c } = await resConv.json();
@@ -510,7 +563,7 @@ export default function ReseauEntreprise() {
   /* ── Loading initial ── */
   if (loading) {
     return (
-      <EntrepriseLayout titre="Réseau entreprises">
+      <EntrepriseLayout titre={t('reseau_page.titre')}>
         <div className="flex items-center justify-center py-24">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -530,13 +583,13 @@ export default function ReseauEntreprise() {
       {/* Header panneau gauche */}
       <div className="p-4 border-b border-gray-200 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-gray-800 text-base">Réseau</h2>
+          <h2 className="font-bold text-gray-800 text-base">{t('reseau_page.reseau_label')}</h2>
           <button
             onClick={() => setShowDrawerDemande(true)}
             className="flex items-center gap-1.5 bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-primary/90 transition shadow-sm"
           >
             <span className="text-sm leading-none">+</span>
-            <span>Nouvelle demande</span>
+            <span>{t('reseau_page.nouvelle_demande_btn')}</span>
           </button>
         </div>
 
@@ -548,7 +601,7 @@ export default function ReseauEntreprise() {
               panneauGauche === 'conversations' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Messages
+            {t('reseau_page.messages_tab')}
             {totalNonLus > 0 && (
               <span className="w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
                 {totalNonLus > 9 ? '9+' : totalNonLus}
@@ -561,7 +614,7 @@ export default function ReseauEntreprise() {
               panneauGauche === 'demandes' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Demandes
+            {t('reseau_page.demandes_tab')}
             {demandesEnAttente > 0 && (
               <span className="w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
                 {demandesEnAttente}
@@ -577,13 +630,13 @@ export default function ReseauEntreprise() {
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center space-y-3">
               <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-2xl">💬</div>
-              <p className="text-sm font-semibold text-gray-600">Aucune conversation</p>
-              <p className="text-xs text-gray-400">Envoyez une demande de contact pour démarrer une conversation.</p>
+              <p className="text-sm font-semibold text-gray-600">{t('reseau_page.aucune_conversation')}</p>
+              <p className="text-xs text-gray-400">{t('reseau_page.aucune_conversation_desc')}</p>
               <button
                 onClick={() => setShowDrawerDemande(true)}
                 className="text-xs font-semibold text-primary hover:underline"
               >
-                Envoyer une demande →
+                {t('reseau_page.envoyer_demande_link')}
               </button>
             </div>
           ) : (
@@ -616,7 +669,7 @@ export default function ReseauEntreprise() {
                         <span className="text-[11px] text-gray-400 flex-shrink-0 ml-1">{formatDate(conv.updated_at)}</span>
                       </div>
                       <p className="text-xs text-gray-500 truncate">
-                        {conv.interlocuteur?.structures?.nom || 'Aucune structure'}
+                        {conv.interlocuteur?.structures?.nom || t('reseau_page.aucune_structure_label')}
                       </p>
                       {dernierMsg && (
                         <p className={`text-xs truncate mt-0.5 ${conv.nonLus > 0 ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>
@@ -653,9 +706,9 @@ export default function ReseauEntreprise() {
             💬
           </div>
           <div className="space-y-1">
-            <p className="text-lg font-bold text-gray-700">Sélectionnez une conversation</p>
+            <p className="text-lg font-bold text-gray-700">{t('reseau_page.selectionnez_conversation')}</p>
             <p className="text-sm text-gray-400 max-w-xs">
-              Choisissez une conversation dans la liste ou envoyez une nouvelle demande de contact.
+              {t('reseau_page.selectionnez_desc')}
             </p>
           </div>
           <button
@@ -663,7 +716,7 @@ export default function ReseauEntreprise() {
             className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-primary/90 transition shadow-sm"
           >
             <span>+</span>
-            <span>Nouvelle demande</span>
+            <span>{t('reseau_page.nouvelle_demande_btn')}</span>
           </button>
         </div>
       ) : convLoading ? (
@@ -678,7 +731,7 @@ export default function ReseauEntreprise() {
             <button
               onClick={fermerConversation}
               className="lg:hidden w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition flex-shrink-0 text-lg"
-              aria-label="Retour à la liste"
+              aria-label={t('reseau_page.retour_liste')}
             >
               ←
             </button>
@@ -693,7 +746,7 @@ export default function ReseauEntreprise() {
                 )}
               </div>
               <p className="text-xs text-gray-500 truncate">
-                {interlocuteur?.structures?.nom || convSelectionnee?.interlocuteur?.structures?.nom || 'Aucune structure'}
+                {interlocuteur?.structures?.nom || convSelectionnee?.interlocuteur?.structures?.nom || t('reseau_page.aucune_structure_label')}
               </p>
             </div>
           </div>
@@ -703,14 +756,14 @@ export default function ReseauEntreprise() {
             {convBloquee ? (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-3 p-6">
                 <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center text-2xl">🔒</div>
-                <p className="font-bold text-gray-700">Conversation suspendue</p>
+                <p className="font-bold text-gray-700">{t('reseau_page.conversation_suspendue')}</p>
                 <p className="text-sm text-gray-500 max-w-xs">
-                  Renouvelez votre abonnement pour accéder à cette conversation.
+                  {t('reseau_page.renouvelez_abo')}
                 </p>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <p className="text-sm text-gray-400">Démarrez la conversation</p>
+                <p className="text-sm text-gray-400">{t('reseau_page.demarrez_conversation')}</p>
               </div>
             ) : (
               messages.map(msg => {
@@ -741,7 +794,7 @@ export default function ReseauEntreprise() {
                 type="text"
                 value={nouveauMessage}
                 onChange={e => setNouveauMessage(e.target.value)}
-                placeholder="Votre message..."
+                placeholder={t('reseau_page.placeholder_message')}
                 className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 disabled={envoyant}
               />
@@ -749,7 +802,7 @@ export default function ReseauEntreprise() {
                 type="submit"
                 disabled={envoyant || !nouveauMessage.trim()}
                 className="flex-shrink-0 w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition text-lg"
-                aria-label="Envoyer"
+                aria-label={t('reseau_page.envoyer_aria')}
               >
                 {envoyant ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -768,13 +821,26 @@ export default function ReseauEntreprise() {
      Rendu principal
   ───────────────────────────────────── */
   return (
-    <EntrepriseLayout titre="Réseau entreprises">
+    <EntrepriseLayout titre={t('reseau_page.titre')}>
       {/* Drawer nouvelle demande */}
       {showDrawerDemande && (
         <DrawerNouvelleDemande
           token={token}
-          onSuccess={() => { setShowDrawerDemande(false); chargerTout(token); }}
-          onClose={() => setShowDrawerDemande(false)}
+          prefillStructureId={prefillStructureId}
+          prefillMessage={prefillMessage}
+          onSuccess={() => {
+            setShowDrawerDemande(false);
+            setPrefillStructureId(null);
+            setPrefillMessage('');
+            if (searchParams?.get('contact')) router.replace('/entreprise/dashboard/reseau');
+            chargerTout(token);
+          }}
+          onClose={() => {
+            setShowDrawerDemande(false);
+            setPrefillStructureId(null);
+            setPrefillMessage('');
+            if (searchParams?.get('contact')) router.replace('/entreprise/dashboard/reseau');
+          }}
         />
       )}
 

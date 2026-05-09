@@ -2,17 +2,23 @@
 'use client';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { structuresAPI, categoriesAPI, paysAPI, villesAPI } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import StarRating from '@/components/ui/StarRating';
+import CategoriesSidebar from '@/components/CategoriesSidebar';
+import { groupesCategoriesStructures } from '@/lib/groupesCategories';
+import BoutonFavori from '@/components/BoutonFavori';
+import { useT } from '@/lib/i18n/LangProvider';
 
 import PageTracker from '@/components/PageTracker';
 
-const STRUCTURES_PAR_PAGE = 20;
+const STRUCTURES_PAR_PAGE = 24;
 const CATEGORIES_VISIBLES = 5;
 
 function StructuresContent() {
+  const { t } = useT();
   const searchParams = useSearchParams();
   const [structures, setStructures] = useState([]);
   const [structuresFeatured, setStructuresFeatured] = useState([]);
@@ -222,7 +228,7 @@ function StructuresContent() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des entreprises...</p>
+          <p className="text-gray-600">{t('structures.chargement')}</p>
         </div>
       </div>
     );
@@ -244,10 +250,10 @@ function StructuresContent() {
             <div className="text-center mb-8">
               <div className="text-6xl mb-4">🌍</div>
               <h2 className="text-3xl font-bold text-gray-800 mb-2">
-                Bienvenue sur Chez Mon Ami !
+                {t('structures.bienvenue_modal')}
               </h2>
               <p className="text-gray-600 text-lg">
-                Choisissez votre pays pour voir les entreprises près de chez vous
+                {t('structures.choisissez_pays')}
               </p>
             </div>
 
@@ -263,7 +269,7 @@ function StructuresContent() {
                     <span className="text-4xl">{p.drapeau || '🏳️'}</span>
                     <div className="text-left flex-1">
                       <p className="font-bold text-gray-800">{p.nom}</p>
-                      <p className="text-sm text-gray-500">{nbStructures} structure{nbStructures > 1 ? 's' : ''}</p>
+                      <p className="text-sm text-gray-500">{nbStructures} {nbStructures > 1 ? t('structures.structure_pluriel') : t('structures.structure_singulier')}</p>
                     </div>
                   </button>
                 );
@@ -274,7 +280,7 @@ function StructuresContent() {
               onClick={() => setShowModalPays(false)}
               className="w-full py-3 text-gray-600 hover:text-gray-800 font-medium"
             >
-              Fermer
+              {t('structures.fermer')}
             </button>
           </div>
         </div>
@@ -284,10 +290,10 @@ function StructuresContent() {
       <div className="bg-gradient-to-r from-primary via-primary-dark to-primary-light text-white py-12">
         <div className="container mx-auto px-4">
           <h1 className="text-4xl md:text-5xl font-bold mb-3">
-            {groupeInfo ? `${groupeInfo.icon} ${groupeInfo.titre}` : '🏪 Nos Entreprises'}
+            {groupeInfo ? `${groupeInfo.icon} ${groupeInfo.titre}` : t('accueil.nos_entreprises')}
           </h1>
           <p className="text-xl text-green-100">
-            {structuresFiltrees.length} structure{structuresFiltrees.length > 1 ? 's' : ''} disponible{structuresFiltrees.length > 1 ? 's' : ''}
+            {structuresFiltrees.length} {structuresFiltrees.length > 1 ? t('structures.structure_pluriel') : t('structures.structure_singulier')} {structuresFiltrees.length > 1 ? t('structures.disponible_pluriel') : t('structures.disponible_singulier')}
           </p>
         </div>
       </div>
@@ -299,7 +305,7 @@ function StructuresContent() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Rechercher une entreprise..."
+                placeholder={t('structures.recherche_placeholder')}
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
                 className="input-field pl-10"
@@ -314,7 +320,7 @@ function StructuresContent() {
               onChange={(e) => setPaysFiltre(e.target.value)}
               className="input-field"
             >
-              <option value="">Tous les pays</option>
+              <option value="">{t('structures.tous_pays')}</option>
               {pays.map(p => (
                 <option key={p.id} value={p.id}>
                   {p.drapeau} {p.nom}
@@ -328,7 +334,7 @@ function StructuresContent() {
               className="input-field"
               disabled={!paysFiltre}
             >
-              <option value="">Toutes les villes</option>
+              <option value="">{t('structures.toutes_villes')}</option>
               {villesDisponibles.map(v => (
                 <option key={v.id} value={v.id}>
                   {v.nom}
@@ -345,14 +351,14 @@ function StructuresContent() {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Changer de pays
+              {t('structures.changer_pays')}
             </button>
             {(categorieFiltre !== 'tous' || paysFiltre || villeFiltre || recherche || groupeActif) && (
               <button
                 onClick={reinitialiserFiltres}
                 className="btn-secondary text-sm"
               >
-                Réinitialiser les filtres
+                {t('structures.reinitialiser_filtres')}
               </button>
             )}
           </div>
@@ -389,7 +395,7 @@ function StructuresContent() {
                 }`}
               >
                 <span className="text-4xl mb-2 block">🏪</span>
-                <span className="text-sm">Tous</span>
+                <span className="text-sm">{t('structures.tous')}</span>
                 <span className="block text-xs mt-1 opacity-75">
                   ({structures.length})
                 </span>
@@ -440,7 +446,7 @@ function StructuresContent() {
           <section className="mb-12">
             <div className="flex items-center gap-3 mb-6">
               <span className="text-3xl">⭐</span>
-              <h2 className="text-3xl font-bold text-gray-800">Entreprises à la une</h2>
+              <h2 className="text-3xl font-bold text-gray-800">{t('structures.a_la_une')}</h2>
             </div>
 
             <div className="relative">
@@ -448,15 +454,17 @@ function StructuresContent() {
                 {structuresFeatured.map(structure => (
                   <Link
                     key={structure.id}
-                    href={`/structure/${structure.id}`}
+                    href={`/structure/${structure.slug || structure.id}`}
                     className="flex-shrink-0 w-60 snap-start group"
                   >
                     <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 h-full">
                       <div className="relative h-40">
-                        <img
+                        <Image
                           src={structure.images?.[0] || '/placeholder-structure.jpg'}
                           alt={structure.nom}
-                          className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                          fill
+                          sizes="240px"
+                          className="object-cover group-hover:scale-110 transition duration-300"
                         />
                         
                         {/* Badge Vedette */}
@@ -465,7 +473,7 @@ function StructuresContent() {
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                             </svg>
-                            Vedette
+                            {t('accueil.vedette')}
                           </span>
                         </div>
 
@@ -505,7 +513,7 @@ function StructuresContent() {
 
                         <div className="pt-3 border-t border-gray-100">
                           <span className="text-primary font-semibold text-sm group-hover:underline">
-                            Voir les détails →
+                            {t('structures.voir_les_details')}
                           </span>
                         </div>
                       </div>
@@ -514,30 +522,54 @@ function StructuresContent() {
                 ))}
               </div>
               <div className="text-center mt-2 text-sm text-gray-500">
-                ← Faites défiler pour voir plus →
+                {t('structures.faites_defiler')}
               </div>
             </div>
           </section>
         )}
 
+        {/* Vue avec sidebar catégories (desktop) */}
+        <div className="flex gap-6">
+          {/* Sidebar catégories (desktop uniquement) */}
+          <aside className="hidden lg:block w-60 flex-shrink-0">
+            <CategoriesSidebar
+              categories={categories}
+              valeur={categorieFiltre}
+              onChange={(id) => { setCategorieFiltre(id); setGroupeActif(null); }}
+              groupes={groupesCategoriesStructures}
+              groupeActif={groupeActif}
+              onGroupeChange={(cats) => {
+                setGroupeActif(cats);
+                setCategorieFiltre('tous');
+              }}
+              compteurs={categories.reduce((acc, c) => {
+                acc[c.id] = structures.filter(s => s.categorie_id === c.id).length;
+                return acc;
+              }, {})}
+              titre={t('structures.categories_titre')}
+            />
+          </aside>
+
+          {/* Colonne droite : tri + grille + pagination */}
+          <div className="flex-1 min-w-0">
         {/* Tri */}
         {structuresFiltrees.length > 0 && (
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-gray-600">
-              {structuresFiltrees.length} structure{structuresFiltrees.length > 1 ? 's' : ''}
+              {structuresFiltrees.length} {structuresFiltrees.length > 1 ? t('structures.structure_pluriel') : t('structures.structure_singulier')}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setTri('recentes')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tri === 'recentes' ? 'bg-primary text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
               >
-                Récentes
+                {t('structures.tri_recentes')}
               </button>
               <button
                 onClick={() => setTri('populaires')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tri === 'populaires' ? 'bg-primary text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
               >
-                Populaires
+                {t('structures.tri_populaires')}
               </button>
             </div>
           </div>
@@ -547,31 +579,34 @@ function StructuresContent() {
         {structuresFiltrees.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl shadow">
             <div className="text-6xl mb-4">🔍</div>
-            <p className="text-xl text-gray-600 mb-2">Aucune entreprise trouvée</p>
-            <p className="text-gray-500 mb-6">Essayez de modifier vos critères de recherche</p>
+            <p className="text-xl text-gray-600 mb-2">{t('structures.aucun_resultat')}</p>
+            <p className="text-gray-500 mb-6">{t('structures.essayez_critères')}</p>
             <button
               onClick={reinitialiserFiltres}
               className="btn-primary"
             >
-              Réinitialiser les filtres
+              {t('structures.reinitialiser_filtres')}
             </button>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {structuresPage.map(structure => {
                 const categorie = categories.find(c => c.id === structure.categorie_id);
                 return (
-                  <Link 
-                    key={structure.id} 
-                    href={`/structure/${structure.id}`}
-                    className="card overflow-hidden hover:shadow-2xl transition-all hover:scale-105 cursor-pointer"
+                  <Link
+                    key={structure.id}
+                    href={`/structure/${structure.slug || structure.id}`}
+                    className="card overflow-hidden hover:shadow-2xl transition-all hover:scale-105 cursor-pointer relative"
                   >
-                    <div className="relative">
-                      <img
+                    <BoutonFavori type="structures" id={structure.id} variant="card" className="!top-3 !left-3 !right-auto" />
+                    <div className="relative w-full h-40">
+                      <Image
                         src={structure.images?.[0] || '/placeholder-structure.jpg'}
                         alt={structure.nom}
-                        className="w-full h-40 object-cover"
+                        fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+                        className="object-cover"
                       />
                       {categorie && (
                         <span className="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold text-white shadow-lg bg-primary">
@@ -597,8 +632,8 @@ function StructuresContent() {
                       </p>
                       
                       <div className="flex items-center justify-between pt-3 border-t">
-                        <span className="text-sm text-gray-500">{structure.horaires || 'Voir horaires'}</span>
-                        <span className="text-primary font-semibold text-sm">Voir détails →</span>
+                        <span className="text-sm text-gray-500">{structure.horaires || t('structures.voir_horaires')}</span>
+                        <span className="text-primary font-semibold text-sm">{t('structures.voir_details')}</span>
                       </div>
                     </div>
                   </Link>
@@ -618,7 +653,7 @@ function StructuresContent() {
                       : 'bg-white text-primary hover:bg-primary hover:text-white shadow-md'
                   }`}
                 >
-                  ← Précédent
+                  {t('structures.precedent')}
                 </button>
 
                 <div className="hidden md:flex items-center gap-2">
@@ -654,7 +689,7 @@ function StructuresContent() {
 
                 <div className="md:hidden bg-white px-4 py-2 rounded-lg shadow-md">
                   <span className="font-semibold text-gray-700">
-                    Page {pageActuelle} / {totalPages}
+                    {t('structures.page_de')} {pageActuelle} / {totalPages}
                   </span>
                 </div>
 
@@ -667,23 +702,25 @@ function StructuresContent() {
                       : 'bg-white text-primary hover:bg-primary hover:text-white shadow-md'
                   }`}
                 >
-                  Suivant →
+                  {t('structures.suivant')}
                 </button>
               </div>
             )}
 
             <p className="text-center text-sm text-gray-600 mt-6">
-              Affichage de {indexDebut + 1} à {Math.min(indexFin, structuresFiltrees.length)} sur {structuresFiltrees.length} structures
+              {t('structures.affichage')} {indexDebut + 1} {t('structures.a')} {Math.min(indexFin, structuresFiltrees.length)} {t('structures.sur')} {structuresFiltrees.length} {t('structures.structure_pluriel')}
             </p>
           </>
         )}
+          </div>
+        </div>
         {/* Bouton WhatsApp Flottant */}
           <a
             href="https://wa.me/212673623053?text=Bonjour%2C%20je%20souhaite%20inscrire%20mon%20entreprise%20sur%20Chez%20Mon%20Ami.%20Pouvez-vous%20m%27aider%20%3F"
             target="_blank"
             rel="noopener noreferrer"
             className="fixed bottom-6 right-6 w-16 h-16 bg-green-500 hover:bg-green-600 rounded-full shadow-2xl flex items-center justify-center text-white text-3xl z-50 hover:scale-110 transition-transform"
-            title="Contactez-nous sur WhatsApp"
+            title={t('structures.whatsapp_titre')}
           >
             <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>

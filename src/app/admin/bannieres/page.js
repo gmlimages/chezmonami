@@ -1,5 +1,6 @@
 // src/app/admin/bannieres/page.js
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import ImageUploader from '@/components/ImageUploader';
@@ -37,7 +38,7 @@ export default function AdminBannieres() {
       setStructures(structuresData);
     } catch (error) {
       console.error('Erreur chargement:', error);
-      alert('❌ Erreur lors du chargement des données');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -72,21 +73,21 @@ export default function AdminBannieres() {
   };
 
   const supprimerBanniere = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette bannière ?')) return;
+    if (!(await confirmDialog({ message: 'Êtes-vous sûr de vouloir supprimer cette bannière ?', danger: true }))) return;
 
     try {
       await bannieresAPI.delete(id);
-      alert('✅ Bannière supprimée avec succès !');
+      toast.success('Bannière supprimée avec succès !');
       chargerDonnees();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert('❌ Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 
   const sauvegarderBanniere = async () => {
     if (!formData.titre || !formData.image_url) {
-      alert('⚠️ Veuillez remplir au moins le titre et l\'image');
+      toast.warning('Veuillez remplir au moins le titre et l\'image');
       return;
     }
 
@@ -103,17 +104,17 @@ export default function AdminBannieres() {
 
       if (banniereEnCours) {
         await bannieresAPI.update(banniereEnCours.id, dataToSave);
-        alert('✅ Bannière modifiée avec succès !');
+        toast.success('Bannière modifiée avec succès !');
       } else {
         await bannieresAPI.create(dataToSave);
-        alert('✅ Bannière ajoutée avec succès !');
+        toast.success('Bannière ajoutée avec succès !');
       }
       
       setMode('liste');
       chargerDonnees();
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     }
   };
 
@@ -123,7 +124,7 @@ export default function AdminBannieres() {
       chargerDonnees();
     } catch (error) {
       console.error('Erreur toggle:', error);
-      alert('❌ Erreur lors de la modification');
+      toast.error('Erreur lors de la modification');
     }
   };
 

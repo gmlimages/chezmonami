@@ -1,5 +1,6 @@
 // src/app/admin/categories/page.js
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { adminFetch } from '@/lib/adminFetch';
@@ -42,7 +43,7 @@ export default function AdminCategories() {
       setCategories(data.categories || []);
     } catch (error) {
       console.error('Erreur chargement:', error);
-      alert('❌ Erreur lors du chargement des catégories');
+      toast.error('Erreur lors du chargement des catégories');
     } finally {
       setLoading(false);
     }
@@ -73,7 +74,7 @@ export default function AdminCategories() {
 
   const sauvegarderCategorie = async () => {
     if (!formData.id || !formData.nom || !formData.icon) {
-      alert('⚠️ Veuillez remplir tous les champs');
+      toast.warning('Veuillez remplir tous les champs');
       return;
     }
 
@@ -85,14 +86,14 @@ export default function AdminCategories() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nom: formData.nom, icon: formData.icon, color: formData.color }),
         });
-        if (res.ok) alert('✅ Catégorie modifiée avec succès !');
+        if (res.ok) toast.success('Catégorie modifiée avec succès !');
       } else {
         res = await adminFetch('/api/admin/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
         });
-        if (res.ok) alert('✅ Catégorie ajoutée avec succès !');
+        if (res.ok) toast.success('Catégorie ajoutée avec succès !');
       }
       if (!res.ok) {
         const err = await res.json();
@@ -102,21 +103,21 @@ export default function AdminCategories() {
       chargerCategories();
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     }
   };
 
   const supprimerCategorie = async (id) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer cette catégorie ?\n\n⚠️ ATTENTION : Toutes les structures utilisant cette catégorie seront affectées !`)) return;
+    if (!(await confirmDialog({ message: `Êtes-vous sûr de vouloir supprimer cette catégorie ?\n\n⚠️ ATTENTION : Toutes les structures utilisant cette catégorie seront affectées !`, danger: true }))) return;
 
     try {
       const res = await adminFetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Suppression échouée');
-      alert('✅ Catégorie supprimée avec succès !');
+      toast.success('Catégorie supprimée avec succès !');
       chargerCategories();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert('❌ Erreur: Cette catégorie est peut-être utilisée par des structures');
+      toast.error('Erreur: Cette catégorie est peut-être utilisée par des structures');
     }
   };
 

@@ -1,10 +1,30 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useT } from '@/lib/i18n/LangProvider';
 
-export default function EntrepriseConnexion() {
+// Sécurise un retour : doit commencer par "/" (chemin interne) et pas "//" (protocol-relative)
+function sanitizeRetour(r) {
+  if (!r || typeof r !== 'string') return null;
+  if (!r.startsWith('/') || r.startsWith('//')) return null;
+  return r;
+}
+
+export default function EntrepriseConnexionPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-primary via-primary-dark to-accent" />}>
+      <EntrepriseConnexion />
+    </Suspense>
+  );
+}
+
+function EntrepriseConnexion() {
+  const { t } = useT();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const retour = sanitizeRetour(searchParams?.get('retour'));
+  const cible = retour || '/entreprise/dashboard';
   const [form, setForm] = useState({ email: '', mot_de_passe: '' });
   const [erreur, setErreur] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,10 +32,15 @@ export default function EntrepriseConnexion() {
   const [tempsRestant, setTempsRestant] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
 
+  // 2FA
+  const [challenge, setChallenge] = useState(null);
+  const [code2fa, setCode2fa] = useState('');
+  const [verifying, setVerifying] = useState(false);
+
   useEffect(() => {
     const auth = localStorage.getItem('entrepriseAuth');
-    if (auth) router.push('/entreprise/dashboard');
-  }, [router]);
+    if (auth) router.push(cible);
+  }, [router, cible]);
 
   useEffect(() => {
     if (tempsRestant > 0) {
@@ -46,7 +71,14 @@ export default function EntrepriseConnexion() {
           setBloque(true);
           setTempsRestant(data.secondes);
         }
-        setErreur(data.error || 'Erreur de connexion');
+        setErreur(data.error || t('form.erreur_connexion'));
+        return;
+      }
+
+      // Si 2FA requis, on bascule sur l'écran de saisie du code
+      if (data.tfa_required && data.challenge) {
+        setChallenge(data.challenge);
+        setLoading(false);
         return;
       }
 
@@ -57,12 +89,40 @@ export default function EntrepriseConnexion() {
       }));
       localStorage.setItem('entrepriseSessionStart', Date.now().toString());
 
-      router.push('/entreprise/dashboard');
+      router.push(cible);
 
     } catch {
-      setErreur('Erreur réseau. Vérifiez votre connexion.');
+      setErreur(t('form.erreur_reseau'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    setErreur('');
+    setVerifying(true);
+    try {
+      const res = await fetch('/api/entreprise/connexion/verify-2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge, code: code2fa }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErreur(data.error || 'Code incorrect');
+        return;
+      }
+      localStorage.setItem('entrepriseAuth', JSON.stringify({
+        token: data.token,
+        compte: data.compte,
+      }));
+      localStorage.setItem('entrepriseSessionStart', Date.now().toString());
+      router.push(cible);
+    } catch {
+      setErreur(t('form.erreur_reseau'));
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -76,11 +136,55 @@ export default function EntrepriseConnexion() {
             <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">
               🏢
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">Espace Entreprise</h1>
-            <p className="text-gray-500 text-sm mt-1">Connectez-vous à votre compte</p>
+            <h1 className="text-2xl font-bold text-gray-800">{t('form.espace_entreprise')}</h1>
+            <p className="text-gray-500 text-sm mt-1">{t('form.connectez_vous')}</p>
           </div>
 
-          {/* Formulaire */}
+          {/* Écran 2FA */}
+          {challenge ? (
+            <form onSubmit={handleVerify2FA} className="space-y-4">
+              {erreur && (
+                <div className="px-4 py-3 rounded-lg text-sm border bg-red-50 border-red-200 text-red-700">
+                  {erreur}
+                </div>
+              )}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                📧 Un code à 6 chiffres vient d'être envoyé sur votre adresse email. Il expire dans 10 minutes.
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Code de vérification
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  required
+                  placeholder="123456"
+                  className="input-field w-full text-center text-2xl tracking-widest font-mono"
+                  value={code2fa}
+                  onChange={e => setCode2fa(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  autoFocus
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={verifying || code2fa.length !== 6}
+                className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed py-3 text-base font-semibold"
+              >
+                {verifying ? 'Vérification…' : 'Valider le code'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setChallenge(null); setCode2fa(''); setErreur(''); }}
+                className="w-full text-sm text-gray-500 hover:text-gray-700 mt-2"
+              >
+                ← Annuler et revenir à la connexion
+              </button>
+            </form>
+          ) : (
+          /* Formulaire */
           <form onSubmit={handleSubmit} className="space-y-4">
             {erreur && (
               <div className={`px-4 py-3 rounded-lg text-sm border ${
@@ -91,7 +195,7 @@ export default function EntrepriseConnexion() {
                 {erreur}
                 {bloque && tempsRestant > 0 && (
                   <p className="mt-1 text-xs font-mono">
-                    Déblocage dans : {Math.floor(tempsRestant / 60)}m {tempsRestant % 60}s
+                    {t('form.deblocage_dans')} {Math.floor(tempsRestant / 60)}m {tempsRestant % 60}s
                   </p>
                 )}
               </div>
@@ -99,12 +203,12 @@ export default function EntrepriseConnexion() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Adresse email
+                {t('form.email')}
               </label>
               <input
                 type="email"
                 required
-                placeholder="entreprise@exemple.com"
+                placeholder={t('form.placeholder_email')}
                 className="input-field w-full"
                 value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
@@ -115,13 +219,13 @@ export default function EntrepriseConnexion() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Mot de passe
+                {t('form.mot_de_passe')}
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="••••••••"
+                  placeholder={t('form.password_placeholder')}
                   className="input-field w-full pr-10"
                   value={form.mot_de_passe}
                   onChange={e => setForm({ ...form, mot_de_passe: e.target.value })}
@@ -138,6 +242,15 @@ export default function EntrepriseConnexion() {
               </div>
             </div>
 
+            <div className="text-right">
+              <Link
+                href="/entreprise/mot-de-passe-oublie"
+                className="text-xs text-primary hover:underline font-medium"
+              >
+                {t('form.mot_de_passe_oublie')}
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={loading || bloque}
@@ -146,18 +259,19 @@ export default function EntrepriseConnexion() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Connexion...
+                  {t('form.connexion_en_cours')}
                 </span>
-              ) : 'Se connecter'}
+              ) : t('form.se_connecter')}
             </button>
           </form>
+          )}
 
           {/* Lien inscription */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Pas encore de compte ?{' '}
+              {t('form.pas_de_compte')}{' '}
               <Link href="/entreprise/inscription" className="text-primary font-semibold hover:underline">
-                Créer un compte
+                {t('form.creer_compte')}
               </Link>
             </p>
           </div>
@@ -165,9 +279,9 @@ export default function EntrepriseConnexion() {
           {/* Info sécurité */}
           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
             <ul className="text-xs text-blue-700 space-y-1">
-              <li>• Maximum 5 tentatives avant blocage temporaire</li>
-              <li>• Session active pendant 8 heures</li>
-              <li>• Connexion sécurisée et chiffrée</li>
+              <li>{t('form.info_max_tentatives')}</li>
+              <li>{t('form.info_session_8h')}</li>
+              <li>{t('form.info_securisee')}</li>
             </ul>
           </div>
         </div>
@@ -175,7 +289,7 @@ export default function EntrepriseConnexion() {
         {/* Retour site */}
         <p className="text-center mt-4">
           <Link href="/" className="text-white/80 hover:text-white text-sm transition">
-            ← Retour au site
+            {t('form.retour_site')}
           </Link>
         </p>
       </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, getCompteFromToken } from '@/lib/supabaseAdmin';
+import { sendEmail, baseTemplate, baseText } from '@/lib/email';
 
 // POST — soumettre une réclamation de structure
 export async function POST(request) {
@@ -80,6 +81,34 @@ export async function POST(request) {
       reference_type: 'reclamation',
       reference_id: reclamation.id,
     });
+
+    // Email d'accusé de réception au demandeur
+    if (compte.email) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chezmonami.ma';
+      const titre = 'Réclamation reçue';
+      const contenu = `
+        <p>Bonjour <strong>${compte.nom_contact}</strong>,</p>
+        <p>Nous avons bien reçu votre réclamation concernant la fiche <strong>${structure.nom}</strong>.</p>
+        <p>Notre équipe l'examinera et vous tiendra informé(e) sous quelques jours ouvrés.</p>
+      `;
+      await sendEmail({
+        to: compte.email,
+        subject: `📄 Votre réclamation sur "${structure.nom}" a été reçue`,
+        html: baseTemplate({
+          titre,
+          emoji: '📄',
+          preheader: 'Nous avons bien reçu votre réclamation',
+          contenu,
+          ctaTexte: 'Voir mon espace',
+          ctaLien: `${siteUrl}/entreprise/dashboard`,
+        }),
+        text: baseText({
+          titre,
+          contenu: `Nous avons bien reçu votre réclamation concernant ${structure.nom}.`,
+        }),
+        tag: 'reclamation_accuse',
+      });
+    }
 
     return NextResponse.json({
       success: true,

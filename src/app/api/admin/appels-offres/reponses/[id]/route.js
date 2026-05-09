@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
 
 // DELETE /api/admin/appels-offres/reponses/[id]
 // Supprime une réponse + ses fichiers du storage
 export async function DELETE(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
-    const authHeader = request.headers.get('Authorization');
-    const adminToken = authHeader?.replace('Bearer ', '');
-    if (!adminToken) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
-    const { id } = params;
+    const { id } = await params;
 
     // 1. Récupérer les fichiers de la réponse
     const { data: reponse } = await supabaseAdmin

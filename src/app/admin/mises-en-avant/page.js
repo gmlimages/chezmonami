@@ -1,5 +1,6 @@
 // src/app/admin/mises-en-avant/page.js - VERSION CORRIGÉE RELATION
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { adminFetch } from '@/lib/adminFetch';
@@ -64,7 +65,7 @@ export default function AdminMisesEnAvant() {
       setStructures(structuresData);
     } catch (error) {
       console.error('❌ Erreur:', error);
-      alert(`❌ Erreur: ${error.message}`);
+      toast.error(`Erreur: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -102,16 +103,16 @@ export default function AdminMisesEnAvant() {
   };
 
   const supprimerMise = async (id) => {
-    if (!confirm('Supprimer cette mise en avant ?')) return;
+    if (!(await confirmDialog({ message: 'Supprimer cette mise en avant ?', danger: true }))) return;
 
     try {
       const res = await adminFetch(`/api/admin/mises-en-avant/${id}`, { method: 'DELETE' });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
-      alert('✅ Supprimée !');
+      toast.success('Supprimée !');
       chargerDonnees();
     } catch (error) {
       console.error('❌ Erreur:', error);
-      alert(`❌ Erreur: ${error.message}`);
+      toast.error(`Erreur: ${error.message}`);
     }
   };
 
@@ -131,7 +132,7 @@ export default function AdminMisesEnAvant() {
 
   const sauvegarder = async () => {
     if (!formData.element_id || !formData.position) {
-      alert('⚠️ Remplissez tous les champs obligatoires');
+      toast.warning('Remplissez tous les champs obligatoires');
       return;
     }
 
@@ -163,12 +164,12 @@ export default function AdminMisesEnAvant() {
       }
       if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
 
-      alert(`✅ ${miseEnCours ? 'Modifiée' : 'Ajoutée'} !`);
+      toast.success(`${miseEnCours ? 'Modifiée' : 'Ajoutée'} !`);
       setMode('liste');
       chargerDonnees();
     } catch (error) {
       console.error('❌ Erreur:', error);
-      alert(`❌ Erreur: ${error.message}`);
+      toast.error(`Erreur: ${error.message}`);
     }
   };
 

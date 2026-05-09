@@ -18,7 +18,18 @@ export async function GET(request) {
       .limit(1)
       .maybeSingle();
 
-    return NextResponse.json({ compte, reclamation: reclamation || null });
+    // Compter les documents validés (utilisé par les quêtes de profil)
+    const { count: nbDocsValides } = await supabaseAdmin
+      .from('documents_entreprises')
+      .select('id', { count: 'exact', head: true })
+      .eq('compte_id', compte.id)
+      .eq('statut', 'valide');
+
+    return NextResponse.json({
+      compte,
+      reclamation: reclamation || null,
+      nb_docs_valides: nbDocsValides || 0,
+    });
   } catch (error) {
     console.error('Erreur GET profil:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

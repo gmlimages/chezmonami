@@ -1,5 +1,6 @@
 // src/app/admin/AdminLayout.js
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -23,7 +24,7 @@ export default function AdminLayout({ children, titre, sousTitre, breadcrumb }) 
     localStorage.removeItem('adminAuth');
     localStorage.removeItem('adminSessionStart');
     localStorage.removeItem('adminLastActivity');
-    alert('⏰ Session expirée. Veuillez vous reconnecter.');
+    toast.warning('Session expirée. Veuillez vous reconnecter.');
     router.push('/dashboard-chezmonami');
   }, [router]);
 
@@ -128,8 +129,8 @@ export default function AdminLayout({ children, titre, sousTitre, breadcrumb }) 
     };
   }, [router, verifierSession, mettreAJourActivite]);
 
-  const handleLogout = () => {
-    if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+  const handleLogout = async () => {
+    if (await confirmDialog({ message: 'Voulez-vous vraiment vous déconnecter ?' })) {
       localStorage.removeItem('adminAuth');
       localStorage.removeItem('adminSessionStart');
       localStorage.removeItem('adminLastActivity');

@@ -2,64 +2,25 @@
 import { useState, useEffect, useRef } from 'react';
 import EntrepriseLayout from '@/app/entreprise/EntrepriseLayout';
 import { supabase } from '@/lib/supabase';
-
-const TYPES_DOCUMENTS = [
-  {
-    value: 'registre_commerce',
-    label: 'Registre de commerce',
-    description: 'Document officiel prouvant l\'existence légale de votre entreprise',
-    icon: '📋',
-    obligatoire: true,
-  },
-  {
-    value: 'statuts_societe',
-    label: 'Statuts de la société',
-    description: 'Acte constitutif ou statuts de votre entreprise',
-    icon: '📄',
-    obligatoire: true,
-  },
-  {
-    value: 'identite_dirigeant',
-    label: "Pièce d'identité du dirigeant",
-    description: "CNI, passeport ou titre de séjour du représentant légal",
-    icon: '🪪',
-    obligatoire: true,
-  },
-  {
-    value: 'justificatif_adresse',
-    label: "Justificatif d'adresse professionnelle",
-    description: 'Facture récente ou bail commercial à votre nom',
-    icon: '🏢',
-    obligatoire: false,
-  },
-  {
-    value: 'autre',
-    label: 'Autre document',
-    description: 'Tout autre document utile à la vérification de votre compte',
-    icon: '📎',
-    obligatoire: false,
-  },
-];
-
-const statutConfig = {
-  en_attente: {
-    label: 'En attente de validation',
-    badge: 'bg-yellow-100 text-yellow-800',
-    icon: '⏳',
-  },
-  valide: {
-    label: 'Validé',
-    badge: 'bg-green-100 text-green-800',
-    icon: '✅',
-  },
-  refuse: {
-    label: 'Refusé',
-    badge: 'bg-red-100 text-red-800',
-    icon: '❌',
-  },
-};
+import { useT } from '@/lib/i18n/LangProvider';
 
 export default function DocumentsPage() {
+  const { t } = useT();
+
+  const TYPES_DOCUMENTS = [
+    { value: 'registre_commerce', label: t('documents_page.types.registre_commerce_label'), description: t('documents_page.types.registre_commerce_desc'), icon: '📋', obligatoire: true },
+    { value: 'statuts_societe', label: t('documents_page.types.statuts_societe_label'), description: t('documents_page.types.statuts_societe_desc'), icon: '📄', obligatoire: true },
+    { value: 'identite_dirigeant', label: t('documents_page.types.identite_dirigeant_label'), description: t('documents_page.types.identite_dirigeant_desc'), icon: '🪪', obligatoire: true },
+    { value: 'justificatif_adresse', label: t('documents_page.types.justificatif_adresse_label'), description: t('documents_page.types.justificatif_adresse_desc'), icon: '🏢', obligatoire: false },
+    { value: 'autre', label: t('documents_page.types.autre_label'), description: t('documents_page.types.autre_desc'), icon: '📎', obligatoire: false },
+  ];
+
+  const statutConfig = {
+    en_attente: { label: t('documents_page.statuts.en_attente'), badge: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
+    valide: { label: t('documents_page.statuts.valide'), badge: 'bg-green-100 text-green-800', icon: '✅' },
+    refuse: { label: t('documents_page.statuts.refuse'), badge: 'bg-red-100 text-red-800', icon: '❌' },
+  };
+
   const [compte, setCompte] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +49,7 @@ export default function DocumentsPage() {
       const res = await fetch(`/api/entreprise/documents/${docId}/view`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) { afficherMessage('Impossible d\'ouvrir le fichier.', 'erreur'); return; }
+      if (!res.ok) { afficherMessage(t('documents_page.impossible_ouvrir'), 'erreur'); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -99,7 +60,7 @@ export default function DocumentsPage() {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch {
-      afficherMessage('Erreur lors de l\'ouverture du fichier.', 'erreur');
+      afficherMessage(t('documents_page.erreur_ouverture'), 'erreur');
     }
   };
 
@@ -135,12 +96,12 @@ export default function DocumentsPage() {
     // Validation : PDF, JPG, PNG, max 5 Mo
     const typesAcceptes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     if (!typesAcceptes.includes(file.type)) {
-      afficherMessage('Format non accepté. Utilisez PDF, JPG ou PNG.', 'erreur');
+      afficherMessage(t('documents_page.format_non_accepte'), 'erreur');
       e.target.value = '';
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      afficherMessage('Fichier trop lourd (max 5 Mo).', 'erreur');
+      afficherMessage(t('documents_page.fichier_trop_lourd'), 'erreur');
       e.target.value = '';
       return;
     }
@@ -176,12 +137,12 @@ export default function DocumentsPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur lors de l\'enregistrement');
+      if (!res.ok) throw new Error(data.error || t('documents_page.erreur_enregistrement'));
 
-      afficherMessage('Document soumis avec succès. En attente de validation.');
+      afficherMessage(t('documents_page.doc_soumis'));
       chargerDocuments(auth.token);
     } catch (err) {
-      afficherMessage('Erreur lors de l\'envoi : ' + err.message, 'erreur');
+      afficherMessage(t('documents_page.erreur_envoi') + err.message, 'erreur');
     } finally {
       setUploadEnCours(null);
       setTypeSelectionne(null);
@@ -195,15 +156,15 @@ export default function DocumentsPage() {
     docParType[d.type_document] = d;
   });
 
-  const obligatoires = TYPES_DOCUMENTS.filter((t) => t.obligatoire);
+  const obligatoires = TYPES_DOCUMENTS.filter((td) => td.obligatoire);
   const nbObligatoiresValides = obligatoires.filter(
-    (t) => docParType[t.value]?.statut === 'valide'
+    (td) => docParType[td.value]?.statut === 'valide'
   ).length;
   const progression = Math.round((nbObligatoiresValides / obligatoires.length) * 100);
   const badgeEligible = nbObligatoiresValides === obligatoires.length;
 
   return (
-    <EntrepriseLayout titre="Mes documents">
+    <EntrepriseLayout titre={t('documents_page.titre')}>
       {/* Message de notification */}
       {message && (
         <div
@@ -226,9 +187,9 @@ export default function DocumentsPage() {
 
       {/* En-tête avec progression */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-1">Vérification du compte</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-1">{t('documents_page.verification_compte')}</h1>
         <p className="text-gray-500 text-sm mb-6">
-          Soumettez vos documents pour obtenir le badge vérifié et renforcer votre crédibilité.
+          {t('documents_page.verification_desc')}
         </p>
 
         {/* Badge statut */}
@@ -236,9 +197,9 @@ export default function DocumentsPage() {
           <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
             <span className="text-3xl">✅</span>
             <div>
-              <p className="font-bold text-green-800">Badge vérifié obtenu !</p>
+              <p className="font-bold text-green-800">{t('documents_page.badge_obtenu')}</p>
               <p className="text-sm text-green-600">
-                Votre compte est certifié. Ce badge est visible sur votre fiche.
+                {t('documents_page.badge_obtenu_desc')}
               </p>
             </div>
           </div>
@@ -246,9 +207,9 @@ export default function DocumentsPage() {
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="font-semibold text-gray-700">Progression vers le badge vérifié</p>
+                <p className="font-semibold text-gray-700">{t('documents_page.progression_badge')}</p>
                 <p className="text-sm text-gray-500">
-                  {nbObligatoiresValides}/{obligatoires.length} documents obligatoires validés
+                  {t('documents_page.docs_obligatoires_valides').replace('{{n}}', nbObligatoiresValides).replace('{{total}}', obligatoires.length)}
                 </p>
               </div>
               <span
@@ -269,7 +230,7 @@ export default function DocumentsPage() {
             </div>
             {badgeEligible && (
               <p className="text-sm text-green-600 mt-3 font-medium">
-                🎉 Tous les documents requis sont validés ! L'administration vous attribuera le badge bientôt.
+                {t('documents_page.tous_valides')}
               </p>
             )}
           </div>
@@ -307,7 +268,7 @@ export default function DocumentsPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-gray-800">{type.label}</p>
                         {type.obligatoire && (
-                          <span className="text-xs text-red-500 font-medium">Obligatoire</span>
+                          <span className="text-xs text-red-500 font-medium">{t('documents_page.obligatoire')}</span>
                         )}
                         {statut && (
                           <span
@@ -345,7 +306,7 @@ export default function DocumentsPage() {
                   <div className="flex-shrink-0">
                     {doc?.statut === 'valide' ? (
                       <span className="inline-flex items-center gap-1 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium">
-                        ✓ Validé
+                        {t('documents_page.valide_short')}
                       </span>
                     ) : (
                       <button
@@ -362,12 +323,12 @@ export default function DocumentsPage() {
                         {enCours ? (
                           <>
                             <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                            Envoi...
+                            {t('documents_page.envoi_en_cours')}
                           </>
                         ) : doc ? (
-                          <>📤 Remplacer</>
+                          <>{t('documents_page.remplacer')}</>
                         ) : (
-                          <>📤 Envoyer</>
+                          <>{t('documents_page.envoyer')}</>
                         )}
                       </button>
                     )}
@@ -381,10 +342,9 @@ export default function DocumentsPage() {
 
       {/* Info formats */}
       <div className="mt-8 bg-blue-50 border border-blue-100 rounded-xl px-5 py-4">
-        <p className="text-sm text-blue-800 font-medium mb-1">📌 Formats acceptés</p>
+        <p className="text-sm text-blue-800 font-medium mb-1">{t('documents_page.formats_titre')}</p>
         <p className="text-sm text-blue-700">
-          PDF, JPG, PNG — Taille maximale : 5 Mo par fichier.
-          Les documents soumis sont examinés dans un délai de 2 à 5 jours ouvrables.
+          {t('documents_page.formats_desc')}
         </p>
       </div>
     </EntrepriseLayout>

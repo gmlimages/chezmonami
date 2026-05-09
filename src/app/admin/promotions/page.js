@@ -1,5 +1,6 @@
 // src/app/admin/promotions/page.js - VERSION FINALE COMPLÈTE
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { adminFetch } from '@/lib/adminFetch';
@@ -76,7 +77,7 @@ export default function AdminPromotions() {
       setProduits(produitsData);
     } catch (error) {
       console.error('❌ Erreur chargement:', error);
-      alert(`❌ Erreur: ${error.message}`);
+      toast.error(`Erreur: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -124,16 +125,16 @@ export default function AdminPromotions() {
   };
 
   const supprimerPromo = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette promotion ?')) return;
+    if (!(await confirmDialog({ message: 'Êtes-vous sûr de vouloir supprimer cette promotion ?', danger: true }))) return;
 
     try {
       const res = await adminFetch(`/api/admin/promotions/${id}`, { method: 'DELETE' });
       if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
-      alert('✅ Promotion supprimée !');
+      toast.success('Promotion supprimée !');
       chargerDonnees();
     } catch (error) {
       console.error('❌ Erreur:', error);
-      alert(`❌ Erreur: ${error.message}`);
+      toast.error(`Erreur: ${error.message}`);
     }
   };
 
@@ -167,22 +168,22 @@ export default function AdminPromotions() {
   const sauvegarder = async () => {
     // Validations
     if (!formData.produit_id) {
-      alert('⚠️ Sélectionnez un produit');
+      toast.warning('Sélectionnez un produit');
       return;
     }
 
     if (!formData.valeur_reduction || formData.valeur_reduction <= 0) {
-      alert('⚠️ Entrez une réduction valide');
+      toast.warning('Entrez une réduction valide');
       return;
     }
 
     if (!formData.date_debut || !formData.date_fin) {
-      alert('⚠️ Entrez les dates');
+      toast.warning('Entrez les dates');
       return;
     }
 
     if (formData.prix_promo >= formData.prix_original) {
-      alert('⚠️ Le prix promo doit être inférieur au prix original');
+      toast.warning('Le prix promo doit être inférieur au prix original');
       return;
     }
 
@@ -222,12 +223,12 @@ export default function AdminPromotions() {
       }
       if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
 
-      alert(`✅ Promotion ${promoEnCours ? 'modifiée' : 'ajoutée'} !`);
+      toast.success(`Promotion ${promoEnCours ? 'modifiée' : 'ajoutée'} !`);
       setMode('liste');
       chargerDonnees();
     } catch (error) {
       console.error('❌ Erreur:', error);
-      alert(`❌ Erreur: ${error.message}`);
+      toast.error(`Erreur: ${error.message}`);
     }
   };
 

@@ -1,28 +1,19 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
+import { sendEmail, baseTemplate, baseText } from '@/lib/email';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chezmonami.ma';
 
 async function envoyerEmail(to, subject, html, text) {
-  if (!process.env.RESEND_API_KEY || !to) return;
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM || 'noreply@chezmonami.ma',
-      to: [to],
-      subject,
-      html,
-      text,
-    }),
-  }).catch(err => console.warn('Email non envoyé:', err.message));
+  if (!to) return;
+  await sendEmail({ to, subject, html, text, tag: 'demande_contact_structure' });
 }
 
 // PATCH — traiter une demande de mise en relation
 export async function PATCH(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
     const { action, note_admin } = await request.json();
@@ -63,23 +54,26 @@ export async function PATCH(request, { params }) {
           .eq('id', id);
 
         // Email au demandeur pour expliquer la situation
-        const htmlNoCompte = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
-          <div style="max-width:600px;margin:auto;background:#fff;border-radius:12px;padding:30px">
-            <h2 style="color:#2e7d32">Votre demande de contact — ChezMonAmi</h2>
-            <p>Bonjour <strong>${demande.nom_demandeur}</strong>,</p>
-            <p>Nous avons bien reçu votre demande de contact pour la structure <strong>${demande.structure.nom}</strong>.</p>
-            <p>Malheureusement, cette structure n'est pas encore enregistrée comme compte entreprise sur notre plateforme.
-            Pour entrer en contact, vous pouvez les rejoindre directement ou les encourager à s'inscrire sur
-            <a href="${siteUrl}">${siteUrl}</a>.</p>
-            ${note_admin ? `<p style="background:#f9f9f9;padding:12px;border-radius:8px"><strong>Note de l'administration :</strong> ${note_admin}</p>` : ''}
-            <p>Cordialement,<br/>L'équipe ChezMonAmi</p>
-          </div></body></html>`;
-
+        const titreNoCompte = 'Votre demande de contact';
+        const contenuNoCompte = `
+          <p>Bonjour <strong>${demande.nom_demandeur}</strong>,</p>
+          <p>Nous avons bien reçu votre demande de contact pour la structure <strong>${demande.structure.nom}</strong>.</p>
+          <p>Malheureusement, cette structure n'est pas encore enregistrée comme compte entreprise sur notre plateforme.
+          Pour entrer en contact, vous pouvez les rejoindre directement ou les encourager à s'inscrire sur
+          <a href="${siteUrl}">${siteUrl}</a>.</p>
+        `;
         await envoyerEmail(
           demande.email_demandeur,
           `Réponse à votre demande de contact — ${demande.structure.nom}`,
-          htmlNoCompte,
-          `Bonjour ${demande.nom_demandeur},\n\nLa structure ${demande.structure.nom} n'est pas encore enregistrée sur ChezMonAmi.\n\nCordialement, ChezMonAmi`
+          baseTemplate({
+            titre: titreNoCompte,
+            contenu: contenuNoCompte,
+            highlight: note_admin ? `<strong>Note de l'administration :</strong> ${note_admin}` : undefined,
+          }),
+          baseText({
+            titre: titreNoCompte,
+            contenu: `Bonjour ${demande.nom_demandeur},\n\nLa structure ${demande.structure.nom} n'est pas encore enregistrée sur ChezMonAmi.`,
+          }),
         );
 
         return NextResponse.json({ success: true, action: 'traite_sans_compte' });
@@ -106,25 +100,30 @@ export async function PATCH(request, { params }) {
         .eq('id', id);
 
       // Email de confirmation au demandeur
-      const htmlConfirmation = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
-        <div style="max-width:600px;margin:auto;background:#fff;border-radius:12px;padding:30px">
-          <h2 style="color:#2e7d32">✅ Votre demande a été validée — ChezMonAmi</h2>
-          <p>Bonjour <strong>${demande.nom_demandeur}</strong>,</p>
-          <p>Bonne nouvelle ! Votre demande de contact avec <strong>${demande.structure.nom}</strong> a été validée par notre équipe.</p>
-          ${compteDemandeur
-            ? `<p>Vous pouvez maintenant accéder à votre espace pour démarrer la conversation.</p>
-               <p><a href="${siteUrl}/entreprise/dashboard/reseau" style="display:inline-block;padding:12px 24px;background:#2e7d32;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">Accéder à mon espace</a></p>`
-            : `<p>Pour commencer à échanger, créez votre compte entreprise sur ChezMonAmi.</p>
-               <p><a href="${siteUrl}/entreprise/inscription" style="display:inline-block;padding:12px 24px;background:#2e7d32;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">Créer mon compte</a></p>`
-          }
-          <p>Cordialement,<br/>L'équipe ChezMonAmi</p>
-        </div></body></html>`;
-
+      const titreOk = 'Votre demande a été validée';
+      const contenuOk = `
+        <p>Bonjour <strong>${demande.nom_demandeur}</strong>,</p>
+        <p>Bonne nouvelle ! Votre demande de contact avec <strong>${demande.structure.nom}</strong> a été validée par notre équipe.</p>
+        ${compteDemandeur
+          ? `<p>Vous pouvez maintenant accéder à votre espace pour démarrer la conversation.</p>`
+          : `<p>Pour commencer à échanger, créez votre compte entreprise sur ChezMonAmi.</p>`}
+      `;
       await envoyerEmail(
         demande.email_demandeur,
         `✅ Votre demande de contact avec ${demande.structure.nom} a été validée`,
-        htmlConfirmation,
-        `Votre demande de contact avec ${demande.structure.nom} a été validée. Connectez-vous sur ${siteUrl}`
+        baseTemplate({
+          titre: titreOk,
+          emoji: '✅',
+          contenu: contenuOk,
+          ctaTexte: compteDemandeur ? 'Accéder à mon espace' : 'Créer mon compte',
+          ctaLien: compteDemandeur ? `${siteUrl}/entreprise/dashboard/reseau` : `${siteUrl}/entreprise/inscription`,
+        }),
+        baseText({
+          titre: titreOk,
+          contenu: `Votre demande de contact avec ${demande.structure.nom} a été validée.`,
+          ctaTexte: compteDemandeur ? 'Accéder à mon espace' : 'Créer mon compte',
+          ctaLien: compteDemandeur ? `${siteUrl}/entreprise/dashboard/reseau` : `${siteUrl}/entreprise/inscription`,
+        }),
       );
 
       return NextResponse.json({ success: true, action: 'valide' });
@@ -141,21 +140,24 @@ export async function PATCH(request, { params }) {
         .eq('id', id);
 
       // Email de refus au demandeur
-      const htmlRefus = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
-        <div style="max-width:600px;margin:auto;background:#fff;border-radius:12px;padding:30px">
-          <h2 style="color:#c62828">Votre demande de contact — ChezMonAmi</h2>
-          <p>Bonjour <strong>${demande.nom_demandeur}</strong>,</p>
-          <p>Votre demande de contact pour la structure <strong>${demande.structure.nom}</strong> n'a pas pu être traitée.</p>
-          ${note_admin ? `<p style="background:#fff3f3;padding:12px;border-radius:8px;border-left:3px solid #c62828"><strong>Motif :</strong> ${note_admin}</p>` : ''}
-          <p>Pour toute question, contactez-nous via <a href="${siteUrl}">${siteUrl}</a>.</p>
-          <p>Cordialement,<br/>L'équipe ChezMonAmi</p>
-        </div></body></html>`;
-
+      const titreRefus = 'Votre demande de contact';
+      const contenuRefus = `
+        <p>Bonjour <strong>${demande.nom_demandeur}</strong>,</p>
+        <p>Votre demande de contact pour la structure <strong>${demande.structure.nom}</strong> n'a pas pu être traitée.</p>
+        <p>Pour toute question, contactez-nous via <a href="${siteUrl}">${siteUrl}</a>.</p>
+      `;
       await envoyerEmail(
         demande.email_demandeur,
         `Votre demande de contact — ${demande.structure.nom}`,
-        htmlRefus,
-        `Votre demande de contact pour ${demande.structure.nom} n'a pas abouti.`
+        baseTemplate({
+          titre: titreRefus,
+          contenu: contenuRefus,
+          highlight: note_admin ? `<strong>Motif :</strong> ${note_admin}` : undefined,
+        }),
+        baseText({
+          titre: titreRefus,
+          contenu: `Votre demande de contact pour ${demande.structure.nom} n'a pas abouti.`,
+        }),
       );
 
       return NextResponse.json({ success: true, action: 'refuse' });

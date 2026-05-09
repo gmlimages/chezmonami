@@ -1,5 +1,6 @@
 // src/app/admin/commentaires/page.js
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { commentairesAPI, structuresAPI } from '@/lib/api';
@@ -29,7 +30,7 @@ export default function AdminCommentaires() {
       setStructures(structuresData);
     } catch (error) {
       console.error('Erreur chargement données:', error);
-      alert('Erreur lors du chargement des données');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -37,49 +38,43 @@ export default function AdminCommentaires() {
 
   // Valider (activer) un commentaire
   const validerCommentaire = async (id) => {
-    if (!confirm('Voulez-vous valider ce commentaire ?\nIl sera visible publiquement.')) {
-      return;
-    }
+    if (!(await confirmDialog({ message: 'Voulez-vous valider ce commentaire ?\nIl sera visible publiquement.', danger: true }))) { return; }
 
     try {
       await commentairesAPI.toggleActif(id, true);
-      alert('✅ Commentaire validé !');
+      toast.success('Commentaire validé !');
       await chargerDonnees();
     } catch (error) {
       console.error('Erreur validation:', error);
-      alert('Erreur lors de la validation');
+      toast.error('Erreur lors de la validation');
     }
   };
 
   // Désactiver un commentaire
   const desactiverCommentaire = async (id) => {
-    if (!confirm('Voulez-vous masquer ce commentaire ?\nIl ne sera plus visible publiquement.')) {
-      return;
-    }
+    if (!(await confirmDialog({ message: 'Voulez-vous masquer ce commentaire ?\nIl ne sera plus visible publiquement.', danger: true }))) { return; }
 
     try {
       await commentairesAPI.toggleActif(id, false);
-      alert('✅ Commentaire masqué !');
+      toast.success('Commentaire masqué !');
       await chargerDonnees();
     } catch (error) {
       console.error('Erreur désactivation:', error);
-      alert('Erreur lors de la désactivation');
+      toast.error('Erreur lors de la désactivation');
     }
   };
 
   // Supprimer définitivement un commentaire
   const supprimerCommentaire = async (id) => {
-    if (!confirm('⚠️ ATTENTION !\n\nVoulez-vous SUPPRIMER DÉFINITIVEMENT ce commentaire ?\n\nCette action est IRRÉVERSIBLE.')) {
-      return;
-    }
+    if (!(await confirmDialog({ message: '⚠️ ATTENTION !\n\nVoulez-vous SUPPRIMER DÉFINITIVEMENT ce commentaire ?\n\nCette action est IRRÉVERSIBLE.', danger: true }))) { return; }
 
     try {
       await commentairesAPI.delete(id);
-      alert('✅ Commentaire supprimé définitivement !');
+      toast.success('Commentaire supprimé définitivement !');
       await chargerDonnees();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert('Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 

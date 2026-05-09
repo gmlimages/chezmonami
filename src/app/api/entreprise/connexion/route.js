@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import bcrypt from 'bcryptjs';
 import { rateLimit } from '@/lib/rateLimit';
+import { sendEmail, baseTemplate, baseText } from '@/lib/email';
+import { generateCode, hashCode, generateChallenge, TFA_CODE_TTL_MS } from '@/lib/tfa';
 
 function generateToken() {
   const array = new Uint8Array(32);
@@ -34,7 +36,7 @@ export async function POST(request) {
       .select(`
         id, email, mot_de_passe, nom_contact, statut, abonnement,
         badge_verifie, structure_id, telephone_contact, email_contact,
-        tentatives_connexion, bloque_jusqu_a,
+        tentatives_connexion, bloque_jusqu_a, tfa_active,
         structures (id, nom, categorie_id, verifie)
       `)
       .eq('email', email.toLowerCase().trim())
@@ -54,8 +56,17 @@ export async function POST(request) {
       }, { status: 403 });
     }
 
-    // Vérifier mot de passe
-    const isValid = await bcrypt.compare(mot_de_passe, compte.mot_de_passe);
+    // Vérifier mot de passe (bcrypt avec migration legacy plaintext)
+    let isValid = false;
+    if (compte.mot_de_passe?.startsWith('$2')) {
+      isValid = await bcrypt.compare(mot_de_passe, compte.mot_de_passe);
+    } else {
+      isValid = mot_de_passe === compte.mot_de_passe;
+      if (isValid) {
+        const hash = await bcrypt.hash(mot_de_passe, 12);
+        await supabaseAdmin.from('comptes_structures').update({ mot_de_passe: hash }).eq('id', compte.id);
+      }
+    }
 
     if (!isValid) {
       const nouvelles = (compte.tentatives_connexion || 0) + 1;
@@ -91,6 +102,59 @@ export async function POST(request) {
       bloque_jusqu_a: null,
       derniere_connexion: new Date().toISOString(),
     }).eq('id', compte.id);
+
+    // Si 2FA actif → générer un code, l'envoyer par email, retourner un challenge.
+    if (compte.tfa_active) {
+      const code = generateCode();
+      const challenge = generateChallenge();
+      const expiresAt2 = new Date(Date.now() + TFA_CODE_TTL_MS);
+      const userAgent = request.headers.get('user-agent') || null;
+
+      await supabaseAdmin.from('tfa_codes').insert({
+        compte_id: compte.id,
+        code_hash: hashCode(code),
+        challenge,
+        expires_at: expiresAt2.toISOString(),
+        ip,
+        user_agent: userAgent,
+      });
+
+      const titre = 'Votre code de vérification';
+      const contenu = `
+        <p>Bonjour <strong>${compte.nom_contact || ''}</strong>,</p>
+        <p>Une connexion à votre espace entreprise ChezMonAmi a été initiée. Pour finaliser, saisissez le code suivant :</p>
+      `;
+      const highlight = `
+        <div style="text-align:center; font-family: 'Courier New', monospace; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #2e7d32;">
+          ${code}
+        </div>
+        <p style="text-align:center; color:#666; font-size:13px; margin-top:8px;">
+          Ce code expire dans 10 minutes.
+        </p>
+      `;
+      sendEmail({
+        to: compte.email,
+        subject: `🔐 Code de vérification ChezMonAmi : ${code}`,
+        html: baseTemplate({
+          titre,
+          emoji: '🔐',
+          preheader: `Votre code : ${code}`,
+          contenu: contenu + `<p style="font-size:12px;color:#888;">Si vous n'êtes pas à l'origine de cette tentative, ignorez ce message et changez immédiatement votre mot de passe.</p>`,
+          highlight,
+        }),
+        text: baseText({
+          titre,
+          contenu: `Votre code de vérification : ${code}\nIl expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette tentative, ignorez ce message.`,
+        }),
+        tag: 'tfa_entreprise',
+      }).catch(() => {});
+
+      return NextResponse.json({
+        success: true,
+        tfa_required: true,
+        challenge,
+      });
+    }
 
     // Créer session (8h)
     const token = generateToken();

@@ -1,6 +1,25 @@
 /** @type {import('next').NextConfig} */
+
+const withBundleAnalyzer = process.env.ANALYZE === 'true'
+  ? (await import('@next/bundle-analyzer')).default({ enabled: true })
+  : (cfg) => cfg;
+
 const nextConfig = {
   reactCompiler: true,
+
+  // Optimisation des images : autorise next/image pour Supabase Storage et l'app
+  images: {
+    // Autorise toutes les images HTTPS (bannières admin, photos uploadées via URL)
+    // Les images Supabase sont optimisées normalement ; les autres passent en proxy Next.
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,
+  },
 
   // Headers de sécurité supplémentaires (complète le middleware)
   async headers() {
@@ -36,4 +55,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

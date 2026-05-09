@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
+import { logAdminAction } from '@/lib/auditLog';
 
 const MAX_FICHIER = 5 * 1024 * 1024; // 5 Mo
 const MAX_FICHIERS = 5;
 
 // POST — créer un appel d'offres avec fichiers joints (multipart/form-data)
 export async function POST(request) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
-    // Vérif admin
-    const authHeader = request.headers.get('Authorization');
-    const adminToken = authHeader?.replace('Bearer ', '');
-    if (!adminToken) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
     const contentType = request.headers.get('content-type') || '';
     let payload = {};
     let fichiers = [];
@@ -97,6 +96,15 @@ export async function POST(request) {
         .eq('id', appel.id);
       appel.fichiers = fichiersFinaux;
     }
+
+    await logAdminAction({
+      request,
+      admin,
+      action: 'appel_offre.creer',
+      cibleType: 'appel_offre',
+      cibleId: appel.id,
+      details: { titre: appel.titre, type: appel.type, fichiers: fichiers.length },
+    });
 
     return NextResponse.json({ success: true, appel });
   } catch (err) {

@@ -1,20 +1,25 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import EntrepriseLayout from '@/app/entreprise/EntrepriseLayout';
+import { toast, confirmDialog } from '@/lib/toast';
+import { useT } from '@/lib/i18n/LangProvider';
 
 const MAX_FICHIER = 5 * 1024 * 1024;
 
-function formatDate(d) {
-  if (!d) return '';
-  const date = new Date(d);
-  const diff = Date.now() - date.getTime();
-  if (diff < 60000) return 'À l\'instant';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} min`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
-  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
-
 export default function MessagesPage() {
+  const { t, lang } = useT();
+  const localeDate = lang === 'ar' ? 'ar' : lang === 'en' ? 'en-GB' : 'fr-FR';
+
+  const formatDate = (d) => {
+    if (!d) return '';
+    const date = new Date(d);
+    const diff = Date.now() - date.getTime();
+    if (diff < 60000) return t('messages_page.a_l_instant');
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} ${t('messages_page.min_suffix')}`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}${t('messages_page.heure_suffix')}`;
+    return date.toLocaleDateString(localeDate, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  };
+
   const tokenRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +119,7 @@ export default function MessagesPage() {
     setFichierErreur('');
     if (!f) { setFichier(null); return; }
     if (f.size > MAX_FICHIER) {
-      setFichierErreur('Fichier trop volumineux (max 5 Mo)');
+      setFichierErreur(t('messages_page.fichier_trop_volumineux'));
       e.target.value = '';
       setFichier(null);
       return;
@@ -152,14 +157,15 @@ export default function MessagesPage() {
         if (fichierRef.current) fichierRef.current.value = '';
         chargerMessages();
       } else {
-        afficherToast(data.error || 'Erreur lors de l\'envoi', 'error');
+        afficherToast(data.error || t('messages_page.erreur_envoi'), 'error');
       }
-    } catch { afficherToast('Erreur réseau', 'error'); }
+    } catch { afficherToast(t('messages_page.erreur_reseau'), 'error'); }
     setEnvoyant(false);
   };
 
   const supprimerMessage = async (id) => {
-    if (!confirm('Supprimer ce message ?')) return;
+    const ok = await confirmDialog({ message: t('messages_page.confirm_supprimer_msg'), danger: true, confirmLabel: t('messages_page.supprimer_btn') });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/entreprise/messages/${id}`, {
         method: 'DELETE',
@@ -168,9 +174,9 @@ export default function MessagesPage() {
       if (res.ok) {
         setMessages(prev => prev.filter(m => m.id !== id));
       } else {
-        afficherToast('Erreur lors de la suppression', 'error');
+        afficherToast(t('messages_page.erreur_suppression'), 'error');
       }
-    } catch { afficherToast('Erreur réseau', 'error'); }
+    } catch { afficherToast(t('messages_page.erreur_reseau'), 'error'); }
   };
 
   const telechargerFichier = async (msgId, nom) => {
@@ -178,7 +184,7 @@ export default function MessagesPage() {
       const res = await fetch(`/api/entreprise/messages/${msgId}/fichier`, {
         headers: { Authorization: `Bearer ${tokenRef.current}` },
       });
-      if (!res.ok) { afficherToast('Impossible d\'ouvrir le fichier', 'error'); return; }
+      if (!res.ok) { afficherToast(t('messages_page.impossible_ouvrir_fichier'), 'error'); return; }
       // Créer une URL blob locale — l'URL Supabase n'est jamais exposée au navigateur
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -195,7 +201,7 @@ export default function MessagesPage() {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-    } catch { afficherToast('Erreur lors de l\'ouverture du fichier', 'error'); }
+    } catch { afficherToast(t('messages_page.erreur_ouverture_fichier'), 'error'); }
   };
 
   const handleKeyDown = (e) => {
@@ -206,7 +212,7 @@ export default function MessagesPage() {
   };
 
   return (
-    <EntrepriseLayout titre="Messages">
+    <EntrepriseLayout titre={t('messages_page.titre')}>
       {/* Toast */}
       {toast && (
         <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-medium flex items-center gap-2 ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
@@ -225,8 +231,8 @@ export default function MessagesPage() {
             🏢
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-gray-800 text-sm">Administration ChezMonAmi</p>
-            <p className="text-xs text-gray-500">Réponse généralement sous 24–48h ouvrables</p>
+            <p className="font-bold text-gray-800 text-sm">{t('messages_page.admin_chezmonami')}</p>
+            <p className="text-xs text-gray-500">{t('messages_page.reponse_24_48h')}</p>
           </div>
         </div>
 
@@ -239,8 +245,8 @@ export default function MessagesPage() {
           ) : chatItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center select-none">
               <span className="text-5xl mb-4">💬</span>
-              <p className="text-base font-semibold text-gray-600">Commencez la conversation</p>
-              <p className="text-sm text-gray-400 mt-1">Posez vos questions ou signalez un problème.</p>
+              <p className="text-base font-semibold text-gray-600">{t('messages_page.commencez_conversation')}</p>
+              <p className="text-sm text-gray-400 mt-1">{t('messages_page.commencez_desc')}</p>
             </div>
           ) : (
             chatItems.map(item => (
@@ -250,7 +256,7 @@ export default function MessagesPage() {
                   <div className={`flex items-center gap-1.5 mb-1 ${item.side === 'right' ? 'justify-end' : 'justify-start'}`}>
                     {item.side === 'left' && (
                       <span className="text-xs font-semibold text-gray-600">
-                        {item.traite_par || 'Administration'}
+                        {item.traite_par || t('messages_page.administration')}
                       </span>
                     )}
                     <span className="text-[11px] text-gray-400">{formatDate(item.date)}</span>
@@ -258,7 +264,7 @@ export default function MessagesPage() {
                       <button
                         onClick={() => supprimerMessage(item.msgId)}
                         className="text-base text-gray-300 hover:text-red-500 transition opacity-50 hover:opacity-100"
-                        title="Supprimer ce message"
+                        title={t('messages_page.supprimer_message_title')}
                       >
                         🗑
                       </button>
@@ -280,7 +286,7 @@ export default function MessagesPage() {
                             ? 'border-white/30 bg-white/10 text-white'
                             : 'border-gray-300 bg-white text-gray-600'
                         }`}
-                        title="Télécharger le fichier"
+                        title={t('messages_page.telecharger_fichier')}
                       >
                         📎 {item.fichier_nom}
                         {item.fichier_taille && (
@@ -321,7 +327,7 @@ export default function MessagesPage() {
               ref={textareaRef}
               rows={2}
               maxLength={3000}
-              placeholder="Votre message… (Ctrl+Entrée pour envoyer)"
+              placeholder={t('messages_page.placeholder_message')}
               className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
               value={texte}
               onChange={e => setTexte(e.target.value)}
@@ -331,7 +337,7 @@ export default function MessagesPage() {
               {/* Joindre fichier */}
               <label
                 className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:border-primary hover:text-primary cursor-pointer transition"
-                title="Joindre un fichier (PDF, image, Word, Excel — max 5 Mo)"
+                title={t('messages_page.joindre_title')}
               >
                 📎
                 <input
@@ -347,7 +353,7 @@ export default function MessagesPage() {
                 onClick={envoyerMessage}
                 disabled={envoyant || !texte.trim()}
                 className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary text-white text-lg hover:bg-primary/90 transition disabled:opacity-40"
-                title="Envoyer (Ctrl+Entrée)"
+                title={t('messages_page.envoyer_title')}
               >
                 {envoyant
                   ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

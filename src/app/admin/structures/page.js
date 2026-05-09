@@ -2,11 +2,13 @@
 // ✅ Images séparées + CTA + Services + NOUVEAUX: Horaires détaillés, Langues, Paiements, Livraison, Badges, Vidéos
 
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import ImageUploader from '@/components/ImageUploader';
 import { structuresAPI, categoriesAPI, paysAPI, villesAPI } from '@/lib/api';
 import { adminFetch } from '@/lib/adminFetch';
+import { BoutonExportCSV } from '@/lib/csvExport';
 
 // Types de CTA disponibles
 const CTA_TYPES = [
@@ -144,7 +146,7 @@ export default function AdminStructures() {
       setPays(paysData);
     } catch (error) {
       console.error('Erreur chargement:', error);
-      alert('❌ Erreur lors du chargement des données');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -277,22 +279,22 @@ export default function AdminStructures() {
   };
 
   const supprimerStructure = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette structure ?')) return;
+    if (!(await confirmDialog({ message: 'Êtes-vous sûr de vouloir supprimer cette structure ?', danger: true }))) return;
 
     try {
       const res = await adminFetch(`/api/admin/structures/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error((await res.json()).error);
-      alert('✅ Structure supprimée avec succès !');
+      toast.success('Structure supprimée avec succès !');
       chargerDonnees();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert('❌ Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 
   const sauvegarderStructure = async () => {
   if (!formData.nom || !formData.ville_id || !formData.pays_id || !formData.categorie_id || !formData.telephone || !formData.email || !formData.horaires) {
-    alert('⚠️ Veuillez remplir tous les champs obligatoires (nom, ville, pays, catégorie, téléphone, email, horaires)');
+    toast.warning('Veuillez remplir tous les champs obligatoires (nom, ville, pays, catégorie, téléphone, email, horaires)');
     return;
   }
 
@@ -346,7 +348,7 @@ export default function AdminStructures() {
         body: JSON.stringify(dataToSave),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      alert('✅ Structure modifiée avec succès !');
+      toast.success('Structure modifiée avec succès !');
     } else {
       res = await adminFetch('/api/admin/structures', {
         method: 'POST',
@@ -354,14 +356,14 @@ export default function AdminStructures() {
         body: JSON.stringify(dataToSave),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      alert('✅ Structure ajoutée avec succès !');
+      toast.success('Structure ajoutée avec succès !');
     }
 
     chargerDonnees();
     setMode('liste');
   } catch (error) {
     console.error('Erreur sauvegarde:', error);
-    alert(`❌ Erreur: ${error.message || 'Erreur inconnue'}`);
+    toast.error(`Erreur: ${error.message || 'Erreur inconnue'}`);
   }
 };
 
@@ -376,7 +378,7 @@ export default function AdminStructures() {
       chargerDonnees();
     } catch (error) {
       console.error('Erreur validation:', error);
-      alert('❌ Erreur lors de la validation');
+      toast.error('Erreur lors de la validation');
     }
   };
 
@@ -1060,6 +1062,33 @@ export default function AdminStructures() {
             <option value="soumis">⏳ En attente</option>
             <option value="brouillon">📝 Brouillons</option>
           </select>
+          <BoutonExportCSV
+            filename={`structures-${new Date().toISOString().slice(0, 10)}.csv`}
+            rows={structuresFiltrees}
+            columns={[
+              { key: 'nom', label: 'Nom' },
+              { key: 'categorie.nom', label: 'Catégorie' },
+              { key: 'pays.nom', label: 'Pays' },
+              { key: 'ville.nom', label: 'Ville' },
+              {
+                key: 'date_creation',
+                label: "Année d'inscription",
+                format: (v, row) => {
+                  const d = v || row.created_at;
+                  return d ? new Date(d).getFullYear() : '';
+                },
+              },
+              {
+                key: 'statut',
+                label: 'Statut',
+                format: (v) =>
+                  v === 'publie' ? 'Publiée'
+                  : v === 'soumis' ? 'En attente'
+                  : v === 'brouillon' ? 'Brouillon'
+                  : (v || ''),
+              },
+            ]}
+          />
         </div>
       </div>
 

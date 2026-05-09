@@ -6,14 +6,22 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { structuresAPI, produitsAPI, chambresAPI } from '@/lib/api';
+import { isUUID } from '@/lib/slug';
 import StarRating from '@/components/ui/StarRating';
 import CommentaireForm from '@/components/CommentaireForm';
 import CommentairesList from '@/components/CommentairesList';
 import PageTracker from '@/components/PageTracker';
-import { useCurrencyConverter } from '@/hooks/useCurrencyConverter'; 
+import { useCurrencyConverter } from '@/hooks/useCurrencyConverter';
+import BoutonFavori from '@/components/BoutonFavori';
+import BoutonPartage from '@/components/BoutonPartage';
+import BoutonContacterEspace from '@/components/BoutonContacterEspace';
+import AvisStructure from '@/components/AvisStructure';
+import { JsonLd, structureSchema, breadcrumbSchema } from '@/components/JsonLd';
+import { useT } from '@/lib/i18n/LangProvider';
 console.log('🔍 chambresAPI disponible:', typeof chambresAPI);
 
 export default function StructureDetail() {
+  const { t, lang } = useT();
   const { userCurrency, convertPrice } = useCurrencyConverter();
   const params = useParams();
   const router = useRouter();
@@ -81,7 +89,7 @@ export default function StructureDetail() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          structure_id: params.id,
+          structure_id: structure?.id,
           nom_demandeur: formEchange.nom,
           email_demandeur: formEchange.email,
           telephone_demandeur: formEchange.telephone,
@@ -93,47 +101,40 @@ export default function StructureDetail() {
       if (res.ok) {
         setEchangeEnvoye(true);
       } else {
-        setEchangeErreur(data.error || 'Une erreur est survenue');
+        setEchangeErreur(data.error || t('structure_detail.erreur_generique'));
       }
-    } catch { setEchangeErreur('Erreur réseau'); }
+    } catch { setEchangeErreur(t('structure_detail.erreur_reseau')); }
     setEnvoyantEchange(false);
   };
 
   // Helpers CTA
   const getTexteCTA = (type) => {
-    const textes = {
-      rdv: 'Prendre rendez-vous',
-      reserver_table: 'Réserver une table',
-      reserver_chambre: 'Réserver une chambre',
-      commander: 'Passer commande',
-      devis: 'Demander un devis',
-      contact: 'Nous contacter'
+    const map = {
+      rdv: t('structure_detail.cta_rdv'),
+      reserver_table: t('structure_detail.cta_reserver_table'),
+      reserver_chambre: t('structure_detail.cta_reserver_chambre'),
+      commander: t('structure_detail.cta_commander'),
+      devis: t('structure_detail.cta_devis'),
+      contact: t('structure_detail.cta_contact')
     };
-    return textes[type] || 'Nous contacter';
+    return map[type] || t('structure_detail.cta_contact');
   };
 
   const getMessageWhatsApp = (type, nomStructure) => {
-    const messages = {
-      rdv: `Bonjour, je souhaite prendre rendez-vous chez ${nomStructure}`,
-      reserver_table: `Bonjour, je souhaite réserver une table chez ${nomStructure}`,
-      reserver_chambre: `Bonjour, je souhaite réserver une chambre chez ${nomStructure}`,
-      commander: `Bonjour, je souhaite passer une commande chez ${nomStructure}`,
-      devis: `Bonjour, je souhaite demander un devis pour ${nomStructure}`,
-      contact: `Bonjour, je vous contacte concernant ${nomStructure}`
-    };
-    return messages[type] || `Bonjour, je vous contacte concernant ${nomStructure}`;
+    const ctaText = getTexteCTA(type);
+    return `${ctaText} - ${nomStructure}`;
   };
 
   const getPlaceholderMessage = (type) => {
-    const placeholders = {
-      rdv: 'Indiquez votre disponibilité et le type de rendez-vous souhaité...',
-      reserver_table: 'Nombre de personnes, date et heure souhaitées...',
-      reserver_chambre: 'Bonjour, je souhaite réserver une chambre chez ',
-      commander: 'Détails de votre commande...',
-      devis: 'Décrivez votre projet ou service souhaité...',
-      contact: 'Votre message...'
+    const map = {
+      rdv: t('structure_detail.placeholder_rdv'),
+      reserver_table: t('structure_detail.placeholder_reserver_table'),
+      reserver_chambre: t('structure_detail.placeholder_reserver_chambre'),
+      commander: t('structure_detail.placeholder_commander'),
+      devis: t('structure_detail.placeholder_devis'),
+      contact: t('structure_detail.placeholder_contact')
     };
-    return placeholders[type] || 'Votre message...';
+    return map[type] || t('structure_detail.placeholder_contact');
   };
 
   // 🆕 Helper pour extraire l'ID YouTube
@@ -148,13 +149,13 @@ export default function StructureDetail() {
   const formatLangues = (langues) => {
     if (!langues || langues.length === 0) return null;
     const languesMap = {
-      'français': '🇫🇷 Français',
-      'arabe': '🇲🇦 Arabe',
-      'anglais': '🇬🇧 Anglais',
-      'espagnol': '🇪🇸 Espagnol',
-      'allemand': '🇩🇪 Allemand',
-      'italien': '🇮🇹 Italien',
-      'chinois': '🇨🇳 Chinois'
+      'français': t('structure_detail.langue_francais'),
+      'arabe': t('structure_detail.langue_arabe'),
+      'anglais': t('structure_detail.langue_anglais'),
+      'espagnol': t('structure_detail.langue_espagnol'),
+      'allemand': t('structure_detail.langue_allemand'),
+      'italien': t('structure_detail.langue_italien'),
+      'chinois': t('structure_detail.langue_chinois')
     };
     return langues.map(l => languesMap[l] || l);
   };
@@ -162,11 +163,11 @@ export default function StructureDetail() {
   // 🆕 Helper pour formater les modes de paiement
   const formatModePaiement = (mode) => {
     const modesMap = {
-      'especes': '💵 Espèces',
-      'carte': '💳 Carte bancaire',
-      'mobile_money': '📱 Mobile Money',
-      'virement': '🏦 Virement',
-      'cheque': '📝 Chèque'
+      'especes': t('structure_detail.paiement_especes'),
+      'carte': t('structure_detail.paiement_carte'),
+      'mobile_money': t('structure_detail.paiement_mobile'),
+      'virement': t('structure_detail.paiement_virement'),
+      'cheque': t('structure_detail.paiement_cheque')
     };
     return modesMap[mode] || mode;
   };
@@ -174,11 +175,11 @@ export default function StructureDetail() {
   // 🆕 Helper pour formater les certificats
   const formatCertificat = (cert) => {
     const certsMap = {
-      'iso_9001': '🏅 ISO 9001',
-      'halal': '☪️ Halal',
-      'bio': '🌱 Bio',
-      'label_qualite': '⭐ Label Qualité',
-      'hygiene': '🧼 Hygiène certifiée'
+      'iso_9001': t('structure_detail.cert_iso'),
+      'halal': t('structure_detail.cert_halal'),
+      'bio': t('structure_detail.cert_bio'),
+      'label_qualite': t('structure_detail.cert_label_qualite'),
+      'hygiene': t('structure_detail.cert_hygiene')
     };
     return certsMap[cert] || cert;
   };
@@ -188,9 +189,9 @@ export default function StructureDetail() {
     if (!anneeInscription) return null;
     const anneeActuelle = new Date().getFullYear();
     const annees = anneeActuelle - anneeInscription;
-    if (annees === 0) return 'Nouveau sur la plateforme';
-    if (annees === 1) return '1 an sur la plateforme';
-    return `${annees} ans sur la plateforme`;
+    if (annees === 0) return t('structure_detail.nouveau_plateforme');
+    if (annees === 1) return t('structure_detail.an_plateforme');
+    return `${annees} ${t('structure_detail.ans_plateforme')}`;
   };
 
   useEffect(() => {
@@ -205,17 +206,26 @@ export default function StructureDetail() {
   const chargerStructure = async () => {
   try {
     setLoading(true);
-    const structureData = await structuresAPI.getById(params.id);
-    
+    const param = params.id;
+    const structureData = isUUID(param)
+      ? await structuresAPI.getById(param)
+      : await structuresAPI.getBySlug(param);
+
     if (structureData) {
+      // Si on est arrivé via UUID et que la structure a un slug → redirection vers slug
+      if (isUUID(param) && structureData.slug && structureData.slug !== param) {
+        router.replace(`/structure/${structureData.slug}`);
+        return;
+      }
+
       setStructure(structureData);
       const produitsData = await produitsAPI.getAll();
-      const produitsFiltres = produitsData.filter(p => p.structure_id === params.id);
+      const produitsFiltres = produitsData.filter(p => p.structure_id === structureData.id);
       setProduits(produitsFiltres);
-      
+
       // 🆕 CHAMBRES (si hôtel/appartement)
         try {
-        const chambresData = await chambresAPI.getByStructure(params.id);
+        const chambresData = await chambresAPI.getByStructure(structureData.id);
         console.log('✅ Chambres chargées:', chambresData);
         setChambres(chambresData || []);
       } catch (errChambres) {
@@ -290,28 +300,28 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-4xl mx-auto mb-5">🔒</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-3">Accès réservé</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">{t('structure_detail.acces_reserve')}</h2>
           <p className="text-gray-600 mb-6 leading-relaxed">
-            La fiche détaillée des structures est réservée aux entreprises ayant un abonnement actif sur ChezMonAmi.
+            {t('structure_detail.acces_reserve_desc')}
           </p>
           <div className="space-y-3">
             <Link href="/entreprise/connexion" className="btn-primary w-full block py-3 font-semibold text-center rounded-xl">
-              🔑 Se connecter à mon espace
+              {t('structure_detail.se_connecter_btn')}
             </Link>
             <Link href="/entreprise/inscription" className="block w-full py-3 px-4 border-2 border-primary text-primary rounded-xl font-semibold hover:bg-primary/5 transition text-center">
-              🏢 Créer un compte entreprise
+              {t('structure_detail.creer_compte_btn')}
             </Link>
             <Link href="/structures" className="block text-sm text-gray-500 hover:text-gray-700 mt-2 transition">
-              ← Retour à la liste des structures
+              {t('structure_detail.retour_liste')}
             </Link>
           </div>
           <div className="mt-6 p-3 bg-blue-50 rounded-xl text-left">
-            <p className="text-xs font-semibold text-blue-700 mb-1">✨ Avec un abonnement vous pouvez :</p>
+            <p className="text-xs font-semibold text-blue-700 mb-1">{t('structure_detail.avantages_titre')}</p>
             <ul className="text-xs text-blue-600 space-y-1">
-              <li>• Accéder aux fiches détaillées de toutes les structures</li>
-              <li>• Répondre aux appels d&apos;offres</li>
-              <li>• Échanger avec d&apos;autres entreprises</li>
-              <li>• Gérer votre propre fiche entreprise</li>
+              <li>• {t('structure_detail.avantage_1')}</li>
+              <li>• {t('structure_detail.avantage_2')}</li>
+              <li>• {t('structure_detail.avantage_3')}</li>
+              <li>• {t('structure_detail.avantage_4')}</li>
             </ul>
           </div>
         </div>
@@ -334,28 +344,28 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
             {abonnementExpire ? '⏰' : '💳'}
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            {abonnementExpire ? 'Abonnement expiré' : 'Abonnement requis'}
+            {abonnementExpire ? t('structure_detail.abonnement_expire') : t('structure_detail.abonnement_requis')}
           </h2>
           <p className="text-gray-600 mb-2 leading-relaxed">
             {abonnementExpire
-              ? `Votre abonnement a expiré le ${dateFin.toLocaleDateString('fr-FR')}. Renouvelez-le pour accéder à cette fiche.`
-              : 'Votre compte est en mode gratuit. Souscrivez à un abonnement pour accéder aux fiches détaillées.'}
+              ? t('structure_detail.abonnement_expire_desc').replace('{{date}}', dateFin.toLocaleDateString(lang === 'ar' ? 'ar' : lang === 'en' ? 'en-GB' : 'fr-FR'))
+              : t('structure_detail.abonnement_gratuit_desc')}
           </p>
           <div className="space-y-3 mt-6">
             <Link
               href="/entreprise/dashboard/messages"
               className="btn-primary w-full block py-3 font-semibold text-center rounded-xl"
             >
-              📩 Contacter l&apos;administration
+              {t('structure_detail.contacter_admin')}
             </Link>
             <Link
               href="/entreprise/dashboard"
               className="block w-full py-3 px-4 border-2 border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition text-center"
             >
-              ← Mon tableau de bord
+              {t('structure_detail.mon_dashboard')}
             </Link>
             <Link href="/structures" className="block text-sm text-gray-500 hover:text-gray-700 transition">
-              ← Retour à la liste
+              {t('structure_detail.retour_liste_court')}
             </Link>
           </div>
         </div>
@@ -375,8 +385,8 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-xl text-gray-600 mb-4">Structure non trouvée</p>
-          <Link href="/" className="btn-primary">Retour à l'accueil</Link>
+          <p className="text-xl text-gray-600 mb-4">{t('structure_detail.non_trouvee')}</p>
+          <Link href="/" className="btn-primary">{t('structure_detail.retour_accueil')}</Link>
         </div>
       </div>
     );
@@ -408,10 +418,20 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
     <>
       {/* ✅ TRACKING AVEC ID STRUCTURE */}
       {structure && (
-        <PageTracker 
-          pageType="structure_detail" 
+        <PageTracker
+          pageType="structure_detail"
           elementId={structure.id}
           elementType="structure"
+        />
+      )}
+      {structure && <JsonLd data={structureSchema(structure)} />}
+      {structure && (
+        <JsonLd
+          data={breadcrumbSchema([
+            { name: 'Accueil', url: '/' },
+            { name: 'Structures', url: '/structures' },
+            { name: structure.nom, url: `/structure/${structure.slug || structure.id}` },
+          ])}
         />
       )}
     <div className="min-h-screen bg-gray-50">
@@ -422,7 +442,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
             </svg>
-            Retour
+            {t('structure_detail.retour')}
           </button>
         </div>
       </header>
@@ -486,16 +506,39 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
           <div className="lg:col-span-2 space-y-6">
             {/* En-tête avec nom, note et badges */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-4 gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h1 className="text-3xl font-bold text-gray-800">{structure.nom}</h1>
                     {/* 🆕 BADGE VÉRIFIÉ */}
                     {structure.verifie && (
                       <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-bold rounded-full flex items-center gap-1">
-                        ✅ Vérifié
+                        {t('structure_detail.verifie')}
                       </span>
                     )}
+                    {/* Badge "Profil complet" — affiché si la fiche est bien remplie */}
+                    {(() => {
+                      const s = structure;
+                      const totalImg = (Array.isArray(s.images) ? s.images.length : 0)
+                        + (Array.isArray(s.galerie) ? s.galerie.length : 0);
+                      const ok =
+                        (s.description?.trim().length || 0) >= 50
+                        && (s.description_longue?.trim().length || 0) >= 200
+                        && totalImg >= 3
+                        && Boolean(s.telephone)
+                        && Boolean(s.adresse)
+                        && (Boolean(s.horaires) || (s.horaires_detailles && Object.keys(s.horaires_detailles).length > 0))
+                        && (Boolean(s.site_web) || (Array.isArray(s.canaux_contact) && s.canaux_contact.length > 0));
+                      if (!ok) return null;
+                      return (
+                        <span
+                          title="Profil complet — toutes les informations clés sont renseignées"
+                          className="px-3 py-1 bg-emerald-100 text-emerald-800 text-sm font-bold rounded-full flex items-center gap-1"
+                        >
+                          ⭐ Profil complet
+                        </span>
+                      );
+                    })()}
                   </div>
                   
                   <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
@@ -516,9 +559,14 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                       ))}
                     </div>
                     <span className="text-xs text-gray-600">
-                      ({structure.nombre_avis || 0} avis)
+                      ({structure.nombre_avis || 0} {t('structure_detail.avis')})
                     </span>
                   </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <BoutonFavori type="structures" id={structure.id} variant="inline" showLabel />
+                  <BoutonPartage titre={structure.nom} description={structure.description} variant="compact" />
+                  <BoutonContacterEspace structureId={structure.id} type="structure" nom={structure.nom} variant="outline" />
                 </div>
               </div>
 
@@ -534,21 +582,21 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                 {/* Année de création */}
                 {structure.annee_creation && (
                   <span className="px-4 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium flex items-center gap-2">
-                    🏢 Fondée en {structure.annee_creation}
+                    {t('structure_detail.fondee_en')} {structure.annee_creation}
                   </span>
                 )}
 
                 {/* Nombre d'employés */}
                 {structure.nombre_employes && (
                   <span className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium flex items-center gap-2">
-                    👥 {structure.nombre_employes} employé{structure.nombre_employes > 1 ? 's' : ''}
+                    👥 {structure.nombre_employes} {structure.nombre_employes > 1 ? t('structure_detail.employe_pluriel') : t('structure_detail.employe_singulier')}
                   </span>
                 )}
 
                 {/* Produits vendus (boutique/usine) */}
                 {(isBoutique || isUsine) && structure.nombre_produits_vendus > 0 && (
                   <span className="px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium flex items-center gap-2">
-                    📦 {structure.nombre_produits_vendus.toLocaleString()} produit{structure.nombre_produits_vendus > 1 ? 's' : ''} vendu{structure.nombre_produits_vendus > 1 ? 's' : ''}
+                    📦 {structure.nombre_produits_vendus.toLocaleString()} {structure.nombre_produits_vendus > 1 ? t('structure_detail.produit_vendu_pluriel') : t('structure_detail.produit_vendu_singulier')}
                   </span>
                 )}
 
@@ -574,7 +622,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                       : 'text-gray-600 hover:text-primary'
                   }`}
                 >
-                  À propos
+                  {t('structure_detail.tab_apropos')}
                 </button>
                 {produits.length > 0 && (
                   <button
@@ -585,7 +633,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                         : 'text-gray-600 hover:text-primary'
                     }`}
                   >
-                    Produits ({produits.length})
+                    {t('structure_detail.tab_produits')} ({produits.length})
                   </button>
                 )}
 
@@ -599,7 +647,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                         : 'text-gray-600 hover:text-primary'
                     }`}
                   >
-                    🏨 Chambres ({chambres.length})
+                    {t('structure_detail.tab_chambres')} ({chambres.length})
                   </button>
                 )}
 
@@ -613,7 +661,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                       : 'text-gray-600 hover:text-primary'
                   }`}
                 >
-                  Avis ({structure.nombre_avis || 0})
+                  {t('structure_detail.tab_avis')} ({structure.nombre_avis || 0})
                 </button>
               </div>
 
@@ -623,7 +671,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                   <div className="space-y-6">
                     {structure.description_longue && (
                       <div>
-                        <h3 className="text-xl font-bold text-gray-800 mb-3">Description détaillée</h3>
+                        <h3 className="text-xl font-bold text-gray-800 mb-3">{t('structure_detail.description_detaillee')}</h3>
                         <p className="text-gray-700 leading-relaxed whitespace-pre-line">{structure.description_longue}</p>
                       </div>
                     )}
@@ -631,20 +679,20 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     {/* Services hôtel */}
                     {isHotelOuAppart && structure.services_inclus && structure.services_inclus.length > 0 && (
                       <div>
-                        <h3 className="text-xl font-bold text-gray-800 mb-3">Services inclus</h3>
+                        <h3 className="text-xl font-bold text-gray-800 mb-3">{t('structure_detail.services_inclus')}</h3>
                         <div className="grid md:grid-cols-2 gap-3">
                           {structure.services_inclus.map(service => {
                             const servicesMap = {
-                              'wifi': { icon: '📶', label: 'WiFi gratuit' },
-                              'piscine': { icon: '🏊', label: 'Piscine' },
-                              'parking': { icon: '🅿️', label: 'Parking' },
-                              'restaurant': { icon: '🍽️', label: 'Restaurant' },
-                              'climatisation': { icon: '❄️', label: 'Climatisation' },
-                              'room_service': { icon: '🛎️', label: 'Room Service' },
-                              'gym': { icon: '🏋️', label: 'Salle de sport' },
-                              'spa': { icon: '💆', label: 'Spa' },
-                              'petit_dejeuner': { icon: '🥐', label: 'Petit-déjeuner' },
-                              'blanchisserie': { icon: '👔', label: 'Blanchisserie' }
+                              'wifi': { icon: '📶', label: t('structure_detail.service_wifi') },
+                              'piscine': { icon: '🏊', label: t('structure_detail.service_piscine') },
+                              'parking': { icon: '🅿️', label: t('structure_detail.service_parking') },
+                              'restaurant': { icon: '🍽️', label: t('structure_detail.service_restaurant') },
+                              'climatisation': { icon: '❄️', label: t('structure_detail.service_climatisation') },
+                              'room_service': { icon: '🛎️', label: t('structure_detail.service_room_service') },
+                              'gym': { icon: '🏋️', label: t('structure_detail.service_gym') },
+                              'spa': { icon: '💆', label: t('structure_detail.service_spa') },
+                              'petit_dejeuner': { icon: '🥐', label: t('structure_detail.service_petit_dejeuner') },
+                              'blanchisserie': { icon: '👔', label: t('structure_detail.service_blanchisserie') }
                             };
                             const serviceInfo = servicesMap[service] || { icon: '✓', label: service };
                             return (
@@ -660,7 +708,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
 
                     {structure.politique_annulation && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                        <h4 className="font-semibold text-amber-800 mb-2">Politique d'annulation</h4>
+                        <h4 className="font-semibold text-amber-800 mb-2">{t('structure_detail.politique_annulation')}</h4>
                         <p className="text-amber-700 text-sm">{structure.politique_annulation}</p>
                       </div>
                     )}
@@ -668,7 +716,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     {/* 🆕 GALERIE PHOTOS */}
                     {galerie && galerie.length > 0 && (
                       <div>
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">Galerie photos</h3>
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">{t('structure_detail.galerie_photos')}</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           {galerie.slice(0, 8).map((photo, index) => (
                             <div
@@ -705,7 +753,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                             }}
                             className="mt-4 w-full py-3 border-2 border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition font-semibold"
                           >
-                            Voir toutes les photos ({galerie.length})
+                            {t('structure_detail.voir_toutes_photos')} ({galerie.length})
                           </button>
                         )}
                       </div>
@@ -714,7 +762,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     {/* 🆕 VIDÉOS YOUTUBE */}
                     {hasVideos && (
                       <div>
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">🎥 Vidéos de présentation</h3>
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">{t('structure_detail.videos_presentation')}</h3>
                         <div className="space-y-4">
                           {videoId1 && (
                             <div className="aspect-video rounded-lg overflow-hidden">
@@ -767,7 +815,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                             <span className="text-xl font-bold text-primary">
                               {convertPrice(produit.prix, produit.pays?.devise).toLocaleString()} {userCurrency}
                             </span>
-                            <span className="text-sm text-primary font-semibold">Voir le produit →</span>
+                            <span className="text-sm text-primary font-semibold">{t('structure_detail.voir_produit')}</span>
                           </div>
                         </div>
                       </Link>
@@ -781,16 +829,16 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                   <div className="grid md:grid-cols-2 gap-6">
                     {chambres.map(chambre => {
                       const equipMap = {
-                        'wifi': '📶 WiFi',
-                        'climatisation': '❄️ Climatisation',
-                        'tv': '📺 TV',
-                        'balcon': '🌅 Balcon',
-                        'vue_mer': '🌊 Vue mer',
-                        'minibar': '🍷 Minibar',
-                        'coffre_fort': '🔒 Coffre-fort',
-                        'bureau': '🖊️ Bureau',
-                        'jacuzzi': '🛁 Jacuzzi',
-                        'douche': '🚿 Douche',
+                        'wifi': `📶 ${t('structure_detail.equip_wifi')}`,
+                        'climatisation': `❄️ ${t('structure_detail.equip_clim')}`,
+                        'tv': `📺 ${t('structure_detail.equip_tv')}`,
+                        'balcon': `🌅 ${t('structure_detail.equip_balcon')}`,
+                        'vue_mer': `🌊 ${t('structure_detail.equip_vue_mer')}`,
+                        'minibar': `🍷 ${t('structure_detail.equip_minibar')}`,
+                        'coffre_fort': `🔒 ${t('structure_detail.equip_coffre')}`,
+                        'bureau': `🖊️ ${t('structure_detail.equip_bureau')}`,
+                        'jacuzzi': `🛁 ${t('structure_detail.equip_jacuzzi')}`,
+                        'douche': `🚿 ${t('structure_detail.equip_douche')}`,
                       };
 
                       const typeIcons = {
@@ -849,7 +897,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                                 ? 'bg-green-100 text-green-800 border-2 border-green-300' 
                                 : 'bg-red-100 text-red-800 border-2 border-red-300'
                             }`}>
-                              {chambre.disponible ? '✅ Disponible' : '❌ Complet'}
+                              {chambre.disponible ? t('structure_detail.chambre_disponible') : t('structure_detail.chambre_complet')}
                             </div>
                           </div>
                           
@@ -867,14 +915,14 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                             <div className="mb-3">
                               {chambre.prix_min && chambre.prix_max ? (
                                 <>
-                                  <p className="text-sm text-gray-600 mb-1">À partir de</p>
+                                  <p className="text-sm text-gray-600 mb-1">{t('structure_detail.a_partir_de')}</p>
                                   <p className="text-2xl font-bold text-primary">
                                     {convertPrice(chambre.prix_min, chambre.devise).toLocaleString()} - {convertPrice(chambre.prix_max, chambre.devise).toLocaleString()} {userCurrency}
                                   </p>
                                 </>
                               ) : (
                                 <>
-                                  <p className="text-sm text-gray-600 mb-1">Prix par nuit</p>
+                                  <p className="text-sm text-gray-600 mb-1">{t('structure_detail.prix_par_nuit')}</p>
                                   <p className="text-2xl font-bold text-primary">
                                     {convertPrice(chambre.prix_standard, chambre.devise).toLocaleString()} {userCurrency}
                                   </p>
@@ -885,7 +933,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                             {/* Équipements */}
                             {chambre.equipements && chambre.equipements.length > 0 && (
                               <div>
-                                <p className="text-xs font-semibold text-gray-500 mb-2">ÉQUIPEMENTS</p>
+                                <p className="text-xs font-semibold text-gray-500 mb-2">{t('structure_detail.equipements_label')}</p>
                                 <div className="flex flex-wrap gap-2">
                                   {chambre.equipements.slice(0, 6).map(equip => (
                                     <span
@@ -925,6 +973,8 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                       structureId={structure.id}
                       refresh={refreshCommentaires}
                     />
+                    {/* Avis B2B (entreprises uniquement) */}
+                    <AvisStructure structureId={structure.id} />
                   </div>
                 )}
               </div>
@@ -935,7 +985,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
           <div className="space-y-6">
             {/* 🆕 INFORMATIONS PRATIQUES ENRICHIES */}
             <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">📋 Informations pratiques</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-4">{t('structure_detail.infos_pratiques')}</h3>
               
               <div className="space-y-4">
                 {/* Téléphone */}
@@ -946,7 +996,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 mb-1">Téléphone</p>
+                    <p className="text-sm font-medium text-gray-600 mb-1">{t('structure_detail.telephone_label')}</p>
                     <a href={`tel:${structure.telephone}`} className="text-gray-800 font-semibold hover:text-primary transition">
                       {structure.telephone}
                     </a>
@@ -961,7 +1011,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 mb-1">Email</p>
+                    <p className="text-sm font-medium text-gray-600 mb-1">{t('structure_detail.email_label')}</p>
                     <a href={`mailto:${structure.email}`} className="text-gray-800 font-semibold hover:text-primary transition break-all">
                       {structure.email}
                     </a>
@@ -976,7 +1026,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 mb-1">Horaires</p>
+                    <p className="text-sm font-medium text-gray-600 mb-1">{t('structure_detail.horaires_label')}</p>
                     <p className="text-gray-800 font-semibold">{structure.horaires}</p>
                   </div>
                 </div>
@@ -984,16 +1034,16 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                 {/* 🆕 HORAIRES DÉTAILLÉS */}
                 {structure.horaires_detailles && Object.keys(structure.horaires_detailles).length > 0 && (
                   <div className="pt-4 border-t">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">Horaires détaillés</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-3">{t('structure_detail.horaires_detailles')}</p>
                     <div className="space-y-2">
                       {['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'].map(jour => {
                         const horaire = structure.horaires_detailles[jour];
                         if (!horaire) return null;
                         return (
                           <div key={jour} className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600 capitalize font-medium">{jour}</span>
+                            <span className="text-gray-600 capitalize font-medium">{t(`structure_detail.jour_${jour}`)}</span>
                             <span className={`${horaire.ouvert ? 'text-green-600 font-semibold' : 'text-red-600'}`}>
-                              {horaire.ouvert ? horaire.heures : 'Fermé'}
+                              {horaire.ouvert ? horaire.heures : t('structure_detail.ferme')}
                             </span>
                           </div>
                         );
@@ -1005,7 +1055,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                 {/* 🆕 LANGUES PARLÉES */}
                 {structure.langues_parlees && structure.langues_parlees.length > 0 && (
                   <div className="pt-4 border-t">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">🌍 Langues parlées</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-3">{t('structure_detail.langues_parlees')}</p>
                     <div className="flex flex-wrap gap-2">
                       {formatLangues(structure.langues_parlees).map((langue, index) => (
                         <span key={index} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
@@ -1019,7 +1069,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                 {/* 🆕 MODES DE PAIEMENT */}
                 {structure.modes_paiement && structure.modes_paiement.length > 0 && (
                   <div className="pt-4 border-t">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">💳 Modes de paiement</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-3">{t('structure_detail.modes_paiement')}</p>
                     <div className="space-y-2">
                       {structure.modes_paiement.map(mode => (
                         <div key={mode} className="text-sm text-gray-700">
@@ -1033,30 +1083,30 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                 {/* 🆕 SERVICES PROPOSÉS */}
                 {(structure.livraison_locale || structure.livraison_internationale || structure.click_and_collect || structure.sur_place) && (
                   <div className="pt-4 border-t">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">🚚 Services proposés</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-3">{t('structure_detail.services_proposes')}</p>
                     <div className="space-y-2">
                       {structure.livraison_locale && (
                         <div className="flex items-center gap-2 text-sm text-gray-700">
                           <span className="text-green-600">✓</span>
-                          <span>Livraison locale</span>
+                          <span>{t('structure_detail.livraison_locale')}</span>
                         </div>
                       )}
                       {structure.livraison_internationale && (
                         <div className="flex items-center gap-2 text-sm text-gray-700">
                           <span className="text-green-600">✓</span>
-                          <span>Livraison internationale</span>
+                          <span>{t('structure_detail.livraison_internationale')}</span>
                         </div>
                       )}
                       {structure.click_and_collect && (
                         <div className="flex items-center gap-2 text-sm text-gray-700">
                           <span className="text-green-600">✓</span>
-                          <span>Click & Collect</span>
+                          <span>{t('structure_detail.click_collect')}</span>
                         </div>
                       )}
                       {structure.sur_place && (
                         <div className="flex items-center gap-2 text-sm text-gray-700">
                           <span className="text-green-600">✓</span>
-                          <span>Service sur place</span>
+                          <span>{t('structure_detail.sur_place')}</span>
                         </div>
                       )}
                     </div>
@@ -1073,7 +1123,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-600 mb-1">Adresse</p>
+                      <p className="text-sm font-medium text-gray-600 mb-1">{t('structure_detail.adresse_label')}</p>
                       <p className="text-gray-800 font-semibold mb-2">{structure.adresse}</p>
                       <a 
                         href={googleMapsUrl} 
@@ -1081,7 +1131,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                         rel="noopener noreferrer"
                         className="text-sm text-primary hover:underline font-semibold"
                       >
-                        Voir sur Google Maps →
+                        {t('structure_detail.voir_google_maps')}
                       </a>
                     </div>
                   </div>
@@ -1117,14 +1167,14 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                   className="w-full flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl hover:opacity-90 transition font-semibold shadow-sm"
                 >
                   <span className="text-xl">🤝</span>
-                  <span>Demander à échanger avec cette société</span>
+                  <span>{t('structure_detail.demander_echanger')}</span>
                 </button>
-                <p className="text-xs text-gray-400 text-center mt-2">Votre demande sera vérifiée par l'administration</p>
+                <p className="text-xs text-gray-400 text-center mt-2">{t('structure_detail.verifie_admin')}</p>
               </div>
 
               {(structure.cta_principal || structure.cta_secondaire) && structure.canaux_contact && structure.canaux_contact.length > 0 && (
                 <div className="mt-6 space-y-3 pt-6 border-t">
-                  <h4 className="font-bold text-gray-800 mb-4">Contactez-nous</h4>
+                  <h4 className="font-bold text-gray-800 mb-4">{t('structure_detail.contactez_nous')}</h4>
                   
                   <div className="space-y-3">
                     {/* CTA Principal - WhatsApp */}
@@ -1338,7 +1388,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                         {convertPrice(chambreSelectionnee.prix_min, structure.pays?.devise).toLocaleString()} - {convertPrice(chambreSelectionnee.prix_max, structure.pays?.devise).toLocaleString()} {userCurrency}
                       </p>
                       <p className="text-sm text-gray-600 mt-1">
-                        Prix standard : {convertPrice(chambreSelectionnee.prix_standard, structure.pays?.devise).toLocaleString()} {userCurrency}
+                        {t('structure_detail.prix_standard')} : {convertPrice(chambreSelectionnee.prix_standard, structure.pays?.devise).toLocaleString()} {userCurrency}
                       </p>
                     </>
                   ) : (
@@ -1354,14 +1404,14 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     ? 'bg-green-100 text-green-800' 
                     : 'bg-red-100 text-red-800'
                 }`}>
-                  {chambreSelectionnee.disponible ? '✅ Disponible' : '❌ Complet'}
+                  {chambreSelectionnee.disponible ? `✅ ${t('structure_detail.disponible')}` : `❌ ${t('structure_detail.complet')}`}
                 </div>
               </div>
 
               {/* Description */}
               {chambreSelectionnee.description && (
                 <div>
-                  <h4 className="font-bold text-gray-800 mb-2">📝 Description</h4>
+                  <h4 className="font-bold text-gray-800 mb-2">{t('structure_detail.description_titre')}</h4>
                   <p className="text-sm text-gray-700 leading-relaxed">{chambreSelectionnee.description}</p>
                 </div>
               )}
@@ -1369,24 +1419,24 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
               {/* Équipements */}
               {chambreSelectionnee.equipements && chambreSelectionnee.equipements.length > 0 && (
                 <div>
-                  <h4 className="font-bold text-gray-800 mb-3">🛋️ Équipements</h4>
+                  <h4 className="font-bold text-gray-800 mb-3">{t('structure_detail.equipements_titre')}</h4>
                   <div className="grid grid-cols-2 gap-2">
                     {chambreSelectionnee.equipements.map(equip => {
                       const equipMap = {
-                        'wifi': { icon: '📶', label: 'WiFi' },
-                        'climatisation': { icon: '❄️', label: 'Climatisation' },
-                        'tv': { icon: '📺', label: 'TV' },
-                        'balcon': { icon: '🌅', label: 'Balcon' },
-                        'vue_mer': { icon: '🌊', label: 'Vue mer' },
-                        'minibar': { icon: '🍷', label: 'Minibar' },
-                        'coffre_fort': { icon: '🔒', label: 'Coffre-fort' },
-                        'bureau': { icon: '🖊️', label: 'Bureau' },
-                        'jacuzzi': { icon: '🛁', label: 'Jacuzzi' },
-                        'baignoire': { icon: '🛁', label: 'Baignoire' },
-                        'douche': { icon: '🚿', label: 'Douche' },
-                        'peignoirs': { icon: '👘', label: 'Peignoirs' },
-                        'seche_cheveux': { icon: '💨', label: 'Sèche-cheveux' },
-                        'telephone': { icon: '☎️', label: 'Téléphone' },
+                        'wifi': { icon: '📶', label: t('structure_detail.equip_wifi') },
+                        'climatisation': { icon: '❄️', label: t('structure_detail.equip_clim') },
+                        'tv': { icon: '📺', label: t('structure_detail.equip_tv') },
+                        'balcon': { icon: '🌅', label: t('structure_detail.equip_balcon') },
+                        'vue_mer': { icon: '🌊', label: t('structure_detail.equip_vue_mer') },
+                        'minibar': { icon: '🍷', label: t('structure_detail.equip_minibar') },
+                        'coffre_fort': { icon: '🔒', label: t('structure_detail.equip_coffre') },
+                        'bureau': { icon: '🖊️', label: t('structure_detail.equip_bureau') },
+                        'jacuzzi': { icon: '🛁', label: t('structure_detail.equip_jacuzzi') },
+                        'baignoire': { icon: '🛁', label: t('structure_detail.equip_baignoire') },
+                        'douche': { icon: '🚿', label: t('structure_detail.equip_douche') },
+                        'peignoirs': { icon: '👘', label: t('structure_detail.equip_peignoirs') },
+                        'seche_cheveux': { icon: '💨', label: t('structure_detail.equip_seche') },
+                        'telephone': { icon: '☎️', label: t('structure_detail.equip_tel') },
                       };
                       const equipInfo = equipMap[equip] || { icon: '✓', label: equip };
                       return (
@@ -1412,7 +1462,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     className="block w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-center transition"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    💬 Réserver via WhatsApp
+                    {t('structure_detail.reserver_whatsapp')}
                   </a>
                 )}
                 {structure.email && (
@@ -1424,7 +1474,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     }}
                     className="block w-full px-4 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg font-semibold text-center transition"
                   >
-                    ✉️ Réserver par Email
+                    {t('structure_detail.reserver_email')}
                   </button>
                 )}
                 {structure.telephone && !structure.telephone.match(/^[\d\s\-\+\(\)]+$/) && (
@@ -1433,7 +1483,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     className="block w-full px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold text-center transition"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    📞 Appeler directement
+                    {t('structure_detail.appeler_directement')}
                   </a>
                 )}
               </div>
@@ -1448,7 +1498,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
           <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
               <div>
-                <h3 className="font-bold text-gray-800 text-base">🤝 Demander à échanger</h3>
+                <h3 className="font-bold text-gray-800 text-base">{t('structure_detail.modal_echange_titre')}</h3>
                 <p className="text-xs text-gray-500 mt-0.5">{structure?.nom}</p>
               </div>
               <button
@@ -1461,21 +1511,21 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
               {echangeEnvoye ? (
                 <div className="text-center py-8 space-y-3">
                   <div className="text-5xl">✅</div>
-                  <p className="font-bold text-gray-800">Demande envoyée !</p>
+                  <p className="font-bold text-gray-800">{t('structure_detail.demande_envoyee')}</p>
                   <p className="text-sm text-gray-500">
-                    L'administration examinera votre demande et vous contactera par email.
+                    {t('structure_detail.demande_envoyee_desc')}
                   </p>
                   <button
                     onClick={() => setShowModalEchange(false)}
                     className="mt-4 px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition"
                   >
-                    Fermer
+                    {t('structure_detail.fermer_btn')}
                   </button>
                 </div>
               ) : (
                 <form onSubmit={envoyerDemandeEchange} className="space-y-4">
                   <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
-                    ℹ️ Votre demande sera vérifiée par l'administration avant d'être transmise à la société.
+                    {t('structure_detail.info_admin')}
                   </div>
 
                   {echangeErreur && (
@@ -1484,7 +1534,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Votre nom <span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('structure_detail.votre_nom')} <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         required
@@ -1494,7 +1544,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('structure_detail.email_label')} <span className="text-red-500">*</span></label>
                       <input
                         type="email"
                         required
@@ -1506,7 +1556,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone <span className="text-gray-400 font-normal">(optionnel)</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('structure_detail.telephone_optionnel_label')} <span className="text-gray-400 font-normal">{t('structure_detail.optionnel')}</span></label>
                     <input
                       type="tel"
                       value={formEchange.telephone}
@@ -1516,12 +1566,12 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Message <span className="text-gray-400 font-normal">(optionnel)</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('structure_detail.message_label')} <span className="text-gray-400 font-normal">{t('structure_detail.optionnel')}</span></label>
                     <textarea
                       rows={3}
                       value={formEchange.message}
                       onChange={e => setFormEchange(f => ({ ...f, message: e.target.value }))}
-                      placeholder="Présentez-vous et expliquez l'objet de votre démarche..."
+                      placeholder={t('structure_detail.placeholder_echange')}
                       className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                     />
                   </div>
@@ -1532,9 +1582,9 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                     className="w-full py-3 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-primary/90 transition disabled:opacity-60 flex items-center justify-center gap-2"
                   >
                     {envoyantEchange ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Envoi…</>
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {t('structure_detail.envoi_en_cours')}</>
                     ) : (
-                      <>🤝 Envoyer ma demande</>
+                      <>{t('structure_detail.envoyer_demande')}</>
                     )}
                   </button>
                 </form>
@@ -1562,7 +1612,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Votre nom *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('structure_detail.votre_nom_label')}</label>
                 <input 
                   type="text" 
                   required
@@ -1573,7 +1623,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Votre email *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('structure_detail.votre_email_label')}</label>
                 <input 
                   type="email" 
                   required
@@ -1584,7 +1634,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Votre téléphone</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('structure_detail.votre_telephone_label')}</label>
                 <input 
                   type="tel" 
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none" 
@@ -1594,7 +1644,7 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Votre message *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('structure_detail.votre_message_label')}</label>
                 <textarea 
                   rows="4" 
                   required
@@ -1611,14 +1661,14 @@ const ouvrirModalChambre = (chambre, indexImage = 0) => {
                 onClick={() => setShowModalEmail(false)} 
                 className="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition font-semibold"
               >
-                Annuler
+                {t('structure_detail.annuler')}
               </button>
-              <button 
-                onClick={envoyerEmail} 
+              <button
+                onClick={envoyerEmail}
                 disabled={!formEmail.nom || !formEmail.email || !formEmail.message}
                 className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Envoyer
+                {t('structure_detail.envoyer')}
               </button>
             </div>
           </div>

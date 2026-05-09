@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server';
+import { sendBatchEmails, baseTemplate } from '@/lib/email';
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chezmonami.ma';
 
 // ── Templates ─────────────────────────────────────────────────────────────────
+
+function footerNewsletter() {
+  return `
+    <p>
+      Vous recevez cet email car vous êtes abonné(e) à la newsletter de
+      <a href="${siteUrl}">ChezMonAmi</a>.
+    </p>
+    <p>
+      <a href="${siteUrl}/desinscription?email={{EMAIL}}">Me désabonner</a>
+    </p>
+  `;
+}
 
 function genererEmailAuto(item) {
   const estStructure = item.type === 'nouvelle_structure';
@@ -8,152 +23,41 @@ function genererEmailAuto(item) {
   const titre = estStructure
     ? `Nouvelle entreprise : ${item.element_nom}`
     : `Nouveau produit : ${item.element_nom}`;
+  const contenu = `<p>${
+    item.description
+      ? item.description.substring(0, 200) + (item.description.length > 200 ? '...' : '')
+      : `Découvrez ${estStructure ? 'cette nouvelle entreprise' : 'ce nouveau produit'} sur notre plateforme.`
+  }</p>`;
 
   return {
     sujet: estStructure
       ? `🏢 Nouvelle entreprise : ${item.element_nom}${item.secteur_activite ? ` — ${item.secteur_activite}` : ''}`
       : `📦 Nouveau produit : ${item.element_nom}${item.secteur_activite ? ` — Secteur ${item.secteur_activite}` : ''}`,
-    html: genererHTML({
+    html: baseTemplate({
       titre,
       emoji,
-      badge: item.secteur_activite ? `🏷️ Secteur : ${item.secteur_activite}` : null,
-      contenu: item.description
-        ? item.description.substring(0, 200) + (item.description.length > 200 ? '...' : '')
-        : `Découvrez ${estStructure ? 'cette nouvelle entreprise' : 'ce nouveau produit'} sur notre plateforme.`,
+      badge: item.secteur_activite ? `🏷️ ${item.secteur_activite}` : undefined,
+      contenu,
       ctaTexte: estStructure ? "Voir l'entreprise" : 'Voir le produit',
-      ctaLien: `${process.env.NEXT_PUBLIC_SITE_URL}${item.lien || ''}`,
+      ctaLien: `${siteUrl}${item.lien || ''}`,
+      footer: footerNewsletter(),
     }),
     texte: estStructure
-      ? `Nouvelle entreprise : ${item.element_nom}\n\n${item.description || ''}\n\nVoir : ${process.env.NEXT_PUBLIC_SITE_URL}${item.lien || ''}`
-      : `Nouveau produit : ${item.element_nom}\n\n${item.description || ''}\n\nVoir : ${process.env.NEXT_PUBLIC_SITE_URL}${item.lien || ''}`,
+      ? `Nouvelle entreprise : ${item.element_nom}\n\n${item.description || ''}\n\nVoir : ${siteUrl}${item.lien || ''}`
+      : `Nouveau produit : ${item.element_nom}\n\n${item.description || ''}\n\nVoir : ${siteUrl}${item.lien || ''}`,
   };
 }
 
 function genererEmailLibre(message) {
   return {
     sujet: message.sujet,
-    html: genererHTML({
+    html: baseTemplate({
       titre: message.sujet,
-      emoji: null,
-      badge: null,
-      contenu: message.contenu.replace(/\n/g, '<br/>'),
-      ctaTexte: null,
-      ctaLien: null,
+      contenu: `<p>${message.contenu.replace(/\n/g, '<br/>')}</p>`,
+      footer: footerNewsletter(),
     }),
     texte: message.contenu,
   };
-}
-
-function genererHTML({ titre, emoji, badge, contenu, ctaTexte, ctaLien }) {
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${titre}</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
-    .container { max-width:600px; margin:30px auto; background:#fff; border-radius:12px; overflow:hidden; }
-    .header { background:#2e7d32; padding:30px; text-align:center; }
-    .header h1 { color:#fff; margin:0; font-size:20px; line-height:1.4; }
-    .body { padding:30px; color:#333; line-height:1.8; font-size:15px; }
-    .badge { display:inline-block; background:#e8f5e9; color:#2e7d32; padding:4px 12px; border-radius:20px; font-size:13px; margin-bottom:16px; }
-    .cta { display:inline-block; margin-top:20px; padding:12px 28px; background:#2e7d32; color:#ffffff; text-decoration:none; border-radius:8px; font-weight:bold; font-size:15px; }
-    .footer { background:#f9f9f9; padding:20px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; }
-    .footer a { color:#999; text-decoration:underline; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>${emoji ? `${emoji} ` : ''}${titre}</h1>
-    </div>
-    <div class="body">
-      ${badge ? `<p><span class="badge">${badge}</span></p>` : ''}
-      <p>${contenu}</p>
-      ${ctaTexte && ctaLien
-        ? `<p><a href="${ctaLien}" class="cta">${ctaTexte}</a></p>`
-        : ''}
-    </div>
-    <div class="footer">
-      <p>
-        Vous recevez cet email car vous êtes abonné(e) à la newsletter de
-        <a href="${process.env.NEXT_PUBLIC_SITE_URL}">ChezMonAmi</a>.
-      </p>
-      <p>
-        <a href="${process.env.NEXT_PUBLIC_SITE_URL}/desinscription?email={{EMAIL}}">
-          Me désabonner
-        </a>
-      </p>
-      <p style="color:#bbb;font-size:11px;">ChezMonAmi — chezmonami.ma</p>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
-// ── Envoi via Resend ──────────────────────────────────────────────────────────
-
-async function envoyerViaResend(destinataires, sujet, html, texte) {
-  const erreurs = [];
-  let envoyes = 0;
-  const BATCH_SIZE = 50;
-
-  for (let i = 0; i < destinataires.length; i += BATCH_SIZE) {
-    const batch = destinataires.slice(i, i + BATCH_SIZE);
-
-    for (const email of batch) {
-      const htmlPersonnalise = html.replace(
-        /\{\{EMAIL\}\}/g,
-        encodeURIComponent(email)
-      );
-      const lienDesinscription =
-        `${process.env.NEXT_PUBLIC_SITE_URL}/desinscription?email=${encodeURIComponent(email)}`;
-
-      try {
-        const response = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: process.env.RESEND_FROM,
-            to: [email],
-            subject: sujet,
-            html: htmlPersonnalise,
-            // ✅ Version texte brut — réduit le score spam
-            text: texte + `\n\nSe désabonner : ${lienDesinscription}`,
-            // ✅ Headers anti-spam — Gmail affiche bouton désabonnement natif
-            headers: {
-              'List-Unsubscribe': `<${lienDesinscription}>`,
-              'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-              'X-Entity-Ref-ID': crypto.randomUUID(),
-            },
-          }),
-        });
-
-        if (response.ok) {
-          envoyes++;
-        } else {
-          const err = await response.json();
-          erreurs.push({ email, raison: err.message || 'Erreur Resend' });
-        }
-
-        // Pause entre envois
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-      } catch (err) {
-        erreurs.push({ email, raison: err.message });
-      }
-    }
-  }
-
-  if (envoyes === 0 && erreurs.length > 0) {
-    throw new Error(`Tous les envois ont échoué : ${erreurs[0].raison}`);
-  }
-
-  return { envoyes, erreurs };
 }
 
 // ── Handler POST ──────────────────────────────────────────────────────────────
@@ -189,12 +93,27 @@ export async function POST(request) {
       template = genererEmailAuto(item);
     }
 
-    const { envoyes, erreurs } = await envoyerViaResend(
+    // Ajout du lien de désinscription dans la version texte
+    template.texte = `${template.texte}\n\nSe désabonner : ${siteUrl}/desinscription?email={{EMAIL}}`;
+
+    const headersFor = (email) => {
+      const lien = `${siteUrl}/desinscription?email=${encodeURIComponent(email)}`;
+      return {
+        'List-Unsubscribe': `<${lien}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        'X-Entity-Ref-ID': crypto.randomUUID(),
+      };
+    };
+
+    const { envoyes, erreurs } = await sendBatchEmails({
       destinataires,
-      template.sujet,
-      template.html,
-      template.texte
-    );
+      subject: template.sujet,
+      html: template.html,
+      text: template.texte,
+      headersFor,
+      tag: type === 'libre' ? 'newsletter_libre' : 'newsletter_auto',
+      pauseMs: 100,
+    });
 
     return NextResponse.json({
       success: true,

@@ -1,4 +1,5 @@
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { adminFetch } from '@/lib/adminFetch';
@@ -198,7 +199,7 @@ export default function AdminMessages() {
 
   // ── Supprimer tous les messages d'une entreprise ─────────────────────────
   const supprimerTousMessages = async (compteId) => {
-    if (!confirm('Supprimer tous les messages de cette entreprise ? Cette action est irréversible.')) return;
+    if (!(await confirmDialog({ message: 'Supprimer tous les messages de cette entreprise ? Cette action est irréversible.', danger: true }))) return;
     const msgs = messages.filter(m => m.comptes_structures?.id === compteId);
     await Promise.all(msgs.map(m => adminFetch(`/api/admin/messages/${m.id}`, { method: 'DELETE' })));
     setMessages(prev => prev.filter(m => m.comptes_structures?.id !== compteId));
@@ -208,7 +209,7 @@ export default function AdminMessages() {
 
   // ── Supprimer un message ──────────────────────────────────────────────────
   const supprimerMessage = async (id) => {
-    if (!confirm('Supprimer ce message définitivement ?')) return;
+    if (!(await confirmDialog({ message: 'Supprimer ce message définitivement ?', danger: true }))) return;
     try {
       const res = await adminFetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -275,7 +276,7 @@ export default function AdminMessages() {
 
   // ── B2B ───────────────────────────────────────────────────────────────────
   const supprimerConvB2B = async (convId) => {
-    if (!confirm('Supprimer définitivement cette conversation et tous ses messages ? Cette action est irréversible.')) return;
+    if (!(await confirmDialog({ message: 'Supprimer définitivement cette conversation et tous ses messages ? Cette action est irréversible.', danger: true }))) return;
     try {
       const res = await adminFetch(`/api/admin/conversations-b2b/${convId}`, { method: 'DELETE' });
       if (res.ok) {

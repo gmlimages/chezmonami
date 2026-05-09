@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, getCompteFromToken, hasFullAccess } from '@/lib/supabaseAdmin';
+import { sendEmail, baseTemplate, baseText } from '@/lib/email';
 
 const MAX_FICHIER = 5 * 1024 * 1024; // 5 Mo
 const MAX_FICHIERS = 5;
@@ -116,6 +117,73 @@ export async function POST(request, { params }) {
       reference_type: 'reponse',
       reference_id: reponse.id,
     });
+
+    // Email de confirmation au répondant + alerte au créateur de l'AO
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chezmonami.ma';
+
+    if (compte.email) {
+      const titre = 'Réponse envoyée';
+      const contenu = `
+        <p>Bonjour <strong>${compte.nom_contact}</strong>,</p>
+        <p>Nous confirmons la bonne réception de votre réponse à l'appel d'offres :</p>
+        <p><strong>${appel.titre}</strong></p>
+        <p>L'auteur de l'AO étudiera votre proposition et pourra vous contacter directement.</p>
+      `;
+      await sendEmail({
+        to: compte.email,
+        subject: `✅ Votre réponse à "${appel.titre}" a bien été reçue`,
+        html: baseTemplate({
+          titre,
+          emoji: '✅',
+          contenu,
+          ctaTexte: "Voir l'appel d'offres",
+          ctaLien: `${siteUrl}/appels-offres/${appelId}`,
+        }),
+        text: baseText({
+          titre,
+          contenu: `Votre réponse à "${appel.titre}" a bien été enregistrée.`,
+          ctaTexte: "Voir l'appel d'offres",
+          ctaLien: `${siteUrl}/appels-offres/${appelId}`,
+        }),
+        tag: 'ao_reponse_confirmation',
+      });
+    }
+
+    // Récupérer le créateur de l'AO pour l'alerter
+    const { data: appelComplet } = await supabaseAdmin
+      .from('appels_offres')
+      .select('compte_id, comptes_structures(email, nom_contact)')
+      .eq('id', appelId)
+      .single();
+    const auteur = appelComplet?.comptes_structures;
+    if (auteur?.email && appelComplet.compte_id !== compte.id) {
+      const titreA = 'Nouvelle réponse à votre appel d\'offres';
+      const contenuA = `
+        <p>Bonjour <strong>${auteur.nom_contact}</strong>,</p>
+        <p><strong>${compte.nom_contact}</strong> vient de soumettre une réponse à votre appel d'offres :</p>
+        <p><strong>${appel.titre}</strong></p>
+        <p>Connectez-vous à votre espace pour la consulter.</p>
+      `;
+      await sendEmail({
+        to: auteur.email,
+        subject: `📩 Nouvelle réponse à "${appel.titre}"`,
+        html: baseTemplate({
+          titre: titreA,
+          emoji: '📩',
+          preheader: `${compte.nom_contact} a répondu à votre AO`,
+          contenu: contenuA,
+          ctaTexte: 'Voir les réponses',
+          ctaLien: `${siteUrl}/entreprise/dashboard/appels-offres`,
+        }),
+        text: baseText({
+          titre: titreA,
+          contenu: `${compte.nom_contact} a soumis une réponse à votre AO "${appel.titre}".`,
+          ctaTexte: 'Voir les réponses',
+          ctaLien: `${siteUrl}/entreprise/dashboard/appels-offres`,
+        }),
+        tag: 'ao_reponse_alerte_auteur',
+      });
+    }
 
     return NextResponse.json({ success: true, reponse });
 

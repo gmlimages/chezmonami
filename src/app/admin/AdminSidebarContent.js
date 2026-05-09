@@ -11,7 +11,11 @@ const MENU_GROUPS = [
     key: 'general',
     label: null, // pas de titre de groupe = item direct
     items: [
+      { href: '/admin/vue-globale', label: 'Vue globale', icon: '🌐', description: 'KPIs unifiés' },
       { href: '/admin/dashboard', label: 'Dashboard', icon: '📊', description: 'Vue d\'ensemble' },
+      { href: '/admin/templates-reponse', label: 'Templates', icon: '📝', description: 'Messages-types' },
+      { href: '/admin/audit-logs', label: 'Audit logs', icon: '🔍', description: 'Historique admin' },
+      { href: '/admin/profil', label: 'Profil', icon: '👤', description: '2FA, mot de passe & équipe' },
     ],
   },
   {
@@ -46,6 +50,8 @@ const MENU_GROUPS = [
       { href: '/admin/appels-offres',        label: "Appels d'offres", icon: '📋', description: 'Créer & suivre' },
       { href: '/admin/messages',             label: 'Messages',        icon: '💬', description: 'Messages des sociétés' },
       { href: '/admin/contacts-entreprises', label: 'Contacts B2B',    icon: '🤝', description: 'Mise en relation' },
+      { href: '/admin/avis-b2b',             label: 'Avis B2B',        icon: '⭐', description: 'Modération avis' },
+      { href: '/admin/parrainage',           label: 'Parrainage',      icon: '🎁', description: 'Programme de parrainage' },
       { href: '/admin/statistiques',         label: 'Statistiques',    icon: '📈', description: 'Tableau de bord' },
     ],
   },
@@ -68,38 +74,26 @@ const MENU_GROUPS = [
 export default function AdminSidebarContent({ isOpen, admin, tempsRestant, formatTemps, onLogout, nbNouveauxMessages = 0, nbAppelsOffres = 0 }) {
   const pathname = usePathname();
 
-  // Calculer quels groupes contiennent la page active
-  const groupesAvecActif = MENU_GROUPS
-    .filter(g => g.items.some(item => pathname.startsWith(item.href) && item.href !== '/admin/dashboard'))
-    .map(g => g.key);
+  // Groupe contenant la page active (un seul à la fois)
+  const groupeActifKey = MENU_GROUPS.find(g =>
+    g.items.some(item => pathname.startsWith(item.href) && item.href !== '/admin/dashboard')
+  )?.key || null;
 
-  const [groupesOuverts, setGroupesOuverts] = useState(() => {
-    // Ouvrir par défaut les groupes actifs + Boutique et Sociétés
-    return new Set(['boutique', 'societes', ...groupesAvecActif]);
-  });
+  // Un seul groupe ouvert à la fois (accordéon exclusif). Fermé par défaut.
+  // Au montage : ouvre uniquement le groupe contenant la page active (si applicable).
+  const [groupeOuvert, setGroupeOuvert] = useState(groupeActifKey);
 
-  // Quand la route change, ouvrir le groupe qui contient la page active
+  // Quand la route change, ouvrir le groupe qui contient la nouvelle page active
   useEffect(() => {
-    const actif = MENU_GROUPS
-      .filter(g => g.items.some(item => pathname.startsWith(item.href) && item.href !== '/admin/dashboard'))
-      .map(g => g.key);
-    if (actif.length > 0) {
-      setGroupesOuverts(prev => {
-        const next = new Set(prev);
-        actif.forEach(k => next.add(k));
-        return next;
-      });
-    }
-  }, [pathname]);
+    if (groupeActifKey) setGroupeOuvert(groupeActifKey);
+  }, [pathname, groupeActifKey]);
 
   const toggleGroupe = (key) => {
-    setGroupesOuverts(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setGroupeOuvert(prev => (prev === key ? null : key));
   };
+
+  // Helper de compatibilité avec le rendu existant
+  const groupesOuverts = { has: (k) => groupeOuvert === k };
 
   const isItemActive = (href) =>
     href === '/admin/dashboard'

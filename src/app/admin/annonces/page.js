@@ -1,5 +1,6 @@
 // src/app/admin/annonces/page.js
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import FileUploader from '@/components/FileUploader';
@@ -79,7 +80,7 @@ export default function AdminAnnonces() {
       setVilles(villesData); 
     } catch (error) {
       console.error('Erreur chargement:', error);
-      alert('❌ Erreur lors du chargement des données');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -146,13 +147,13 @@ export default function AdminAnnonces() {
   const sauvegarderAnnonce = async () => {
     if (!formData.titre || !formData.organisme || !formData.type || !formData.pays_id || 
         !formData.description || !formData.date_fin || !formData.contact) {
-      alert('⚠️ Veuillez remplir tous les champs obligatoires');
+      toast.warning('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
     // ← NOUVEAU : Vérifier que le sous_type est rempli si type = Emploi
     if (formData.type === 'Emploi' && !formData.sous_type) {
-      alert('⚠️ Veuillez sélectionner un type de contrat pour les offres d\'emploi');
+      toast.warning('Veuillez sélectionner un type de contrat pour les offres d\'emploi');
       return;
     }
 
@@ -164,32 +165,30 @@ export default function AdminAnnonces() {
 
       if (annonceEnCours) {
         await annoncesAPI.update(annonceEnCours.id, dataToSend);
-        alert('✅ Annonce modifiée avec succès !');
+        toast.success('Annonce modifiée avec succès !');
       } else {
         await annoncesAPI.create(dataToSend);
-        alert('✅ Annonce publiée avec succès !');
+        toast.success('Annonce publiée avec succès !');
       }
       
       await chargerDonnees();
       setMode('liste');
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
-      alert('❌ Erreur lors de la sauvegarde : ' + error.message);
+      toast.error('Erreur lors de la sauvegarde : ' + error.message);
     }
   };
 
   const supprimerAnnonce = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette annonce ?')) {
-      return;
-    }
+    if (!(await confirmDialog({ message: 'Êtes-vous sûr de vouloir supprimer cette annonce ?', danger: true }))) { return; }
 
     try {
       await annoncesAPI.delete(id);
-      alert('✅ Annonce supprimée !');
+      toast.success('Annonce supprimée !');
       await chargerDonnees();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert('❌ Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 

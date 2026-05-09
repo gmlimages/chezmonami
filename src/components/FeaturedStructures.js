@@ -39,7 +39,7 @@ export default function FeaturedStructures() {
           {structures.map(structure => (
             <a
               key={structure.structure_id}
-              href={`/structure/${structure.structure_id}`}
+              href={`/structure/${structure.structure_slug || structure.structure_id}`}
               className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition"
             >
               <div className="relative h-48">

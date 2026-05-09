@@ -1,15 +1,17 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { isUUID } from '@/lib/slug';
 
 const BASE_URL = 'https://chezmonami.ma';
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
+  const isId = isUUID(id);
 
   try {
     const { data: structure } = await supabaseAdmin
       .from('structures')
-      .select('id, nom, description, images, ville:ville_id(nom), pays:pays_id(nom), categorie:categorie_id(nom)')
-      .eq('id', id)
+      .select('id, slug, nom, description, images, ville:ville_id(nom), pays:pays_id(nom), categorie:categorie_id(nom)')
+      .eq(isId ? 'id' : 'slug', id)
       .single();
 
     if (!structure) {
@@ -38,7 +40,7 @@ export async function generateMetadata({ params }) {
       openGraph: {
         title: titre,
         description,
-        url: `${BASE_URL}/structure/${id}`,
+        url: `${BASE_URL}/structure/${structure.slug || structure.id}`,
         type: 'website',
         images: [
           {
@@ -56,7 +58,7 @@ export async function generateMetadata({ params }) {
         images: [imageUrl],
       },
       alternates: {
-        canonical: `${BASE_URL}/structure/${id}`,
+        canonical: `${BASE_URL}/structure/${structure.slug || structure.id}`,
       },
     };
   } catch {

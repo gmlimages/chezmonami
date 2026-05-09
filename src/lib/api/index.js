@@ -61,6 +61,22 @@ export const structuresAPI = {
     return data;
   },
 
+  async getBySlug(slug) {
+    const { data, error } = await supabase
+      .from('structures')
+      .select(`
+        *,
+        pays:pays_id(id, nom, devise),
+        ville:ville_id(id, nom),
+        categorie:categorie_id(id, nom, icon, color)
+      `)
+      .eq('slug', slug)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
   async create(structureData) {
     const { data, error } = await supabase
       .from('structures')
@@ -242,7 +258,7 @@ export const produitsAPI = {
         pays:pays_id(id, nom, devise),
         ville:ville_id(id, nom),
         categorie_info:categorie(id, nom, icon, color),
-        structure:structure_id(id, nom, telephone, email)
+        structure:structure_id(id, slug, nom, telephone, email)
       `)
       .eq('id', id)
       .single();

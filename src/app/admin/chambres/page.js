@@ -1,5 +1,6 @@
 // src/app/admin/chambres/page.js - VERSION SIMPLIFIÉE (comme produits)
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import ImageUploader from '@/components/ImageUploader';
@@ -79,7 +80,7 @@ export default function AdminChambres() {
       setStructures(hotelsApparts);
     } catch (error) {
       console.error('Erreur chargement:', error);
-      alert('❌ Erreur lors du chargement des données');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -120,21 +121,21 @@ export default function AdminChambres() {
   };
 
   const supprimerChambre = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette chambre ?')) return;
+    if (!(await confirmDialog({ message: 'Êtes-vous sûr de vouloir supprimer cette chambre ?', danger: true }))) return;
 
     try {
       await chambresAPI.delete(id);
-      alert('✅ Chambre supprimée avec succès !');
+      toast.success('Chambre supprimée avec succès !');
       chargerDonnees();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert('❌ Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 
   const sauvegarderChambre = async () => {
   if (!formData.nom_affiche || !formData.structure_id || !formData.prix_standard) {
-    alert('⚠️ Veuillez remplir tous les champs obligatoires');
+    toast.warning('Veuillez remplir tous les champs obligatoires');
     return;
   }
 
@@ -159,17 +160,17 @@ export default function AdminChambres() {
 
           if (chambreEnCours) {
       await chambresAPI.update(chambreEnCours.id, chambreData);
-      alert('✅ Chambre modifiée avec succès !');
+      toast.success('Chambre modifiée avec succès !');
     } else {
       await chambresAPI.create(chambreData);
-      alert('✅ Chambre ajoutée avec succès !');
+      toast.success('Chambre ajoutée avec succès !');
     }
       
       chargerDonnees();
       setMode('liste');
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     }
   };
 

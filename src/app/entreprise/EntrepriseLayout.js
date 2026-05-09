@@ -2,11 +2,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { confirmDialog } from '@/lib/toast';
+import { useT } from '@/lib/i18n/LangProvider';
 
 // Le header public (sticky top-0) fait ~80px (py-4 + logo h-12)
 // La sidebar et le sous-header de l'espace entreprise démarrent donc à top-20 (5rem)
 
 export default function EntrepriseLayout({ children, titre }) {
+  const { t } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [compte, setCompte] = useState(null);
@@ -77,19 +80,21 @@ export default function EntrepriseLayout({ children, titre }) {
   }, [router, deconnecter]);
 
   const handleLogout = async () => {
-    if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+    const ok = await confirmDialog({ message: t('dashboard.confirm_deconnexion'), confirmLabel: t('dashboard.deconnecter_btn') });
+    if (ok) {
       await deconnecter();
     }
   };
 
   const menuItems = [
-    { href: '/entreprise/dashboard', label: 'Tableau de bord', icon: '📊', exact: true },
-    { href: '/entreprise/dashboard/appels-offres', label: "Appels d'offres", icon: '📋', badge: nbAppels },
-    { href: '/entreprise/dashboard/messages', label: 'Messages', icon: '💬', badge: nbMessages },
-    { href: '/entreprise/dashboard/reseau', label: 'Réseau', icon: '🤝', badge: nbB2b },
-    { href: '/entreprise/dashboard/documents', label: 'Documents', icon: '📁' },
-    { href: '/entreprise/dashboard/ma-structure', label: 'Ma fiche', icon: '🏢' },
-    { href: '/entreprise/dashboard/profil', label: 'Mon profil', icon: '⚙️' },
+    { href: '/entreprise/dashboard', label: t('dashboard.tableau_bord'), icon: '📊', exact: true },
+    { href: '/entreprise/dashboard/appels-offres', label: t('dashboard.appels_offres'), icon: '📋', badge: nbAppels },
+    { href: '/entreprise/dashboard/messages', label: t('dashboard.stat_messages'), icon: '💬', badge: nbMessages },
+    { href: '/entreprise/dashboard/reseau', label: t('dashboard.reseau_label'), icon: '🤝', badge: nbB2b },
+    { href: '/entreprise/dashboard/documents', label: t('dashboard.mes_documents'), icon: '📁' },
+    { href: '/entreprise/dashboard/ma-structure', label: t('dashboard.ma_structure'), icon: '🏢' },
+    { href: '/entreprise/dashboard/parrainage', label: 'Parrainage', icon: '🎁' },
+    { href: '/entreprise/dashboard/profil', label: t('dashboard.mon_profil'), icon: '⚙️' },
   ];
 
   const isActive = (href, exact) =>
@@ -100,14 +105,51 @@ export default function EntrepriseLayout({ children, titre }) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Chargement...</p>
+          <p className="text-gray-600">{t('common.chargement')}</p>
         </div>
       </div>
     );
   }
 
+  const enImpersonation = !!compte?._impersonation;
+
   return (
     <div className="bg-gray-50 min-h-screen">
+
+      {/* ── BANNIÈRE IMPERSONATION ── */}
+      {enImpersonation && (
+        <div className="sticky top-0 z-50 bg-amber-500 text-white px-4 py-2 flex items-center justify-between gap-3 text-sm">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg">👁</span>
+            <span className="truncate">
+              <strong>Mode impersonation</strong> — Vous consultez le compte de <strong>{compte?.nom_contact}</strong> (
+              {compte?.structures?.nom || compte?.email}). Les actions sensibles sont tracées.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const auth = JSON.parse(localStorage.getItem('entrepriseAuth') || '{}');
+                await fetch('/api/admin/impersonate', {
+                  method: 'DELETE',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${JSON.parse(localStorage.getItem('adminAuth') || '{}').sessionToken}`,
+                  },
+                  body: JSON.stringify({ session_id: compte._impersonation.session_id }),
+                });
+              } catch {}
+              localStorage.removeItem('entrepriseAuth');
+              localStorage.removeItem('entrepriseSessionStart');
+              router.push('/admin/comptes-entreprises');
+            }}
+            className="bg-white text-amber-700 px-3 py-1 rounded-lg font-semibold hover:bg-amber-50 flex-shrink-0"
+          >
+            Quitter
+          </button>
+        </div>
+      )}
 
       {/* ── OVERLAY MOBILE ── */}
       {sidebarOpen && (
@@ -146,8 +188,8 @@ export default function EntrepriseLayout({ children, titre }) {
               )}
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-gray-800 text-sm truncate">{compte.nom_contact || 'Espace Entreprise'}</p>
-              <p className="text-xs text-gray-500 truncate">Espace Entreprise</p>
+              <p className="font-bold text-gray-800 text-sm truncate">{compte.nom_contact || t('dashboard.espace_entreprise_label')}</p>
+              <p className="text-xs text-gray-500 truncate">{t('dashboard.espace_entreprise_label')}</p>
             </div>
           </Link>
         </div>
@@ -155,13 +197,13 @@ export default function EntrepriseLayout({ children, titre }) {
         {/* Statut compte */}
         {compte.statut === 'en_attente' && (
           <div className="mx-3 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex-shrink-0">
-            <p className="text-xs font-semibold text-amber-700">⏳ En attente de validation</p>
-            <p className="text-xs text-amber-600 mt-0.5">L&apos;admin validera votre compte sous peu.</p>
+            <p className="text-xs font-semibold text-amber-700">{t('dashboard.en_attente_validation')}</p>
+            <p className="text-xs text-amber-600 mt-0.5">{t('dashboard.admin_validera')}</p>
           </div>
         )}
         {compte.badge_verifie && (
           <div className="mx-3 mt-3 p-2 bg-green-50 border border-green-200 rounded-lg flex-shrink-0">
-            <p className="text-xs font-semibold text-green-700">✅ Compte vérifié</p>
+            <p className="text-xs font-semibold text-green-700">{t('dashboard.compte_verifie')}</p>
           </div>
         )}
 
@@ -205,7 +247,7 @@ export default function EntrepriseLayout({ children, titre }) {
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 transition w-full"
           >
             <span className="text-lg">🚪</span>
-            <span className="font-medium text-sm">Déconnexion</span>
+            <span className="font-medium text-sm">{t('dashboard.deconnexion')}</span>
           </button>
         </div>
       </aside>
@@ -223,7 +265,7 @@ export default function EntrepriseLayout({ children, titre }) {
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 transition text-gray-700 flex-shrink-0"
-              aria-label="Menu"
+              aria-label={t('dashboard.menu_aria')}
             >
               {sidebarOpen ? '✕' : '☰'}
             </button>
@@ -235,12 +277,12 @@ export default function EntrepriseLayout({ children, titre }) {
             <div className="flex items-center gap-2 flex-shrink-0">
               {compte.badge_verifie && (
                 <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                  ✅ Vérifié
+                  {t('dashboard.verifie_short')}
                 </span>
               )}
               {compte.statut === 'en_attente' && (
                 <span className="inline-flex items-center px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold whitespace-nowrap">
-                  ⏳ En attente
+                  {t('dashboard.en_attente_short')}
                 </span>
               )}
             </div>

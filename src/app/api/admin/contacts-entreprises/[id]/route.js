@@ -1,37 +1,43 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
+import { sendEmail, baseTemplate, baseText } from '@/lib/email';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chezmonami.ma';
 
 async function envoyerEmailApprobation(compte, nomDestinataire) {
-  if (!process.env.RESEND_API_KEY || !compte?.email) return;
-  const html = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
-    <div style="max-width:600px;margin:auto;background:#fff;border-radius:12px;padding:30px">
-      <h2 style="color:#2e7d32">✅ Demande de contact approuvée — ChezMonAmi</h2>
-      <p>Bonjour <strong>${compte.nom_contact}</strong>,</p>
-      <p>Votre demande de mise en relation avec <strong>${nomDestinataire}</strong> a été approuvée par notre équipe.</p>
-      <p>Vous pouvez maintenant démarrer la conversation depuis votre espace Réseau.</p>
-      <p><a href="${siteUrl}/entreprise/dashboard/reseau"
-         style="display:inline-block;padding:12px 24px;background:#2e7d32;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
-         Accéder à mon Réseau
-      </a></p>
-      <p>Cordialement,<br/>L'équipe ChezMonAmi</p>
-    </div></body></html>`;
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM || 'noreply@chezmonami.ma',
-      to: [compte.email],
-      subject: `✅ Votre demande de contact avec ${nomDestinataire} a été approuvée`,
-      html,
-      text: `Votre demande de contact avec ${nomDestinataire} a été approuvée. Connectez-vous sur ${siteUrl}/entreprise/dashboard/reseau`,
+  if (!compte?.email) return;
+  const titre = 'Demande de contact approuvée';
+  const contenu = `
+    <p>Bonjour <strong>${compte.nom_contact}</strong>,</p>
+    <p>Votre demande de mise en relation avec <strong>${nomDestinataire}</strong> a été approuvée par notre équipe.</p>
+    <p>Vous pouvez maintenant démarrer la conversation depuis votre espace Réseau.</p>
+  `;
+  await sendEmail({
+    to: compte.email,
+    subject: `✅ Votre demande de contact avec ${nomDestinataire} a été approuvée`,
+    html: baseTemplate({
+      titre,
+      emoji: '✅',
+      preheader: `Vous pouvez maintenant échanger avec ${nomDestinataire}`,
+      contenu,
+      ctaTexte: 'Accéder à mon Réseau',
+      ctaLien: `${siteUrl}/entreprise/dashboard/reseau`,
     }),
-  }).catch(err => console.warn('Email approbation B2B:', err.message));
+    text: baseText({
+      titre,
+      contenu: `Bonjour ${compte.nom_contact},\n\nVotre demande de contact avec ${nomDestinataire} a été approuvée.`,
+      ctaTexte: 'Accéder à mon Réseau',
+      ctaLien: `${siteUrl}/entreprise/dashboard/reseau`,
+    }),
+    tag: 'approbation_contact_b2b',
+  });
 }
 
 // PATCH — approuver ou refuser une demande de contact
 export async function PATCH(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
     const { action, note_admin } = await request.json();

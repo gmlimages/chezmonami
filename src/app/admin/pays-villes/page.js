@@ -1,5 +1,6 @@
 // src/app/admin/pays-villes/page.js
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { paysAPI, villesAPI } from '@/lib/api';
@@ -91,7 +92,7 @@ export default function AdminPaysVilles() {
       setPays(data);
     } catch (error) {
       console.error('Erreur chargement pays:', error);
-      alert('❌ Erreur lors du chargement des pays');
+      toast.error('Erreur lors du chargement des pays');
     } finally {
       setLoading(false);
     }
@@ -127,33 +128,33 @@ export default function AdminPaysVilles() {
 
   const sauvegarderPays = async () => {
     if (!formDataPays.nom.trim()) {
-      alert('⚠️ Veuillez entrer un nom de pays');
+      toast.warning('Veuillez entrer un nom de pays');
       return;
     }
 
     try {
       if (modeFormulairePays === 'edition') {
         await paysAPI.update(paysEnCours.id, formDataPays);
-        alert('✅ Pays modifié avec succès !');
+        toast.success('Pays modifié avec succès !');
       } else {
         await paysAPI.create(formDataPays);
-        alert(`✅ Pays "${formDataPays.nom}" ajouté avec succès !`);
+        toast.success(`Pays "${formDataPays.nom}" ajouté avec succès !`);
       }
       
       fermerFormulairePays();
       chargerPays();
     } catch (error) {
       console.error('Erreur sauvegarde pays:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     }
   };
 
   const supprimerPays = async (id, nom) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${nom}" ?\n\n⚠️ ATTENTION : Toutes les villes et structures de ce pays seront aussi supprimées !`)) return;
+    if (!(await confirmDialog({ message: `Êtes-vous sûr de vouloir supprimer "${nom}" ?\n\n⚠️ ATTENTION : Toutes les villes et structures de ce pays seront aussi supprimées !`, danger: true }))) return;
 
     try {
       await paysAPI.delete(id);
-      alert(`✅ Pays "${nom}" supprimé !`);
+      toast.success(`Pays "${nom}" supprimé !`);
       chargerPays();
       if (paysSelectionne === id) {
         setPaysSelectionne('');
@@ -161,7 +162,7 @@ export default function AdminPaysVilles() {
       }
     } catch (error) {
       console.error('Erreur suppression pays:', error);
-      alert('❌ Erreur: Ce pays est peut-être utilisé par des structures');
+      toast.error('Erreur: Ce pays est peut-être utilisé par des structures');
     }
   };
 
@@ -186,40 +187,40 @@ export default function AdminPaysVilles() {
 
   const sauvegarderVille = async () => {
     if (!formDataVille.nom.trim() || !paysSelectionne) {
-      alert('⚠️ Veuillez entrer un nom de ville');
+      toast.warning('Veuillez entrer un nom de ville');
       return;
     }
 
     try {
       if (modeFormulaireVille === 'edition') {
         await villesAPI.update(villeEnCours.id, { nom: formDataVille.nom.trim() });
-        alert('✅ Ville modifiée avec succès !');
+        toast.success('Ville modifiée avec succès !');
       } else {
         await villesAPI.create({
           nom: formDataVille.nom.trim(),
           pays_id: paysSelectionne
         });
-        alert(`✅ Ville "${formDataVille.nom}" ajoutée !`);
+        toast.success(`Ville "${formDataVille.nom}" ajoutée !`);
       }
       
       fermerFormulaireVille();
       chargerVilles(paysSelectionne);
     } catch (error) {
       console.error('Erreur sauvegarde ville:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     }
   };
 
   const supprimerVille = async (id, nom) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer "${nom}" ?`)) return;
+    if (!(await confirmDialog({ message: `Êtes-vous sûr de vouloir supprimer "${nom}" ?`, danger: true }))) return;
 
     try {
       await villesAPI.delete(id);
-      alert(`✅ Ville "${nom}" supprimée !`);
+      toast.success(`Ville "${nom}" supprimée !`);
       chargerVilles(paysSelectionne);
     } catch (error) {
       console.error('Erreur suppression ville:', error);
-      alert('❌ Erreur: Cette ville est peut-être utilisée par des structures');
+      toast.error('Erreur: Cette ville est peut-être utilisée par des structures');
     }
   };
 

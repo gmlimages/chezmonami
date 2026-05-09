@@ -119,7 +119,7 @@ export default function FeaturedCarousel() {
             </div>
             
             <Link
-              href={`/structure/${structure.id}`}
+              href={`/structure/${structure.slug || structure.id}`}
               className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-white font-bold rounded-lg hover:bg-primary-dark transition shadow-lg"
             >
               Découvrir cette entreprise

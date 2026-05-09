@@ -4,8 +4,11 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import PageTracker from '@/components/PageTracker';
+import { toast } from '@/lib/toast';
+import { useT } from '@/lib/i18n/LangProvider';
 
 export default function MesCommandesPage() {
+  const { t } = useT();
   const [commandes, setCommandes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [numeroCommande, setNumeroCommande] = useState('');
@@ -15,33 +18,33 @@ export default function MesCommandesPage() {
   const [historique, setHistorique] = useState([]);
 
   const statutsConfig = {
-    'nouvelle': { 
-      label: 'Nouvelle', 
+    'nouvelle': {
+      label: t('mes_commandes.statuts.nouvelle'),
       couleur: 'bg-blue-100 text-blue-800',
       icon: '🆕'
     },
-    'confirmee': { 
-      label: 'Confirmée', 
+    'confirmee': {
+      label: t('mes_commandes.statuts.confirmee'),
       couleur: 'bg-green-100 text-green-800',
       icon: '✅'
     },
-    'en_preparation': { 
-      label: 'En préparation', 
+    'en_preparation': {
+      label: t('mes_commandes.statuts.en_preparation'),
       couleur: 'bg-yellow-100 text-yellow-800',
       icon: '📦'
     },
-    'expediee': { 
-      label: 'Expédiée', 
+    'expediee': {
+      label: t('mes_commandes.statuts.expediee'),
       couleur: 'bg-purple-100 text-purple-800',
       icon: '🚚'
     },
-    'livree': { 
-      label: 'Livrée', 
+    'livree': {
+      label: t('mes_commandes.statuts.livree'),
       couleur: 'bg-green-100 text-green-800',
       icon: '✨'
     },
-    'annulee': { 
-      label: 'Annulée', 
+    'annulee': {
+      label: t('mes_commandes.statuts.annulee'),
       couleur: 'bg-red-100 text-red-800',
       icon: '❌'
     }
@@ -50,7 +53,7 @@ export default function MesCommandesPage() {
   const rechercherCommandes = async () => {
     // Validation
     if (!numeroCommande && !email) {
-      alert('⚠️ Veuillez entrer votre numéro de commande ou email');
+      toast.warning(t('mes_commandes.avert_num_ou_email'));
       return;
     }
 
@@ -79,11 +82,11 @@ export default function MesCommandesPage() {
       setCommandes(data || []);
       
       if (!data || data.length === 0) {
-        alert('❌ Aucune commande trouvée avec ces informations');
+        toast.info(t('mes_commandes.aucune_avec_info'));
       }
     } catch (error) {
       console.error('❌ Erreur recherche:', error);
-      alert('❌ Erreur lors de la recherche des commandes');
+      toast.error(t('mes_commandes.err_recherche'));
     } finally {
       setLoading(false);
     }
@@ -141,8 +144,8 @@ export default function MesCommandesPage() {
       <div className="max-w-6xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">📦 Suivi de mes commandes</h1>
-          <p className="text-gray-600">Suivez l'état de vos commandes en temps réel</p>
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">{t('mes_commandes.titre')}</h1>
+          <p className="text-gray-600">{t('mes_commandes.sous_titre')}</p>
         </div>
 
         {/* Formulaire de recherche */}
@@ -151,10 +154,10 @@ export default function MesCommandesPage() {
             <div className="text-center mb-6">
               <div className="text-6xl mb-4">🔍</div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                Retrouvez votre commande
+                {t('mes_commandes.retrouvez')}
               </h2>
               <p className="text-gray-600">
-                Entrez votre numéro de commande ou email
+                {t('mes_commandes.entrez_num_email')}
               </p>
             </div>
 
@@ -162,38 +165,38 @@ export default function MesCommandesPage() {
               {/* Numéro de commande (PRINCIPAL) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🎫 Numéro de commande
+                  {t('mes_commandes.num_label')}
                 </label>
                 <input
                   type="text"
-                  placeholder="CMD-20260105-XXXX"
+                  placeholder={t('mes_commandes.num_placeholder')}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none uppercase"
                   value={numeroCommande}
                   onChange={(e) => setNumeroCommande(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && rechercherCommandes()}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  📧 Le numéro de commande vous a été envoyé par email
+                  {t('mes_commandes.num_aide')}
                 </p>
               </div>
 
-              <div className="text-center text-gray-500 font-semibold">OU</div>
+              <div className="text-center text-gray-500 font-semibold">{t('mes_commandes.ou')}</div>
 
               {/* Email (SECONDAIRE) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📧 Email
+                  {t('mes_commandes.email_label')}
                 </label>
                 <input
                   type="email"
-                  placeholder="votre@email.com"
+                  placeholder={t('mes_commandes.email_placeholder')}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && rechercherCommandes()}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Email utilisé lors de la commande
+                  {t('mes_commandes.email_aide')}
                 </p>
               </div>
 
@@ -202,13 +205,13 @@ export default function MesCommandesPage() {
                 disabled={loading}
                 className="w-full btn-primary py-4 text-lg disabled:opacity-50"
               >
-                {loading ? '🔄 Recherche en cours...' : '🔍 Rechercher ma commande'}
+                {loading ? t('mes_commandes.recherche_loading') : t('mes_commandes.rechercher_btn')}
               </button>
             </div>
 
             <div className="mt-6 text-center">
               <Link href="/" className="text-primary hover:underline text-sm">
-                ← Retour à l'accueil
+                {t('mes_commandes.retour_accueil')}
               </Link>
             </div>
           </div>
@@ -219,28 +222,28 @@ export default function MesCommandesPage() {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">
-                {commandes.length} commande{commandes.length > 1 ? 's' : ''} trouvée{commandes.length > 1 ? 's' : ''}
+                {commandes.length} {commandes.length > 1 ? t('mes_commandes.commande_pluriel') : t('mes_commandes.commande_singulier')} {commandes.length > 1 ? t('mes_commandes.trouvee_pluriel') : t('mes_commandes.trouvee_singulier')}
               </h2>
               <button
                 onClick={nouvelleRecherche}
                 className="px-4 py-2 text-primary hover:bg-primary/10 rounded-lg transition"
               >
-                🔍 Nouvelle recherche
+                {t('mes_commandes.nouvelle_recherche')}
               </button>
             </div>
 
             {commandes.length === 0 ? (
               <div className="bg-white rounded-xl shadow-lg p-12 text-center">
                 <div className="text-6xl mb-4">🔍</div>
-                <p className="text-xl text-gray-600 mb-2">Aucune commande trouvée</p>
+                <p className="text-xl text-gray-600 mb-2">{t('mes_commandes.aucune')}</p>
                 <p className="text-gray-500 mb-6">
-                  Vérifiez votre numéro de commande ou email
+                  {t('mes_commandes.verifiez_info')}
                 </p>
                 <button
                   onClick={nouvelleRecherche}
                   className="btn-primary"
                 >
-                  Réessayer
+                  {t('mes_commandes.reessayer')}
                 </button>
               </div>
             ) : (
@@ -256,7 +259,7 @@ export default function MesCommandesPage() {
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">Numéro de commande</p>
+                          <p className="text-sm text-gray-600 mb-1">{t('mes_commandes.numero')}</p>
                           <p className="text-xl font-bold text-gray-800 mb-2">
                             {commande.numero_commande}
                           </p>
@@ -266,7 +269,7 @@ export default function MesCommandesPage() {
                             </span>
                           </div>
                           <p className="text-sm text-gray-600 mt-2">
-                            Commandé le {formatDate(commande.date_commande)}
+                            {t('mes_commandes.commande_le')} {formatDate(commande.date_commande)}
                           </p>
                         </div>
                         <div className="text-right">
@@ -274,7 +277,7 @@ export default function MesCommandesPage() {
                             {commande.montant_total.toLocaleString()} {commande.devise}
                           </p>
                           <p className="text-sm text-gray-600">
-                            {commande.produits?.length || 0} article{commande.produits?.length > 1 ? 's' : ''}
+                            {commande.produits?.length || 0} {commande.produits?.length > 1 ? t('mes_commandes.article_pluriel') : t('mes_commandes.article_singulier')}
                           </p>
                         </div>
                       </div>
@@ -304,11 +307,11 @@ export default function MesCommandesPage() {
                             })}
                           </div>
                           <div className="flex items-center justify-between text-xs text-gray-600">
-                            <span>Nouvelle</span>
-                            <span>Confirmée</span>
-                            <span>Préparation</span>
-                            <span>Expédiée</span>
-                            <span>Livrée</span>
+                            <span>{t('mes_commandes.etapes.nouvelle')}</span>
+                            <span>{t('mes_commandes.etapes.confirmee')}</span>
+                            <span>{t('mes_commandes.etapes.preparation')}</span>
+                            <span>{t('mes_commandes.etapes.expediee')}</span>
+                            <span>{t('mes_commandes.etapes.livree')}</span>
                           </div>
                         </div>
                       )}
@@ -316,14 +319,14 @@ export default function MesCommandesPage() {
                       {/* Tracking number si disponible */}
                       {commande.tracking_number && (
                         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                          <p className="text-xs text-blue-600 mb-1">Numéro de suivi transporteur</p>
+                          <p className="text-xs text-blue-600 mb-1">{t('mes_commandes.tracking_label')}</p>
                           <p className="text-sm font-bold text-blue-800">{commande.tracking_number}</p>
                         </div>
                       )}
 
                       <div className="mt-4 text-right">
                         <span className="text-primary text-sm font-semibold hover:underline">
-                          Voir les détails →
+                          {t('mes_commandes.voir_les_details')}
                         </span>
                       </div>
                     </div>
@@ -341,7 +344,7 @@ export default function MesCommandesPage() {
           <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b flex items-center justify-between sticky top-0 bg-white z-10">
               <h2 className="text-2xl font-bold">
-                Commande {commandeSelectionnee.numero_commande}
+                {t('mes_commandes.modal_titre')} {commandeSelectionnee.numero_commande}
               </h2>
               <button
                 onClick={() => setCommandeSelectionnee(null)}
@@ -358,7 +361,7 @@ export default function MesCommandesPage() {
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Statut actuel</p>
+                    <p className="text-sm text-gray-600 mb-1">{t('mes_commandes.statut_actuel')}</p>
                     <div className="flex items-center gap-2">
                       <span className={`px-4 py-2 rounded-lg text-lg font-bold ${statutsConfig[commandeSelectionnee.statut].couleur}`}>
                         {statutsConfig[commandeSelectionnee.statut].icon} {statutsConfig[commandeSelectionnee.statut].label}
@@ -366,7 +369,7 @@ export default function MesCommandesPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-600">Total</p>
+                    <p className="text-sm text-gray-600">{t('mes_commandes.total_label')}</p>
                     <p className="text-3xl font-bold text-accent">
                       {commandeSelectionnee.montant_total.toLocaleString()} {commandeSelectionnee.devise}
                     </p>
@@ -376,7 +379,7 @@ export default function MesCommandesPage() {
 
               {/* Produits */}
               <div className="mb-6">
-                <h3 className="font-bold text-gray-800 mb-3">📦 Produits commandés</h3>
+                <h3 className="font-bold text-gray-800 mb-3">{t('mes_commandes.produits_titre')}</h3>
                 <div className="space-y-3">
                   {commandeSelectionnee.produits?.map((produit, index) => (
                     <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
@@ -390,7 +393,7 @@ export default function MesCommandesPage() {
                       <div className="flex-1">
                         <p className="font-semibold">{produit.nom}</p>
                         <p className="text-sm text-gray-600">
-                          Quantité: {produit.quantite} × {produit.prix} {commandeSelectionnee.devise}
+                          {t('mes_commandes.quantite')}: {produit.quantite} × {produit.prix} {commandeSelectionnee.devise}
                         </p>
                       </div>
                       <p className="font-bold text-accent">
@@ -404,24 +407,24 @@ export default function MesCommandesPage() {
               {/* Informations client */}
               <div className="mb-6 grid md:grid-cols-2 gap-4">
                 <div className="p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-bold text-gray-800 mb-3">👤 Informations client</h3>
+                  <h3 className="font-bold text-gray-800 mb-3">{t('mes_commandes.info_client')}</h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-semibold">Nom:</span> {commandeSelectionnee.client_nom}</p>
-                    <p><span className="font-semibold">Téléphone:</span> {commandeSelectionnee.client_telephone}</p>
+                    <p><span className="font-semibold">{t('mes_commandes.nom_label')}:</span> {commandeSelectionnee.client_nom}</p>
+                    <p><span className="font-semibold">{t('mes_commandes.tel_label')}:</span> {commandeSelectionnee.client_telephone}</p>
                     <p><span className="font-semibold">Email:</span> {commandeSelectionnee.client_email}</p>
                   </div>
                 </div>
 
                 <div className="p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-bold text-gray-800 mb-3">📍 Adresse de livraison</h3>
-                  <p className="text-sm whitespace-pre-line">{commandeSelectionnee.client_adresse || 'Non renseignée'}</p>
+                  <h3 className="font-bold text-gray-800 mb-3">{t('mes_commandes.adresse_titre')}</h3>
+                  <p className="text-sm whitespace-pre-line">{commandeSelectionnee.client_adresse || t('mes_commandes.adresse_non_renseignee')}</p>
                 </div>
               </div>
 
               {/* Historique */}
               {historique.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="font-bold text-gray-800 mb-3">📜 Historique de la commande</h3>
+                  <h3 className="font-bold text-gray-800 mb-3">{t('mes_commandes.historique_titre')}</h3>
                   <div className="space-y-3">
                     {historique.map((event, index) => (
                       <div key={event.id} className="flex gap-3">
@@ -451,7 +454,7 @@ export default function MesCommandesPage() {
               {/* Tracking */}
               {commandeSelectionnee.tracking_number && (
                 <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Numéro de suivi transporteur</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('mes_commandes.tracking_label')}</p>
                   <p className="text-xl font-bold text-blue-800">
                     {commandeSelectionnee.tracking_number}
                   </p>

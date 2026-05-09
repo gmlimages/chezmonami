@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireAdmin } from '@/lib/adminAuth';
+import { logAdminAction } from '@/lib/auditLog';
 
 // DELETE /api/admin/appels-offres/[id]
 // Supprime un appel d'offres + tous ses fichiers (appel ET réponses) du storage
 export async function DELETE(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
-    const authHeader = request.headers.get('Authorization');
-    const adminToken = authHeader?.replace('Bearer ', '');
-    if (!adminToken) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
-    const { id } = params;
+    const { id } = await params;
 
     // 1. Récupérer les fichiers de l'appel
     const { data: appel } = await supabaseAdmin
@@ -50,6 +50,15 @@ export async function DELETE(request, { params }) {
       .eq('id', id);
 
     if (error) throw error;
+
+    await logAdminAction({
+      request,
+      admin,
+      action: 'appel_offre.supprimer',
+      cibleType: 'appel_offre',
+      cibleId: id,
+      details: { fichiers_supprimes: paths.length },
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

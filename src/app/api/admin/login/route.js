@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import bcrypt from 'bcryptjs';
 import { rateLimit } from '@/lib/rateLimit';
+import { sendEmail, baseTemplate, baseText } from '@/lib/email';
+import { generateCode, hashCode, generateChallenge, TFA_CODE_TTL_MS } from '@/lib/tfa';
 
 function generateToken() {
   const array = new Uint8Array(32);
@@ -32,7 +34,7 @@ export async function POST(request) {
     // Récupérer l'admin (via service role — pas exposé au client)
     const { data: admin, error: adminError } = await supabaseAdmin
       .from('admins')
-      .select('id, nom, email, role, mot_de_passe, bloque_jusqu_a, tentatives_connexion, doit_changer_mdp')
+      .select('id, nom, email, role, mot_de_passe, bloque_jusqu_a, tentatives_connexion, doit_changer_mdp, tfa_active')
       .eq('email', email.toLowerCase().trim())
       .single();
 
@@ -101,7 +103,62 @@ export async function POST(request) {
       await supabaseAdmin.from('admin_login_attempts').insert({ email: email.toLowerCase(), success: true });
     } catch {}
 
-    // Créer session (8h)
+    // Si 2FA actif → générer un code, l'envoyer par email, retourner un challenge.
+    // Aucune session admin n'est créée à ce stade.
+    if (admin.tfa_active) {
+      const code = generateCode();
+      const challenge = generateChallenge();
+      const expiresAt = new Date(Date.now() + TFA_CODE_TTL_MS);
+      const userAgent = request.headers.get('user-agent') || null;
+
+      await supabaseAdmin.from('tfa_codes').insert({
+        admin_id: admin.id,
+        code_hash: hashCode(code),
+        challenge,
+        expires_at: expiresAt.toISOString(),
+        ip,
+        user_agent: userAgent,
+      });
+
+      const titre = 'Votre code de vérification';
+      const contenu = `
+        <p>Bonjour <strong>${admin.nom || 'Admin'}</strong>,</p>
+        <p>Une connexion à l'espace administrateur ChezMonAmi a été initiée. Pour finaliser, saisissez le code suivant :</p>
+      `;
+      const highlight = `
+        <div style="text-align:center; font-family: 'Courier New', monospace; font-size: 32px; letter-spacing: 8px; font-weight: bold; color: #2e7d32;">
+          ${code}
+        </div>
+        <p style="text-align:center; color:#666; font-size:13px; margin-top:8px;">
+          Ce code expire dans 10 minutes.
+        </p>
+      `;
+      sendEmail({
+        to: admin.email,
+        subject: `🔐 Code de vérification ChezMonAmi : ${code}`,
+        html: baseTemplate({
+          titre,
+          emoji: '🔐',
+          preheader: `Votre code : ${code}`,
+          contenu: contenu + `<p style="font-size:12px;color:#888;">Si vous n'êtes pas à l'origine de cette tentative, ignorez ce message et changez immédiatement votre mot de passe.</p>`,
+          highlight,
+        }),
+        text: baseText({
+          titre,
+          contenu: `Votre code de vérification : ${code}\nIl expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette tentative, ignorez ce message.`,
+        }),
+        tag: 'tfa_admin',
+      }).catch(() => {}); // ne pas bloquer la réponse — log déjà fait dans sendEmail
+
+      return NextResponse.json({
+        success: true,
+        tfa_required: true,
+        challenge,
+        // On ne renvoie PAS l'email pour éviter la confirmation d'existence côté client
+      });
+    }
+
+    // 2FA désactivé → session immédiate (8h)
     const token = generateToken();
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 8);

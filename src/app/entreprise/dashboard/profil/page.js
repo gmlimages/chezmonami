@@ -2,8 +2,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import EntrepriseLayout from '../../EntrepriseLayout';
+import { confirmDialog } from '@/lib/toast';
+import { useT } from '@/lib/i18n/LangProvider';
 
 export default function ProfilEntreprise() {
+  const { t } = useT();
   const [compte, setCompte] = useState(null);
   const [token, setToken] = useState('');
   const [loading, setLoading] = useState(true);
@@ -22,13 +25,57 @@ export default function ProfilEntreprise() {
   const [motifSuppression, setMotifSuppression] = useState('');
   const [suppressionEnCours, setSuppressionEnCours] = useState(false);
 
+  // 2FA
+  const [tfaActive, setTfaActive] = useState(null);
+  const [tfaSaving, setTfaSaving] = useState(false);
+
   useEffect(() => {
     const auth = localStorage.getItem('entrepriseAuth');
     if (!auth) return;
     const { token: t } = JSON.parse(auth);
     setToken(t);
     chargerProfil(t);
+    chargerTfa(t);
   }, []);
+
+  const chargerTfa = async (tk) => {
+    try {
+      const res = await fetch('/api/entreprise/tfa', {
+        headers: { Authorization: `Bearer ${tk}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setTfaActive(!!d.tfa_active);
+      }
+    } catch {}
+  };
+
+  const basculerTfa = async () => {
+    if (tfaSaving) return;
+    setTfaSaving(true);
+    try {
+      const res = await fetch('/api/entreprise/tfa', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ active: !tfaActive }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setTfaActive(d.tfa_active);
+        setMessage({
+          type: 'succes',
+          text: d.tfa_active
+            ? 'Authentification à 2 facteurs activée'
+            : 'Authentification à 2 facteurs désactivée',
+        });
+      } else {
+        setMessage({ type: 'erreur', text: d.error || 'Erreur' });
+      }
+    } catch {
+      setMessage({ type: 'erreur', text: 'Erreur réseau' });
+    }
+    setTfaSaving(false);
+  };
 
   const chargerProfil = async (t) => {
     setLoading(true);
@@ -50,7 +97,7 @@ export default function ProfilEntreprise() {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setMessage({ type: 'erreur', text: 'La photo ne doit pas dépasser 5 Mo' });
+      setMessage({ type: 'erreur', text: t('profil_page.photo_max') });
       return;
     }
     setPhotoProfil(file);
@@ -68,7 +115,7 @@ export default function ProfilEntreprise() {
       const { data: urlData } = supabase.storage.from('images').getPublicUrl(path);
       return urlData.publicUrl;
     } catch (err) {
-      setMessage({ type: 'erreur', text: 'Erreur upload photo : ' + err.message });
+      setMessage({ type: 'erreur', text: t('profil_page.erreur_upload') + err.message });
       return null;
     } finally {
       setUploadingPhoto(false);
@@ -80,7 +127,7 @@ export default function ProfilEntreprise() {
     setMessage({ type: '', text: '' });
 
     if (form.nouveau_mdp && form.nouveau_mdp !== form.confirmer_mdp) {
-      setMessage({ type: 'erreur', text: 'Les mots de passe ne correspondent pas' });
+      setMessage({ type: 'erreur', text: t('profil_page.mdp_ne_correspondent') });
       return;
     }
 
@@ -118,14 +165,14 @@ export default function ProfilEntreprise() {
         setMessage({ type: 'erreur', text: data.error });
       }
     } catch {
-      setMessage({ type: 'erreur', text: 'Erreur réseau. Veuillez réessayer.' });
+      setMessage({ type: 'erreur', text: t('profil_page.erreur_reseau') });
     }
     setSaving(false);
   };
 
   if (loading) {
     return (
-      <EntrepriseLayout titre="Mon profil">
+      <EntrepriseLayout titre={t('profil_page.titre')}>
         <div className="flex items-center justify-center py-20">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
@@ -152,12 +199,12 @@ export default function ProfilEntreprise() {
 
           {/* Photo de profil */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="font-bold text-gray-800 mb-4">Photo de profil</h3>
+            <h3 className="font-bold text-gray-800 mb-4">{t('profil_page.photo_titre')}</h3>
             <div className="flex flex-col sm:flex-row items-center gap-5">
               <div className="relative flex-shrink-0">
                 <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 border-4 border-white shadow-lg">
                   {photoPreview ? (
-                    <img src={photoPreview} alt="Photo profil" className="w-full h-full object-cover" />
+                    <img src={photoPreview} alt={t('profil_page.photo_alt')} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-primary/10 text-4xl">🏢</div>
                   )}
@@ -166,23 +213,23 @@ export default function ProfilEntreprise() {
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center shadow-md hover:bg-primary-dark transition text-sm"
-                  title="Changer la photo"
+                  title={t('profil_page.changer_photo')}
                 >
                   ✏️
                 </button>
               </div>
 
               <div className="flex-1 text-center sm:text-left">
-                <p className="text-sm text-gray-600 mb-3">Formats acceptés : JPG, PNG, WEBP • Max 5 Mo</p>
+                <p className="text-sm text-gray-600 mb-3">{t('profil_page.formats_acceptes')}</p>
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   className="px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-primary hover:text-primary transition"
                 >
-                  {uploadingPhoto ? '⏳ Upload...' : '📷 Choisir une photo'}
+                  {uploadingPhoto ? t('profil_page.upload_en_cours') : t('profil_page.choisir_photo')}
                 </button>
                 {photoProfil && (
-                  <p className="text-xs text-green-600 mt-2">✓ Photo prête à être sauvegardée</p>
+                  <p className="text-xs text-green-600 mt-2">{t('profil_page.photo_prete')}</p>
                 )}
               </div>
 
@@ -192,10 +239,10 @@ export default function ProfilEntreprise() {
 
           {/* Informations générales */}
           <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-            <h3 className="font-bold text-gray-800">Informations générales</h3>
+            <h3 className="font-bold text-gray-800">{t('profil_page.infos_generales')}</h3>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nom du responsable</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('profil_page.nom_responsable')}</label>
               <input
                 type="text"
                 required
@@ -206,39 +253,39 @@ export default function ProfilEntreprise() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email de connexion</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('profil_page.email_connexion')}</label>
               <input
                 type="email"
                 className="input-field w-full bg-gray-50 cursor-not-allowed"
                 value={compte?.email || ''}
                 disabled
               />
-              <p className="text-xs text-gray-400 mt-1">L&apos;email de connexion ne peut pas être modifié</p>
+              <p className="text-xs text-gray-400 mt-1">{t('profil_page.email_non_modifiable')}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Numéro de téléphone du responsable</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('profil_page.tel_responsable')}</label>
               <input
                 type="tel"
-                placeholder="+33 6 00 00 00 00"
+                placeholder={t('profil_page.tel_placeholder')}
                 className="input-field w-full"
                 value={form.telephone}
                 onChange={e => setForm({ ...form, telephone: e.target.value })}
               />
-              <p className="text-xs text-gray-400 mt-1">Ce numéro est uniquement visible par l&apos;administration</p>
+              <p className="text-xs text-gray-400 mt-1">{t('profil_page.tel_visible_admin')}</p>
             </div>
           </div>
 
           {/* Changer mot de passe */}
           <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-            <h3 className="font-bold text-gray-800">Changer le mot de passe</h3>
-            <p className="text-xs text-gray-500">Laissez ces champs vides si vous ne souhaitez pas changer votre mot de passe</p>
+            <h3 className="font-bold text-gray-800">{t('profil_page.changer_mdp')}</h3>
+            <p className="text-xs text-gray-500">{t('profil_page.mdp_vide')}</p>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Mot de passe actuel</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('profil_page.mdp_actuel')}</label>
               <input
                 type="password"
-                placeholder="••••••••"
+                placeholder={t('profil_page.mdp_placeholder')}
                 className="input-field w-full"
                 value={form.ancien_mdp}
                 onChange={e => setForm({ ...form, ancien_mdp: e.target.value })}
@@ -246,20 +293,20 @@ export default function ProfilEntreprise() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Nouveau mot de passe</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('profil_page.nouveau_mdp')}</label>
                 <input
                   type="password"
-                  placeholder="Min. 8 caractères"
+                  placeholder={t('profil_page.nouveau_mdp_placeholder')}
                   className="input-field w-full"
                   value={form.nouveau_mdp}
                   onChange={e => setForm({ ...form, nouveau_mdp: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirmer</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('profil_page.confirmer')}</label>
                 <input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={t('profil_page.mdp_placeholder')}
                   className="input-field w-full"
                   value={form.confirmer_mdp}
                   onChange={e => setForm({ ...form, confirmer_mdp: e.target.value })}
@@ -276,38 +323,86 @@ export default function ProfilEntreprise() {
             {saving ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Sauvegarde...
+                {t('profil_page.sauvegarde_en_cours')}
               </span>
-            ) : '💾 Sauvegarder les modifications'}
+            ) : t('profil_page.sauvegarder')}
           </button>
         </form>
 
+        {/* ── Sécurité — 2FA ── */}
+        <section className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                🔐 Authentification à 2 facteurs
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                À chaque connexion, un code à 6 chiffres sera envoyé sur votre adresse email
+                {compte?.email && (<> (<strong>{compte.email}</strong>)</>)}. Ce code est valable 10 minutes.
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              {tfaActive === null ? (
+                <span className="text-xs text-gray-400">…</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={basculerTfa}
+                  disabled={tfaSaving}
+                  role="switch"
+                  aria-checked={tfaActive}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${
+                    tfaActive ? 'bg-green-500' : 'bg-gray-300'
+                  } ${tfaSaving ? 'opacity-50' : ''}`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                      tfaActive ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              )}
+            </div>
+          </div>
+          {tfaActive && (
+            <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
+              ✓ La 2FA est <strong>active</strong>. À votre prochaine connexion, un code de vérification vous sera envoyé par email.
+            </div>
+          )}
+          {tfaActive === false && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              ⚠️ La 2FA est <strong>désactivée</strong>. Nous recommandons fortement de l'activer pour protéger votre compte.
+            </div>
+          )}
+        </section>
+
         {/* ── Zone de danger ── */}
         <div className="border border-red-200 rounded-2xl p-6 bg-red-50/40">
-          <h3 className="text-base font-bold text-red-700 mb-1">Zone de danger</h3>
+          <h3 className="text-base font-bold text-red-700 mb-1">{t('profil_page.zone_danger')}</h3>
           <p className="text-sm text-red-600 mb-4">
-            La suppression de votre compte est irréversible. Toutes vos données seront effacées après validation par l&apos;administration.
+            {t('profil_page.suppression_irreversible')}
           </p>
           {compte?.demande_suppression ? (
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex-1 bg-orange-100 border border-orange-200 rounded-xl px-4 py-3 text-sm text-orange-800">
-                ⏳ <strong>Demande de suppression en cours</strong> — L&apos;administration examinera votre demande prochainement.
+                ⏳ <strong>{t('profil_page.demande_en_cours_titre')}</strong> — {t('profil_page.demande_en_cours_desc')}
               </div>
               <button
                 onClick={async () => {
-                  if (!confirm('Annuler la demande de suppression ?')) return;
+                  const ok = await confirmDialog({ message: t('profil_page.confirm_annuler_demande'), confirmLabel: t('profil_page.oui_annuler') });
+                  if (!ok) return;
                   const res = await fetch('/api/entreprise/suppression', {
                     method: 'DELETE',
                     headers: { Authorization: `Bearer ${token}` },
                   });
                   if (res.ok) {
-                    setMessage({ type: 'succes', text: 'Demande annulée.' });
+                    setMessage({ type: 'succes', text: t('profil_page.demande_annulee') });
                     chargerProfil(token);
                   }
                 }}
                 className="px-4 py-2 text-sm bg-white border border-orange-300 text-orange-700 rounded-xl hover:bg-orange-50 font-medium transition"
               >
-                Annuler la demande
+                {t('profil_page.annuler_demande_btn')}
               </button>
             </div>
           ) : (
@@ -315,7 +410,7 @@ export default function ProfilEntreprise() {
               onClick={() => setModalSuppression(true)}
               className="px-5 py-2.5 text-sm bg-white border border-red-300 text-red-600 rounded-xl hover:bg-red-50 font-medium transition"
             >
-              🗑️ Demander la suppression du compte
+              {t('profil_page.demander_suppression')}
             </button>
           )}
         </div>
@@ -330,18 +425,18 @@ export default function ProfilEntreprise() {
               <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <span className="text-2xl">🗑️</span>
               </div>
-              <h2 className="text-lg font-bold text-gray-800">Supprimer mon compte</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('profil_page.modal_supprimer_titre')}</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Cette action est irréversible. Votre compte et toutes vos données seront définitivement supprimés après validation.
+                {t('profil_page.modal_supprimer_desc')}
               </p>
             </div>
             <div className="mb-5">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Motif (optionnel)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('profil_page.motif_label')}</label>
               <textarea
                 rows={3}
                 value={motifSuppression}
                 onChange={e => setMotifSuppression(e.target.value)}
-                placeholder="Dites-nous pourquoi vous souhaitez supprimer votre compte..."
+                placeholder={t('profil_page.motif_placeholder')}
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
               />
             </div>
@@ -350,7 +445,7 @@ export default function ProfilEntreprise() {
                 onClick={() => { setModalSuppression(false); setMotifSuppression(''); }}
                 className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-gray-600 text-sm hover:bg-gray-50 font-medium"
               >
-                Annuler
+                {t('profil_page.annuler_btn')}
               </button>
               <button
                 disabled={suppressionEnCours}
@@ -365,10 +460,10 @@ export default function ProfilEntreprise() {
                     if (res.ok) {
                       setModalSuppression(false);
                       setMotifSuppression('');
-                      setMessage({ type: 'succes', text: "Demande de suppression envoyée. L'administration vous contactera." });
+                      setMessage({ type: 'succes', text: t('profil_page.demande_envoyee') });
                       chargerProfil(token);
                     } else {
-                      setMessage({ type: 'erreur', text: "Erreur lors de l'envoi de la demande." });
+                      setMessage({ type: 'erreur', text: t('profil_page.erreur_envoi_demande') });
                     }
                   } finally {
                     setSuppressionEnCours(false);
@@ -376,7 +471,7 @@ export default function ProfilEntreprise() {
                 }}
                 className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition"
               >
-                {suppressionEnCours ? 'Envoi...' : '🗑️ Confirmer la suppression'}
+                {suppressionEnCours ? t('profil_page.envoi_en_cours') : t('profil_page.confirmer_suppression')}
               </button>
             </div>
           </div>

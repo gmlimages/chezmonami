@@ -6,8 +6,12 @@ import Link from 'next/link';
 import { annoncesAPI, statistiquesAPI } from '@/lib/api';
 import PageTracker from '@/components/PageTracker';
 import { downloadFile } from '@/utils/downloadFile';
+import { useT } from '@/lib/i18n/LangProvider';
+import BoutonPartage from '@/components/BoutonPartage';
+import { JsonLd, annonceSchema, breadcrumbSchema } from '@/components/JsonLd';
 
 export default function AnnonceDetail() {
+  const { t, lang } = useT();
   const params = useParams();
   const router = useRouter();
   const [annonce, setAnnonce] = useState(null);
@@ -69,8 +73,8 @@ export default function AnnonceDetail() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">📢</div>
-          <p className="text-xl text-gray-600 mb-4">Annonce non trouvée</p>
-          <Link href="/" className="btn-primary">Retour à l&apos;accueil</Link>
+          <p className="text-xl text-gray-600 mb-4">{t('annonce_detail.non_trouvee')}</p>
+          <Link href="/" className="btn-primary">{t('annonce_detail.retour_accueil')}</Link>
         </div>
       </div>
     );
@@ -124,10 +128,20 @@ export default function AnnonceDetail() {
   return (
     <>
       {annonce && (
-        <PageTracker 
-          pageType="annonce_detail" 
+        <PageTracker
+          pageType="annonce_detail"
           elementId={annonce.id}
           elementType="annonce"
+        />
+      )}
+      {annonce && <JsonLd data={annonceSchema(annonce)} />}
+      {annonce && (
+        <JsonLd
+          data={breadcrumbSchema([
+            { name: 'Accueil', url: '/' },
+            { name: 'Annonces', url: '/annonces' },
+            { name: annonce.titre, url: `/annonce/${annonce.id}` },
+          ])}
         />
       )}
       <div className="min-h-screen bg-gray-50">
@@ -137,7 +151,7 @@ export default function AnnonceDetail() {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
               </svg>
-              Retour
+              {t('annonce_detail.retour')}
             </button>
           </div>
         </header>
@@ -156,24 +170,27 @@ export default function AnnonceDetail() {
                     </span>
                   )}
                   {estUrgent && !estExpire && (
-                    <span className="px-3 py-1 bg-red-500 rounded-full text-sm font-bold animate-pulse">🔥 Urgent - {joursRestants}j</span>
+                    <span className="px-3 py-1 bg-red-500 rounded-full text-sm font-bold animate-pulse">{t('annonce_detail.urgent_jours')} - {joursRestants}j</span>
                   )}
-                  {estExpire && <span className="px-3 py-1 bg-gray-500 rounded-full text-sm font-bold">⏰ Expiré</span>}
+                  {estExpire && <span className="px-3 py-1 bg-gray-500 rounded-full text-sm font-bold">{t('annonce_detail.expire')}</span>}
                 </div>
                 <h1 className="text-3xl md:text-4xl font-bold">{annonce.titre}</h1>
               </div>
             </div>
             <p className="text-xl text-white/90 font-medium">{annonce.organisme}</p>
+            <div className="mt-4">
+              <BoutonPartage titre={annonce.titre} description={annonce.description} variant="compact" />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-2xl font-bold mb-4 text-gray-800">📋 Description</h2>
+                <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('annonce_detail.description')}</h2>
                 <p className="text-gray-700 leading-relaxed mb-4">{annonce.description}</p>
                 {annonce.description_longue && (
                   <div className="mt-6 pt-6 border-t">
-                    <h3 className="text-xl font-bold mb-3 text-gray-800">Détails complets</h3>
+                    <h3 className="text-xl font-bold mb-3 text-gray-800">{t('annonce_detail.details_complets')}</h3>
                     <p className="text-gray-700 leading-relaxed whitespace-pre-line">{annonce.description_longue}</p>
                   </div>
                 )}
@@ -182,7 +199,7 @@ export default function AnnonceDetail() {
               {annonce.type === 'Emploi' && annonce.sous_type && (
                 <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-6">
                   <h3 className="text-xl font-bold mb-3 text-purple-900 flex items-center gap-2">
-                    💼 Informations sur le poste
+                    {t('annonce_detail.info_poste')}
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center gap-3 bg-white p-3 rounded-lg">
@@ -190,7 +207,7 @@ export default function AnnonceDetail() {
                         📝
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Type de contrat</p>
+                        <p className="text-xs text-gray-500">{t('annonce_detail.type_contrat')}</p>
                         <p className="font-bold text-gray-800">{annonce.sous_type}</p>
                       </div>
                     </div>
@@ -199,8 +216,8 @@ export default function AnnonceDetail() {
                         📍
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Localisation</p>
-                        <p className="font-bold text-gray-800">{annonce.ville?.nom || 'National'}</p>
+                        <p className="text-xs text-gray-500">{t('annonce_detail.localisation')}</p>
+                        <p className="font-bold text-gray-800">{annonce.ville?.nom || t('annonce_detail.national')}</p>
                       </div>
                     </div>
                   </div>
@@ -210,7 +227,7 @@ export default function AnnonceDetail() {
               {/* Pièces jointes - ✅ CORRIGÉ ICI */}
               {annonce.pieces_jointes && annonce.pieces_jointes.length > 0 && (
                 <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h2 className="text-2xl font-bold mb-4 text-gray-800">📎 Pièces jointes ({annonce.pieces_jointes.length})</h2>
+                  <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('annonce_detail.pieces_jointes')} ({annonce.pieces_jointes.length})</h2>
                   <div className="space-y-3">
                     {annonce.pieces_jointes.map((fichier, index) => (
                       <button
@@ -232,7 +249,7 @@ export default function AnnonceDetail() {
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
-                          <span className="text-sm font-semibold">Télécharger</span>
+                          <span className="text-sm font-semibold">{t('annonce_detail.telecharger')}</span>
                         </div>
                       </button>
                     ))}
@@ -241,18 +258,18 @@ export default function AnnonceDetail() {
               )}
 
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-2xl font-bold mb-4 text-gray-800">📅 Dates importantes</h2>
+                <h2 className="text-2xl font-bold mb-4 text-gray-800">{t('annonce_detail.dates_importantes')}</h2>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center">⏰</div>
                       <div>
-                        <p className="text-sm text-gray-500">Date limite</p>
-                        <p className="font-semibold text-gray-800">{new Date(annonce.date_fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                        <p className="text-sm text-gray-500">{t('annonce_detail.date_limite')}</p>
+                        <p className="font-semibold text-gray-800">{new Date(annonce.date_fin).toLocaleDateString(lang === 'ar' ? 'ar' : lang === 'en' ? 'en-GB' : 'fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                       </div>
                     </div>
                     <div className={`px-3 py-1 rounded-full font-bold text-sm ${estExpire ? 'bg-gray-200 text-gray-600' : joursRestants <= 3 ? 'bg-red-200 text-red-700' : 'bg-green-200 text-green-700'}`}>
-                      {estExpire ? 'Expiré' : `${joursRestants}j`}
+                      {estExpire ? t('annonce_detail.expire_court') : `${joursRestants}j`}
                     </div>
                   </div>
                 </div>
@@ -262,42 +279,42 @@ export default function AnnonceDetail() {
             <div className="lg:col-span-1">
               <div className="sticky top-24 space-y-6">
                 <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold mb-4 text-gray-800">📞 Contact</h3>
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">{t('annonce_detail.contact')}</h3>
                   <div className="space-y-3">
                     {annonce.telephone && (
                       <a href={`tel:${annonce.telephone}`} className="flex items-center gap-3 p-3 bg-green-50 rounded-lg hover:bg-green-100 transition">
                         <div className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center">📞</div>
-                        <div className="flex-1"><p className="text-xs text-gray-500">Téléphone</p><p className="font-semibold text-gray-800 text-sm">{annonce.telephone}</p></div>
+                        <div className="flex-1"><p className="text-xs text-gray-500">{t('annonce_detail.telephone')}</p><p className="font-semibold text-gray-800 text-sm">{annonce.telephone}</p></div>
                       </a>
                     )}
                     {annonce.contact && (
                       <a href={`mailto:${annonce.contact}`} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition">
                         <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center">✉️</div>
-                        <div className="flex-1"><p className="text-xs text-gray-500">Email</p><p className="font-semibold text-gray-800 text-sm break-all">{annonce.contact}</p></div>
+                        <div className="flex-1"><p className="text-xs text-gray-500">{t('annonce_detail.email')}</p><p className="font-semibold text-gray-800 text-sm break-all">{annonce.contact}</p></div>
                       </a>
                     )}
                     {annonce.lien_externe && (
                       <a href={annonce.lien_externe} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition">
                         <div className="w-10 h-10 bg-purple-500 text-white rounded-full flex items-center justify-center">🔗</div>
-                        <div className="flex-1"><p className="text-xs text-gray-500">Site web</p><p className="font-semibold text-purple-600 text-sm">Visiter →</p></div>
+                        <div className="flex-1"><p className="text-xs text-gray-500">{t('annonce_detail.site_web')}</p><p className="font-semibold text-purple-600 text-sm">{t('annonce_detail.visiter')}</p></div>
                       </a>
                     )}
                   </div>
                 </div>
 
                 <div className="bg-gradient-to-br from-primary to-primary-dark text-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-lg font-bold mb-4">⏰ Compte à rebours</h3>
+                  <h3 className="text-lg font-bold mb-4">{t('annonce_detail.compte_rebours')}</h3>
                   <div className="text-center">
                     <div className="text-5xl font-bold mb-2">{estExpire ? '0' : joursRestants}</div>
-                    <p className="text-white/80">Jour{joursRestants > 1 ? 's' : ''} restant{joursRestants > 1 ? 's' : ''}</p>
+                    <p className="text-white/80">{joursRestants > 1 ? t('annonce_detail.jour_pluriel') : t('annonce_detail.jour_singulier')} {joursRestants > 1 ? t('annonce_detail.restant_pluriel') : t('annonce_detail.restant_singulier')}</p>
                   </div>
                 </div>
 
                 {!estExpire && annonce.contact && (
                   <div className={`${config.lightColor} rounded-xl p-6`}>
-                    <h3 className={`font-bold mb-2 ${config.textColor}`}>🎯 Intéressé(e) ?</h3>
+                    <h3 className={`font-bold mb-2 ${config.textColor}`}>{t('annonce_detail.interesse')}</h3>
                     <a href={`mailto:${annonce.contact}`} className="btn-accent w-full flex items-center justify-center gap-2">
-                      <span>Envoyer un email</span>
+                      <span>{t('annonce_detail.envoyer_email')}</span>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                     </a>
                   </div>

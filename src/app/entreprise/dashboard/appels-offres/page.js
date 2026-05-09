@@ -1,8 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import EntrepriseLayout from '../../EntrepriseLayout';
+import { useT } from '@/lib/i18n/LangProvider';
 
 export default function AppelsOffresEntreprise() {
+  const { t, lang } = useT();
+  const localeDate = lang === 'ar' ? 'ar' : lang === 'en' ? 'en-GB' : 'fr-FR';
   const [appels, setAppels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [accesRefuse, setAccesRefuse] = useState(false);
@@ -17,16 +20,16 @@ export default function AppelsOffresEntreprise() {
   useEffect(() => {
     const auth = localStorage.getItem('entrepriseAuth');
     if (!auth) return;
-    const { token: t } = JSON.parse(auth);
-    setToken(t);
-    chargerAppels(t);
+    const { token: tk } = JSON.parse(auth);
+    setToken(tk);
+    chargerAppels(tk);
   }, []);
 
-  const chargerAppels = async (t) => {
+  const chargerAppels = async (tk) => {
     setLoading(true);
     try {
       const res = await fetch('/api/entreprise/appels-offres', {
-        headers: { Authorization: `Bearer ${t}` },
+        headers: { Authorization: `Bearer ${tk}` },
       });
       if (res.status === 403) {
         setAccesRefuse(true);
@@ -65,20 +68,20 @@ export default function AppelsOffresEntreprise() {
       const data = await res.json();
 
       if (res.ok) {
-        setMessage({ type: 'succes', text: 'Votre réponse a été soumise avec succès !' });
+        setMessage({ type: 'succes', text: t('appels_offres_page.reponse_soumise') });
         setReponseFichiers([]);
         chargerAppels(token);
         setTimeout(() => setSelected(null), 2000);
       } else {
-        setMessage({ type: 'erreur', text: data.error || 'Erreur lors de la soumission' });
+        setMessage({ type: 'erreur', text: data.error || t('appels_offres_page.erreur_soumission') });
       }
     } catch {
-      setMessage({ type: 'erreur', text: 'Erreur réseau. Veuillez réessayer.' });
+      setMessage({ type: 'erreur', text: t('appels_offres_page.erreur_reseau') });
     }
     setSubmitting(false);
   };
 
-  const formatDate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const formatDate = (d) => new Date(d).toLocaleDateString(localeDate, { day: '2-digit', month: 'long', year: 'numeric' });
   const isExpire = (d) => new Date(d) < new Date();
   const isExpireBientot = (d) => {
     const diff = new Date(d) - new Date();
@@ -93,7 +96,7 @@ export default function AppelsOffresEntreprise() {
   });
 
   return (
-    <EntrepriseLayout titre="Appels d'offres">
+    <EntrepriseLayout titre={t('appels_offres_page.titre')}>
 
       {/* Modal réponse */}
       {selected && (
@@ -105,7 +108,7 @@ export default function AppelsOffresEntreprise() {
                 <h3 className="font-bold text-gray-800 text-lg leading-tight">{selected.titre}</h3>
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
                   {selected.international && (
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">🌍 International</span>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{t('appels_offres_page.international')}</span>
                   )}
                   {selected.categories && (
                     <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">{selected.categories.icon} {selected.categories.nom}</span>
@@ -135,7 +138,7 @@ export default function AppelsOffresEntreprise() {
               {/* Fichiers joints à l'appel */}
               {selected.fichiers?.length > 0 && (
                 <div className="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">📎 Documents de l&apos;appel d&apos;offres</p>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">{t('appels_offres_page.docs_appel')}</p>
                   <div className="space-y-1.5">
                     {selected.fichiers.map((f, i) => (
                       <button
@@ -166,11 +169,11 @@ export default function AppelsOffresEntreprise() {
               {/* Réponse existante */}
               {selected.ma_reponse && (
                 <div className="mb-5 p-4 bg-green-50 border border-green-200 rounded-xl">
-                  <p className="text-sm font-semibold text-green-800 mb-2">✅ Votre réponse soumise</p>
+                  <p className="text-sm font-semibold text-green-800 mb-2">{t('appels_offres_page.votre_reponse')}</p>
                   <p className="text-sm text-green-700 whitespace-pre-wrap">{selected.ma_reponse.contenu}</p>
                   {selected.ma_reponse.fichiers?.length > 0 && (
                     <div className="mt-2 space-y-1">
-                      <p className="text-xs text-green-600 font-medium">📎 Pièces jointes :</p>
+                      <p className="text-xs text-green-600 font-medium">{t('appels_offres_page.pieces_jointes_label')}</p>
                       {selected.ma_reponse.fichiers.map((f, i) => (
                         <button
                           key={i}
@@ -194,7 +197,7 @@ export default function AppelsOffresEntreprise() {
                     </div>
                   )}
                   <p className="text-xs text-green-600 mt-2">
-                    Statut : <span className="font-semibold capitalize">{selected.ma_reponse.statut}</span>
+                    {t('appels_offres_page.statut_label')} <span className="font-semibold capitalize">{selected.ma_reponse.statut}</span>
                   </p>
                 </div>
               )}
@@ -203,13 +206,13 @@ export default function AppelsOffresEntreprise() {
               {!isExpire(selected.date_limite) && (
                 <form onSubmit={soumettreReponse}>
                   <label className="block text-sm font-semibold text-gray-800 mb-2">
-                    {selected.ma_reponse ? 'Modifier votre réponse' : 'Votre réponse'}
+                    {selected.ma_reponse ? t('appels_offres_page.modifier_reponse') : t('appels_offres_page.votre_reponse_label')}
                   </label>
                   <textarea
                     value={reponseForm}
                     onChange={e => setReponseForm(e.target.value)}
                     rows={5}
-                    placeholder="Décrivez votre proposition, votre expérience, vos compétences..."
+                    placeholder={t('appels_offres_page.placeholder_reponse')}
                     className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                     required
                   />
@@ -218,7 +221,7 @@ export default function AppelsOffresEntreprise() {
                   <div className="mt-3">
                     <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary transition text-sm text-gray-500">
                       <span>📎</span>
-                      <span>Joindre des fichiers (PDF, images · max 5 · 5 Mo chacun)</span>
+                      <span>{t('appels_offres_page.joindre_fichiers')}</span>
                       <input
                         type="file"
                         multiple
@@ -227,9 +230,9 @@ export default function AppelsOffresEntreprise() {
                         onChange={(e) => {
                           const nouveaux = Array.from(e.target.files || []);
                           const total = reponseFichiers.length + nouveaux.length;
-                          if (total > 5) { setMessage({ type: 'erreur', text: 'Maximum 5 fichiers autorisés.' }); return; }
+                          if (total > 5) { setMessage({ type: 'erreur', text: t('appels_offres_page.max_5_fichiers') }); return; }
                           const tropLourds = nouveaux.filter(f => f.size > 5 * 1024 * 1024);
-                          if (tropLourds.length > 0) { setMessage({ type: 'erreur', text: `Fichier trop lourd (max 5 Mo) : ${tropLourds[0].name}` }); return; }
+                          if (tropLourds.length > 0) { setMessage({ type: 'erreur', text: t('appels_offres_page.fichier_trop_lourd').replace('{{nom}}', tropLourds[0].name) }); return; }
                           setReponseFichiers(prev => [...prev, ...nouveaux]);
                           e.target.value = '';
                         }}
@@ -260,10 +263,10 @@ export default function AppelsOffresEntreprise() {
 
                   <div className="flex gap-3 mt-4">
                     <button type="button" onClick={() => setSelected(null)} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition text-sm">
-                      Annuler
+                      {t('appels_offres_page.annuler')}
                     </button>
                     <button type="submit" disabled={submitting || !reponseForm.trim()} className="flex-1 btn-primary disabled:opacity-50 py-2.5 text-sm font-semibold">
-                      {submitting ? 'Envoi...' : selected.ma_reponse ? 'Mettre à jour' : 'Soumettre la réponse'}
+                      {submitting ? t('appels_offres_page.envoi') : selected.ma_reponse ? t('appels_offres_page.mettre_a_jour') : t('appels_offres_page.soumettre')}
                     </button>
                   </div>
                 </form>
@@ -271,7 +274,7 @@ export default function AppelsOffresEntreprise() {
 
               {isExpire(selected.date_limite) && (
                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
-                  <p className="text-sm text-gray-500">⏰ Cet appel d&apos;offres est clôturé</p>
+                  <p className="text-sm text-gray-500">{t('appels_offres_page.cloture')}</p>
                 </div>
               )}
             </div>
@@ -283,16 +286,15 @@ export default function AppelsOffresEntreprise() {
       {accesRefuse && (
         <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 text-center max-w-lg mx-auto my-8">
           <div className="text-5xl mb-4">🔒</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Appels d'offres</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">{t('appels_offres_page.acces_titre')}</h2>
           <p className="text-gray-500 text-sm mb-6">
-            L'accès aux appels d'offres est réservé aux comptes avec un abonnement actif.
-            Contactez l'administration pour mettre à niveau votre compte.
+            {t('appels_offres_page.acces_desc')}
           </p>
           <a
             href="/entreprise/dashboard/messages"
             className="inline-block px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition"
           >
-            Contacter l'administration
+            {t('appels_offres_page.contacter_admin')}
           </a>
         </div>
       )}
@@ -301,10 +303,10 @@ export default function AppelsOffresEntreprise() {
       {!accesRefuse && (<>
       <div className="mb-5 flex flex-wrap gap-2">
         {[
-          { key: 'tous', label: 'Tous' },
-          { key: 'non_repondus', label: 'Sans réponse' },
-          { key: 'repondus', label: 'Répondus' },
-          { key: 'international', label: '🌍 International' },
+          { key: 'tous', label: t('appels_offres_page.tous') },
+          { key: 'non_repondus', label: t('appels_offres_page.sans_reponse') },
+          { key: 'repondus', label: t('appels_offres_page.repondus') },
+          { key: 'international', label: t('appels_offres_page.international') },
         ].map(f => (
           <button
             key={f.key}
@@ -329,7 +331,7 @@ export default function AppelsOffresEntreprise() {
       ) : appelsFiltres.length === 0 ? (
         <div className="bg-white rounded-xl p-12 text-center border border-gray-100">
           <p className="text-5xl mb-3">📋</p>
-          <p className="text-gray-500 font-medium">Aucun appel d&apos;offres dans cette catégorie</p>
+          <p className="text-gray-500 font-medium">{t('appels_offres_page.aucun_appel')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -340,7 +342,7 @@ export default function AppelsOffresEntreprise() {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       {appel.international && (
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">🌍 International</span>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{t('appels_offres_page.international')}</span>
                       )}
                       {appel.categories && (
                         <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">{appel.categories.icon} {appel.categories.nom}</span>
@@ -356,11 +358,11 @@ export default function AppelsOffresEntreprise() {
                   <div className="flex sm:flex-col items-center sm:items-end gap-2 flex-shrink-0">
                     {appel.ma_reponse ? (
                       <span className="inline-flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                        ✅ Répondu
+                        {t('appels_offres_page.repondu')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">
-                        En attente
+                        {t('appels_offres_page.en_attente')}
                       </span>
                     )}
                     <span className={`text-xs font-medium ${
@@ -384,12 +386,12 @@ export default function AppelsOffresEntreprise() {
                     }`}
                     disabled={isExpire(appel.date_limite)}
                   >
-                    {isExpire(appel.date_limite) ? 'Clôturé' :
-                     appel.ma_reponse ? '✏️ Voir / Modifier' : '📝 Répondre'}
+                    {isExpire(appel.date_limite) ? t('appels_offres_page.cloture_short') :
+                     appel.ma_reponse ? t('appels_offres_page.voir_modifier') : t('appels_offres_page.repondre')}
                   </button>
                   {isExpireBientot(appel.date_limite) && !appel.ma_reponse && (
                     <span className="text-xs text-orange-600 font-medium flex items-center">
-                      ⚠️ Expire bientôt
+                      {t('appels_offres_page.expire_bientot')}
                     </span>
                   )}
                 </div>

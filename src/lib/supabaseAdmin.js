@@ -20,10 +20,15 @@ export const supabaseAdmin = createClient(
   }
 );
 
-// Helper : valider un token de session entreprise
+// Helper : valider un token de session entreprise.
+// Accepte aussi les tokens d'impersonation (un admin "voit comme" un compte).
+// Le compte renvoyé porte alors un flag `_impersonation` (méta-info, ne pas
+// persister), utilisé par l'UI pour afficher la bannière et bloquer les
+// actions destructives.
 export async function getCompteFromToken(token) {
   if (!token) return null;
 
+  // 1) Session entreprise classique
   const { data: session } = await supabaseAdmin
     .from('comptes_sessions')
     .select(`
@@ -38,14 +43,48 @@ export async function getCompteFromToken(token) {
     .eq('token', token)
     .single();
 
-  if (!session) return null;
-
-  if (new Date(session.expires_at) < new Date()) {
-    await supabaseAdmin.from('comptes_sessions').delete().eq('id', session.id);
-    return null;
+  if (session) {
+    if (new Date(session.expires_at) < new Date()) {
+      await supabaseAdmin.from('comptes_sessions').delete().eq('id', session.id);
+      return null;
+    }
+    return session.comptes_structures;
   }
 
-  return session.comptes_structures;
+  // 2) Session d'impersonation admin → résout sur le compte cible
+  const { data: imp } = await supabaseAdmin
+    .from('impersonation_sessions')
+    .select(`
+      id, expires_at, termine_at, admin_id, compte_structure_id,
+      comptes_structures (
+        id, email, nom_contact, photo_profil, statut, abonnement,
+        badge_verifie, structure_id, telephone_contact, email_contact,
+        date_paiement, date_fin_abonnement, montant_paiement, notes_abonnement,
+        structures (id, nom, categorie_id, verifie, pays_id, ville_id)
+      )
+    `)
+    .eq('token', token)
+    .single();
+
+  if (!imp) return null;
+  if (imp.termine_at) return null;
+  if (new Date(imp.expires_at) < new Date()) return null;
+
+  const compte = imp.comptes_structures;
+  if (!compte) return null;
+  return {
+    ...compte,
+    _impersonation: {
+      session_id: imp.id,
+      admin_id: imp.admin_id,
+      expires_at: imp.expires_at,
+    },
+  };
+}
+
+// Helper : true si le compte courant est une session d'impersonation
+export function isImpersonating(compte) {
+  return !!(compte && compte._impersonation);
 }
 
 /**

@@ -1,4 +1,5 @@
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import AdminNewsletterQueue from '@/components/admin/AdminNewsletterQueue';
@@ -88,7 +89,7 @@ export default function AdminNewsletter() {
   };
 
   const handleDesabonner = async (id) => {
-    if (!confirm('Désabonner cet abonné ?')) return;
+    if (!(await confirmDialog({ message: 'Désabonner cet abonné ?', danger: true }))) return;
     await adminFetch(`/api/admin/newsletter/abonnes/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

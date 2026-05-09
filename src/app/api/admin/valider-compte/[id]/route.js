@@ -1,58 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-
-function emailValidationHTML(compte) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chezmonami.ma';
-  const nomEntreprise = compte.structures?.[0]?.nom || compte.nom_contact;
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compte validé — ChezMonAmi</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
-    .container { max-width:600px; margin:30px auto; background:#fff; border-radius:12px; overflow:hidden; }
-    .header { background:#2e7d32; padding:30px; text-align:center; }
-    .header h1 { color:#fff; margin:0; font-size:22px; }
-    .body { padding:30px; color:#333; line-height:1.8; font-size:15px; }
-    .cta { display:inline-block; margin-top:20px; padding:13px 30px; background:#2e7d32; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold; font-size:15px; }
-    .footer { background:#f9f9f9; padding:20px; text-align:center; font-size:12px; color:#999; border-top:1px solid #eee; }
-    .highlight { background:#e8f5e9; border-left:4px solid #2e7d32; padding:12px 16px; border-radius:4px; margin:16px 0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>✅ Votre compte a été validé !</h1>
-    </div>
-    <div class="body">
-      <p>Bonjour <strong>${compte.nom_contact}</strong>,</p>
-      <p>Nous avons le plaisir de vous informer que votre compte entreprise <strong>${nomEntreprise}</strong> a été validé par notre équipe.</p>
-      <div class="highlight">
-        <strong>Vous pouvez dès maintenant :</strong><br/>
-        • Compléter et soumettre votre fiche entreprise<br/>
-        • Accéder aux appels d'offres<br/>
-        • Contacter d'autres entreprises partenaires<br/>
-        • Gérer vos documents
-      </div>
-      <p>Connectez-vous à votre espace entreprise pour commencer :</p>
-      <p><a href="${siteUrl}/entreprise/connexion" class="cta">Accéder à mon espace</a></p>
-      <p style="color:#888;font-size:13px;margin-top:24px;">
-        Si vous n'êtes pas à l'origine de cette inscription, ignorez cet email.
-      </p>
-    </div>
-    <div class="footer">
-      <p>ChezMonAmi — Votre annuaire panafricain de confiance</p>
-      <p><a href="${siteUrl}" style="color:#999;">chezmonami.ma</a></p>
-    </div>
-  </div>
-</body>
-</html>`;
-}
+import { requireAdmin } from '@/lib/adminAuth';
+import { logAdminAction } from '@/lib/auditLog';
+import { sendEmail, baseTemplate, baseText } from '@/lib/email';
 
 // POST /api/admin/valider-compte/[id]
 export async function POST(request, { params }) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof Response) return admin;
   try {
     const { id } = await params;
 
@@ -75,22 +30,53 @@ export async function POST(request, { params }) {
 
     if (errUpdate) throw errUpdate;
 
-    // Envoyer l'email de validation via Resend
-    if (process.env.RESEND_API_KEY && compte.email) {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: process.env.RESEND_FROM || 'noreply@chezmonami.ma',
-          to: [compte.email],
-          subject: '✅ Votre compte ChezMonAmi a été validé',
-          html: emailValidationHTML(compte),
-          text: `Bonjour ${compte.nom_contact},\n\nVotre compte entreprise a été validé. Connectez-vous sur ${process.env.NEXT_PUBLIC_SITE_URL}/entreprise/connexion\n\nChezMonAmi`,
+    // Audit log
+    await logAdminAction({
+      request,
+      admin,
+      action: 'compte.valider',
+      cibleType: 'compte_structure',
+      cibleId: id,
+      details: { email: compte.email, statut_precedent: compte.statut },
+    });
+
+    // Envoyer l'email de validation
+    if (compte.email) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chezmonami.ma';
+      const nomEntreprise = compte.structures?.[0]?.nom || compte.nom_contact;
+      const titre = 'Votre compte a été validé !';
+      const contenu = `
+        <p>Bonjour <strong>${compte.nom_contact}</strong>,</p>
+        <p>Nous avons le plaisir de vous informer que votre compte entreprise <strong>${nomEntreprise}</strong> a été validé par notre équipe.</p>
+      `;
+      const highlight = `
+        <strong>Vous pouvez dès maintenant :</strong><br/>
+        • Compléter et soumettre votre fiche entreprise<br/>
+        • Accéder aux appels d'offres<br/>
+        • Contacter d'autres entreprises partenaires<br/>
+        • Gérer vos documents
+      `;
+
+      await sendEmail({
+        to: compte.email,
+        subject: '✅ Votre compte ChezMonAmi a été validé',
+        html: baseTemplate({
+          titre,
+          emoji: '✅',
+          preheader: 'Votre compte entreprise est maintenant actif',
+          contenu,
+          highlight,
+          ctaTexte: 'Accéder à mon espace',
+          ctaLien: `${siteUrl}/entreprise/connexion`,
         }),
-      }).catch(err => console.warn('Email validation non envoyé:', err.message));
+        text: baseText({
+          titre,
+          contenu: `Bonjour ${compte.nom_contact},\n\nVotre compte entreprise ${nomEntreprise} a été validé.`,
+          ctaTexte: 'Accéder à mon espace',
+          ctaLien: `${siteUrl}/entreprise/connexion`,
+        }),
+        tag: 'validation_compte',
+      });
     }
 
     return NextResponse.json({ success: true });

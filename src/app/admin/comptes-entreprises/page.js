@@ -1,9 +1,12 @@
 // src/app/admin/comptes-entreprises/page.js
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { adminFetch } from '@/lib/adminFetch';
+import BoutonImpersonation from '@/components/admin/BoutonImpersonation';
+import { BoutonExportCSV } from '@/lib/csvExport';
 
 const TYPES_DOCUMENTS = [
   { value: 'registre_commerce', label: 'Registre de commerce', icon: '📋' },
@@ -160,7 +163,7 @@ export default function AdminComptesEntreprises() {
   };
 
   const suspendreCompte = async (id) => {
-    if (!confirm('Voulez-vous vraiment suspendre ce compte ?')) return;
+    if (!(await confirmDialog({ message: 'Voulez-vous vraiment suspendre ce compte ?', danger: true }))) return;
     setActionEnCours(id + '_suspendre');
     try {
       const { error } = await supabase
@@ -332,7 +335,7 @@ export default function AdminComptesEntreprises() {
   };
 
   const supprimerReclamation = async (reclamId) => {
-    if (!confirm('Supprimer cette réclamation ?')) return;
+    if (!(await confirmDialog({ message: 'Supprimer cette réclamation ?', danger: true }))) return;
     setActionEnCours('reclam_del_' + reclamId);
     try {
       const res = await adminFetch(`/api/admin/reclamations/${reclamId}`, { method: 'DELETE' });
@@ -378,7 +381,7 @@ export default function AdminComptesEntreprises() {
   };
 
   const supprimerCompte = async (id) => {
-    if (!confirm('Supprimer définitivement ce compte ? Cette action est irréversible.')) return;
+    if (!(await confirmDialog({ message: 'Supprimer définitivement ce compte ? Cette action est irréversible.', danger: true }))) return;
     setActionEnCours('suppr_' + id);
     try {
       const res = await adminFetch(`/api/admin/suppressions/${id}`, {
@@ -528,6 +531,21 @@ export default function AdminComptesEntreprises() {
             </button>
           ))}
         </div>
+        <BoutonExportCSV
+          filename={`comptes-entreprises-${new Date().toISOString().slice(0, 10)}.csv`}
+          rows={comptesFiltres}
+          columns={[
+            { key: 'nom_contact', label: 'Nom contact' },
+            { key: 'email', label: 'Email' },
+            { key: 'telephone', label: 'Téléphone' },
+            { key: 'structures.nom', label: 'Structure' },
+            { key: 'statut', label: 'Statut' },
+            { key: 'badge_verifie', label: 'Vérifié', format: (v) => (v ? 'Oui' : 'Non') },
+            { key: 'type_abonnement', label: 'Abonnement' },
+            { key: 'date_paiement', label: 'Date paiement' },
+            { key: 'created_at', label: 'Créé le', format: (v) => (v ? new Date(v).toLocaleDateString('fr-FR') : '') },
+          ]}
+        />
       </div>
 
       {/* Contenu */}
@@ -593,6 +611,11 @@ export default function AdminComptesEntreprises() {
                   >
                     Détails
                   </button>
+                  <BoutonImpersonation
+                    compteId={compte.id}
+                    compteEmail={compte.email}
+                    className="px-3 py-1.5 text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-lg hover:bg-amber-100"
+                  />
                   {compte.statut !== 'actif' && (
                     <button
                       onClick={() => validerCompte(compte.id)}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, getCompteFromToken, hasFullAccess } from '@/lib/supabaseAdmin';
+import { sendEmail, baseTemplate, baseText } from '@/lib/email';
 
 // GET — récupérer les messages d'une conversation
 export async function GET(request, { params }) {
@@ -108,6 +109,57 @@ export async function POST(request, { params }) {
       .from('conversations_b2b')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', id);
+
+    // Notifier le destinataire par email (throttle : 1 email / 30 min par conversation)
+    const destinataireId = estA ? conv.compte_b_id : conv.compte_a_id;
+    const { data: destinataire } = await supabaseAdmin
+      .from('comptes_structures')
+      .select('email, nom_contact')
+      .eq('id', destinataireId)
+      .single();
+
+    // Vérifier le dernier message de l'expéditeur dans cette conversation (avant celui-ci)
+    const TROTTLE_MS = 30 * 60_000;
+    const { data: messagesPrecedents } = await supabaseAdmin
+      .from('messages_b2b')
+      .select('created_at')
+      .eq('conversation_id', id)
+      .eq('expediteur_id', compte.id)
+      .neq('id', message.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    const dernierMsg = messagesPrecedents?.[0]?.created_at;
+    const peutEnvoyer = !dernierMsg || Date.now() - new Date(dernierMsg).getTime() > TROTTLE_MS;
+
+    if (destinataire?.email && peutEnvoyer) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chezmonami.ma';
+      const titre = 'Nouveau message';
+      const contenu = `
+        <p>Bonjour <strong>${destinataire.nom_contact}</strong>,</p>
+        <p>Vous avez reçu un nouveau message de <strong>${compte.nom_contact}</strong> sur ChezMonAmi.</p>
+        <p>Connectez-vous à votre espace pour le lire et y répondre.</p>
+      `;
+
+      await sendEmail({
+        to: destinataire.email,
+        subject: `💬 Nouveau message de ${compte.nom_contact} sur ChezMonAmi`,
+        html: baseTemplate({
+          titre,
+          emoji: '💬',
+          preheader: `Message de ${compte.nom_contact}`,
+          contenu,
+          ctaTexte: 'Lire le message',
+          ctaLien: `${siteUrl}/entreprise/dashboard/reseau`,
+        }),
+        text: baseText({
+          titre,
+          contenu: `Vous avez reçu un nouveau message de ${compte.nom_contact} sur ChezMonAmi.`,
+          ctaTexte: 'Lire le message',
+          ctaLien: `${siteUrl}/entreprise/dashboard/reseau`,
+        }),
+        tag: 'message_b2b',
+      });
+    }
 
     return NextResponse.json({ success: true, message }, { status: 201 });
   } catch (error) {

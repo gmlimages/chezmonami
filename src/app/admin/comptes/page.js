@@ -1,5 +1,6 @@
 // src/app/admin/comptes/page.js - PARTIE 1/2
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/app/admin/AdminLayout';
@@ -29,7 +30,7 @@ export default function AdminComptes() {
     
     const admin = JSON.parse(adminAuth);
     if (admin.role !== 'super_admin') {
-      alert('⛔ Accès refusé. Seul le Super Admin peut gérer les comptes.');
+      toast.error('Accès refusé. Seul le Super Admin peut gérer les comptes.');
       router.push('/admin/dashboard');
       return;
     }
@@ -47,7 +48,7 @@ export default function AdminComptes() {
       setAdmins(data.admins || []);
     } catch (error) {
       console.error('Erreur chargement admins:', error);
-      alert('❌ Erreur lors du chargement des comptes');
+      toast.error('Erreur lors du chargement des comptes');
     } finally {
       setLoading(false);
     }
@@ -87,27 +88,27 @@ export default function AdminComptes() {
 
   const supprimerAdmin = async (id) => {
     if (id === adminConnecte?.id) {
-      alert('⛔ Vous ne pouvez pas supprimer votre propre compte !');
+      toast.error('Vous ne pouvez pas supprimer votre propre compte !');
       return;
     }
 
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce compte admin ?')) return;
+    if (!(await confirmDialog({ message: 'Êtes-vous sûr de vouloir supprimer ce compte admin ?', danger: true }))) return;
 
     try {
       const res = await adminFetch(`/api/admin/comptes/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Suppression échouée');
-      alert('✅ Compte supprimé avec succès !');
+      toast.success('Compte supprimé avec succès !');
       chargerAdmins();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert('❌ Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 
   const reinitialiserMotDePasse = async (admin) => {
     const nouveauMdp = genererMotDePasseTemporaire();
     
-    if (!confirm(`Réinitialiser le mot de passe de ${admin.nom} ?\n\nUn nouveau mot de passe temporaire sera généré.`)) return;
+    if (!(await confirmDialog({ message: `Réinitialiser le mot de passe de ${admin.nom} ?\n\nUn nouveau mot de passe temporaire sera généré.`, danger: true }))) return;
 
     try {
       const res = await adminFetch(`/api/admin/comptes/${admin.id}`, {
@@ -116,22 +117,22 @@ export default function AdminComptes() {
         body: JSON.stringify({ mot_de_passe: nouveauMdp, doit_changer_mdp: true, tentatives_connexion: 0, bloque_jusqu_a: null }),
       });
       if (!res.ok) throw new Error('Réinitialisation échouée');
-      alert(`✅ Mot de passe réinitialisé pour ${admin.nom} !\n\nNouveau mot de passe temporaire : ${nouveauMdp}\n\n⚠️ Communiquez-le de manière sécurisée.\nL'admin devra le changer à la prochaine connexion.`);
+      toast.success(`Mot de passe réinitialisé pour ${admin.nom} !\n\nNouveau mot de passe temporaire : ${nouveauMdp}\n\n⚠️ Communiquez-le de manière sécurisée.\nL'admin devra le changer à la prochaine connexion.`);
       chargerAdmins();
     } catch (error) {
       console.error('Erreur réinitialisation:', error);
-      alert('❌ Erreur lors de la réinitialisation');
+      toast.error('Erreur lors de la réinitialisation');
     }
   };
 
   const sauvegarderAdmin = async () => {
     if (!formData.nom || !formData.email) {
-      alert('⚠️ Veuillez remplir tous les champs obligatoires');
+      toast.warning('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
     if (!adminEnCours && !formData.motDePasse) {
-      alert('⚠️ Le mot de passe est obligatoire pour créer un compte');
+      toast.warning('Le mot de passe est obligatoire pour créer un compte');
       return;
     }
 
@@ -145,21 +146,21 @@ export default function AdminComptes() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updateData),
         });
-        if (res.ok) alert('✅ Compte admin modifié avec succès !');
+        if (res.ok) toast.success('Compte admin modifié avec succès !');
       } else {
         res = await adminFetch('/api/admin/comptes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nom: formData.nom, email: formData.email, mot_de_passe: formData.motDePasse, role: formData.role }),
         });
-        if (res.ok) alert(`✅ Compte admin créé !\n\nEmail : ${formData.email}\nMot de passe temporaire : ${formData.motDePasse}\n\n⚠️ Communiquez ces identifiants de manière sécurisée.`);
+        if (res.ok) toast.success(`Compte admin créé !\n\nEmail : ${formData.email}\nMot de passe temporaire : ${formData.motDePasse}\n\n⚠️ Communiquez ces identifiants de manière sécurisée.`);
       }
       if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
       setMode('liste');
       chargerAdmins();
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     }
   };
 

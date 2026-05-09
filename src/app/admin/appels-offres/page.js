@@ -1,5 +1,6 @@
 // src/app/admin/appels-offres/page.js
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
@@ -173,7 +174,7 @@ export default function AdminAppelsOffres() {
 
   const changerStatutAppel = async (appelId, nouveauStatut) => {
     if (nouveauStatut === 'supprimer') {
-      if (!confirm('Supprimer définitivement cet appel d\'offres et tous ses fichiers ?')) return;
+      if (!(await confirmDialog({ message: 'Supprimer définitivement cet appel d\'offres et tous ses fichiers ?', danger: true }))) return;
     }
     setActionEnCours(appelId + '_statut');
     try {
@@ -207,7 +208,7 @@ export default function AdminAppelsOffres() {
   };
 
   const supprimerReponse = async (reponseId) => {
-    if (!confirm('Supprimer ce dossier et ses fichiers ?')) return;
+    if (!(await confirmDialog({ message: 'Supprimer ce dossier et ses fichiers ?', danger: true }))) return;
     setActionEnCours(reponseId + '_suppr');
     try {
       const adminAuth = localStorage.getItem('adminAuth');

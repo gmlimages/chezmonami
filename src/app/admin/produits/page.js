@@ -1,5 +1,6 @@
 // src/app/admin/produits/page.js - PARTIE 1/2
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/app/admin/AdminLayout';
 import ImageUploader from '@/components/ImageUploader';
@@ -64,7 +65,7 @@ export default function AdminProduits() {
       setCategoriesProduits(categoriesData);
     } catch (error) {
       console.error('Erreur chargement:', error);
-      alert('❌ Erreur lors du chargement des données');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -124,21 +125,21 @@ export default function AdminProduits() {
   };
 
   const supprimerProduit = async (id) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) return;
+    if (!(await confirmDialog({ message: 'Êtes-vous sûr de vouloir supprimer ce produit ?', danger: true }))) return;
 
     try {
       await produitsAPI.delete(id);
-      alert('✅ Produit supprimé avec succès !');
+      toast.success('Produit supprimé avec succès !');
       chargerDonnees();
     } catch (error) {
       console.error('Erreur suppression:', error);
-      alert('❌ Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 
   const ajouterVariation = () => {
     if (!nouvelleVariation.valeur || !nouvelleVariation.stock) {
-      alert('⚠️ Veuillez remplir tous les champs de la variation');
+      toast.warning('Veuillez remplir tous les champs de la variation');
       return;
     }
 
@@ -168,7 +169,7 @@ export default function AdminProduits() {
 
   const sauvegarderProduit = async () => {
     if (!formData.nom || !formData.prix || !formData.pays_id || !formData.ville_id) {
-      alert('⚠️ Veuillez remplir tous les champs obligatoires');
+      toast.warning('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
@@ -190,17 +191,17 @@ export default function AdminProduits() {
 
       if (produitEnCours) {
         await produitsAPI.update(produitEnCours.id, dataToSave);
-        alert('✅ Produit modifié avec succès !');
+        toast.success('Produit modifié avec succès !');
       } else {
         await produitsAPI.create(dataToSave);
-        alert('✅ Produit ajouté avec succès !');
+        toast.success('Produit ajouté avec succès !');
       }
       
       setMode('liste');
       chargerDonnees();
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     }
   };
 

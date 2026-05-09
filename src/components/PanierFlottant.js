@@ -145,6 +145,13 @@ export default function PanierFlottant() {
 
       console.log('✅ Commande enregistrée:', data.numero_commande);
 
+      // Notification email (client + boutique) — ne bloque pas le flux
+      fetch('/api/commandes/notifier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commande_id: data.id }),
+      }).catch((e) => console.warn('Email notification commande:', e?.message));
+
       // Vider le panier après commande réussie
       viderPanier();
       setShowPanier(false);

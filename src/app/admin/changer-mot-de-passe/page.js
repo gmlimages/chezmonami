@@ -1,5 +1,6 @@
 // src/app/admin/changer-mot-de-passe/page.js
 'use client';
+import { toast, confirmDialog } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminFetch } from '@/lib/adminFetch';
@@ -83,7 +84,7 @@ export default function ChangerMotDePasse() {
         return;
       }
 
-      alert('✅ Mot de passe modifié avec succès !');
+      toast.success('Mot de passe modifié avec succès !');
       
       // Mettre à jour le localStorage
       const updatedAdmin = { ...admin, doit_changer_mdp: false };

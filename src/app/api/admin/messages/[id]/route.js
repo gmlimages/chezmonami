@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireAdmin } from '@/lib/adminAuth';
+import { logAdminAction } from '@/lib/auditLog';
 
 // DELETE — supprimer un message (admin uniquement)
 export async function DELETE(request, { params }) {
@@ -23,6 +24,15 @@ export async function DELETE(request, { params }) {
 
     const { error } = await supabaseAdmin.from('messages_entreprises').delete().eq('id', id);
     if (error) throw error;
+
+    await logAdminAction({
+      request,
+      admin,
+      action: 'message.supprimer',
+      cibleType: 'message_entreprise',
+      cibleId: id,
+      details: { avait_fichier: !!msg.fichier_url },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -71,6 +81,15 @@ export async function PATCH(request, { params }) {
       .single();
 
     if (updateError) throw updateError;
+
+    await logAdminAction({
+      request,
+      admin,
+      action: updates.reponse_admin ? 'message.repondre' : 'message.statut',
+      cibleType: 'message_entreprise',
+      cibleId: id,
+      details: { statut: updates.statut },
+    });
 
     return NextResponse.json({ success: true, message });
   } catch (error) {
