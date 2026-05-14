@@ -25,8 +25,9 @@ function EntrepriseConnexion() {
   const searchParams = useSearchParams();
   const retour = sanitizeRetour(searchParams?.get('retour'));
   const cible = retour || '/entreprise/dashboard';
+  const expired = searchParams?.get('expired') === '1';
   const [form, setForm] = useState({ email: '', mot_de_passe: '' });
-  const [erreur, setErreur] = useState('');
+  const [erreur, setErreur] = useState(expired ? 'Votre session a expiré. Veuillez vous reconnecter.' : '');
   const [loading, setLoading] = useState(false);
   const [bloque, setBloque] = useState(false);
   const [tempsRestant, setTempsRestant] = useState(0);
@@ -38,6 +39,8 @@ function EntrepriseConnexion() {
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
+    const authPart = localStorage.getItem('partenaireAuth');
+    if (authPart) { router.push('/partenaire/dashboard'); return; }
     const auth = localStorage.getItem('entrepriseAuth');
     if (auth) router.push(cible);
   }, [router, cible]);
@@ -82,14 +85,22 @@ function EntrepriseConnexion() {
         return;
       }
 
-      // Stocker session
-      localStorage.setItem('entrepriseAuth', JSON.stringify({
-        token: data.token,
-        compte: data.compte,
-      }));
-      localStorage.setItem('entrepriseSessionStart', Date.now().toString());
-
-      router.push(cible);
+      // Stocker session — routage selon le rôle
+      if (data.role === 'partenaire') {
+        localStorage.setItem('partenaireAuth', JSON.stringify({
+          token: data.token,
+          compte: data.compte,
+        }));
+        localStorage.setItem('partenaireSessionStart', Date.now().toString());
+        router.push('/partenaire/dashboard');
+      } else {
+        localStorage.setItem('entrepriseAuth', JSON.stringify({
+          token: data.token,
+          compte: data.compte,
+        }));
+        localStorage.setItem('entrepriseSessionStart', Date.now().toString());
+        router.push(cible);
+      }
 
     } catch {
       setErreur(t('form.erreur_reseau'));

@@ -11,11 +11,23 @@ import LanguageSwitcher from './LanguageSwitcher';
 export default function Header() {
   const [menuOuvert, setMenuOuvert] = useState(false);
   const [entrepriseConnecte, setEntrepriseConnecte] = useState(null);
+  const [partenaireConnecte, setPartenaireConnecte] = useState(null);
   const pathname = usePathname();
   const nbFavoris = useFavorisCount();
   const { t } = useT();
 
   useEffect(() => {
+    // Partenaire en priorité (un compte ne peut être que l'un ou l'autre)
+    const authPart = localStorage.getItem('partenaireAuth');
+    if (authPart) {
+      try {
+        const { compte } = JSON.parse(authPart);
+        setPartenaireConnecte(compte || null);
+        setEntrepriseConnecte(null);
+        return;
+      } catch {}
+    }
+    setPartenaireConnecte(null);
     const auth = localStorage.getItem('entrepriseAuth');
     if (auth) {
       try {
@@ -107,9 +119,17 @@ export default function Header() {
             <LanguageSwitcher variant="desktop" />
           </div>
 
-          {/* Boutons Espace Entreprise — Desktop */}
+          {/* Boutons Espace Entreprise / Partenaire — Desktop */}
           <div className="hidden md:flex items-center gap-2 shrink-0">
-            {entrepriseConnecte ? (
+            {partenaireConnecte ? (
+              <Link
+                href="/partenaire/dashboard"
+                className="flex items-center gap-2 px-4 py-2 bg-white text-primary rounded-lg font-semibold shadow-md hover:bg-green-50 transition text-sm"
+              >
+                <span>🤝</span>
+                <span className="max-w-[140px] truncate">{partenaireConnecte.nom_complet}</span>
+              </Link>
+            ) : entrepriseConnecte ? (
               <Link
                 href="/entreprise/dashboard"
                 className="flex items-center gap-2 px-4 py-2 bg-white text-primary rounded-lg font-semibold shadow-md hover:bg-green-50 transition text-sm"
@@ -172,9 +192,18 @@ export default function Header() {
                 </Link>
               ))}
 
-              {/* Espace entreprise */}
+              {/* Espace entreprise / partenaire */}
               <div className="border-t border-white/20 pt-2 mt-1 flex flex-col gap-2">
-                {entrepriseConnecte ? (
+                {partenaireConnecte ? (
+                  <Link
+                    href="/partenaire/dashboard"
+                    onClick={() => setMenuOuvert(false)}
+                    className="px-4 py-3 bg-white text-primary rounded-lg font-semibold flex items-center gap-3 shadow-md"
+                  >
+                    <span className="text-xl">🤝</span>
+                    <span className="truncate">Mon espace partenaire — {partenaireConnecte.nom_complet}</span>
+                  </Link>
+                ) : entrepriseConnecte ? (
                   <Link
                     href="/entreprise/dashboard"
                     onClick={() => setMenuOuvert(false)}

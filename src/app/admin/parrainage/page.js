@@ -1,11 +1,14 @@
 'use client';
-// Lot Parrainage — Page admin : paramètres + demandes + codes
+// Lot Parrainage — Page admin avec onglets : Sociétés / Partenaires / Commissions
 import { useEffect, useState } from 'react';
 import AdminLayout from '../AdminLayout';
 import { adminFetch } from '@/lib/adminFetch';
 import { toast, confirmDialog } from '@/lib/toast';
+import SectionPartenaires from '@/components/admin/parrainage/SectionPartenaires';
+import SectionCommissions from '@/components/admin/parrainage/SectionCommissions';
 
 export default function PageAdminParrainage() {
+  const [ongletActif, setOngletActif] = useState('societes'); // societes | partenaires | commissions
   const [parametres, setParametres] = useState(null);
   const [savingParams, setSavingParams] = useState(false);
 
@@ -122,9 +125,37 @@ export default function PageAdminParrainage() {
   };
 
   return (
-    <AdminLayout titre="Parrainage" sousTitre="Programme de parrainage entreprise">
-      <div className="space-y-6 max-w-5xl">
+    <AdminLayout titre="Parrainage" sousTitre="Programme de parrainage & partenaires commerciaux">
+      <div className="space-y-6 max-w-6xl">
 
+        {/* ── Onglets ── */}
+        <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
+          {[
+            { key: 'societes', label: '🏢 Sociétés', desc: 'Parrainage entre entreprises' },
+            { key: 'partenaires', label: '🤝 Partenaires', desc: 'Apporteurs d\'affaires (commissions)' },
+            { key: 'commissions', label: '💰 Commissions', desc: 'Suivi des paiements' },
+          ].map(o => (
+            <button
+              key={o.key}
+              onClick={() => setOngletActif(o.key)}
+              className={`px-4 py-3 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
+                ongletActif === o.key
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              title={o.desc}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        {ongletActif === 'partenaires' && <SectionPartenaires />}
+        {ongletActif === 'commissions' && <SectionCommissions />}
+
+        {/* ── Onglet SOCIÉTÉS (parrainage entreprise existant) ── */}
+        {ongletActif === 'societes' && (
+        <>
         {/* ── Paramètres ── */}
         {parametres && (
           <section className="bg-white rounded-xl border border-gray-200 p-5">
@@ -346,7 +377,6 @@ export default function PageAdminParrainage() {
             </div>
           )}
         </section>
-      </div>
 
       {/* ── Modal ── */}
       {modal && (
@@ -420,6 +450,9 @@ export default function PageAdminParrainage() {
           </div>
         </div>
       )}
+        </>
+        )}
+      </div>
     </AdminLayout>
   );
 }

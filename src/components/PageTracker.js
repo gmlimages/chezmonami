@@ -42,11 +42,11 @@ export default function PageTracker({ pageType = 'page', elementId = null, eleme
           return { pays: 'Test Local', ville: 'Dev' };
         }
         
-        const response = await fetch('https://ipapi.co/json/');
+        const response = await fetch('/api/geo');
         const data = await response.json();
         return {
-          pays: data.country_name,
-          ville: data.city
+          pays: data.pays,
+          ville: data.ville
         };
       } catch (error) {
         return { pays: null, ville: null };

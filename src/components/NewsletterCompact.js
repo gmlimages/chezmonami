@@ -58,44 +58,18 @@ export default function NewsletterCompact() {
     setMessage({ type: '', text: '' });
 
     try {
-      const { data: existing, error: selectError } = await supabase
-        .from('newsletter_abonnes')
-        .select('id, actif')
-        .eq('email', email)
-        .maybeSingle();
+      const res = await fetch('/api/newsletter/inscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, preferences: PREFS_DEFAUT }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur');
 
-      if (selectError) throw selectError;
-
-      if (existing) {
-        if (existing.actif) {
-          setMessage({
-            type: 'info',
-            text: '📩 Vous êtes déjà abonné(e) à notre newsletter !'
-          });
-        } else {
-          const { error } = await supabase
-            .from('newsletter_abonnes')
-            .update({ actif: true, date_confirmation: new Date().toISOString() })
-            .eq('id', existing.id);
-          if (error) throw error;
-          setAbonneId(existing.id);
-          setEmail('');
-          setShowModal(true);
-        }
+      if (data.deja_abonne) {
+        setMessage({ type: 'info', text: '📩 Vous êtes déjà abonné(e) à notre newsletter !' });
       } else {
-        const { data: newAbonne, error: insertError } = await supabase
-          .from('newsletter_abonnes')
-          .insert({
-            email,
-            actif: true,
-            date_confirmation: new Date().toISOString(),
-            preferences: PREFS_DEFAUT,
-          })
-          .select('id')
-          .single();
-
-        if (insertError) throw insertError;
-        setAbonneId(newAbonne.id);
+        setAbonneId(data.id);
         setEmail('');
         setShowModal(true);
       }

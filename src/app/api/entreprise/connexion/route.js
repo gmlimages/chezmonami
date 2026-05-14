@@ -31,6 +31,45 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Email et mot de passe requis' }, { status: 400 });
     }
 
+    const emailNorm = email.toLowerCase().trim();
+
+    // ── Tentative login PARTENAIRE en priorité ────────────────────────────────
+    const { data: partenaire } = await supabaseAdmin
+      .from('comptes_partenaires')
+      .select('id, email, mot_de_passe_hash, nom_complet, actif, supprime')
+      .eq('email', emailNorm)
+      .eq('supprime', false)
+      .maybeSingle();
+
+    if (partenaire) {
+      if (!partenaire.actif) {
+        return NextResponse.json({ error: 'Compte partenaire désactivé. Contactez l\'administration.' }, { status: 403 });
+      }
+      const okPart = await bcrypt.compare(mot_de_passe, partenaire.mot_de_passe_hash);
+      if (!okPart) {
+        return NextResponse.json({ error: 'Email ou mot de passe incorrect' }, { status: 401 });
+      }
+      // Crée session partenaire (8h)
+      const tokenP = generateToken();
+      const expP = new Date(); expP.setHours(expP.getHours() + 8);
+      await supabaseAdmin.from('comptes_partenaires_sessions').insert({
+        partenaire_id: partenaire.id,
+        token: tokenP,
+        expires_at: expP.toISOString(),
+        user_agent: request.headers.get('user-agent') || null,
+        ip,
+      });
+      await supabaseAdmin.from('comptes_partenaires')
+        .update({ derniere_connexion: new Date().toISOString() })
+        .eq('id', partenaire.id);
+      return NextResponse.json({
+        success: true,
+        role: 'partenaire',
+        token: tokenP,
+        compte: { id: partenaire.id, email: partenaire.email, nom_complet: partenaire.nom_complet },
+      });
+    }
+
     const { data: compte, error: compteError } = await supabaseAdmin
       .from('comptes_structures')
       .select(`
@@ -39,7 +78,7 @@ export async function POST(request) {
         tentatives_connexion, bloque_jusqu_a, tfa_active,
         structures (id, nom, categorie_id, verifie)
       `)
-      .eq('email', email.toLowerCase().trim())
+      .eq('email', emailNorm)
       .maybeSingle();
 
     if (compteError || !compte) {
@@ -170,6 +209,7 @@ export async function POST(request) {
     // Retourner sans le hash du mot de passe
     return NextResponse.json({
       success: true,
+      role: 'entreprise',
       token,
       compte: {
         id: compte.id,

@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireAdmin } from '@/lib/adminAuth';
 import { logAdminAction } from '@/lib/auditLog';
 import { appliquerRecompenses, estAbonnementPayant } from '@/lib/parrainage';
+import { creerCommissionSiEligible } from '@/lib/partenaires';
 import { sendEmail, baseTemplate, baseText } from '@/lib/email';
 
 // Durées en mois selon le type
@@ -149,7 +150,99 @@ export async function PATCH(request, { params }) {
       }
     }
 
-    return NextResponse.json({ success: true, compte: data, parrainage_applique: !!parrainage_applique });
+    // ── Partenaires : bonus filleul (1ère fois) + commission auto ──────────────
+    let commission_creee = null;
+    let bonus_partenaire_applique = false;
+    if (estAbonnementPayant(data.abonnement)) {
+      // 1) Bonus filleul (mois offerts) — appliqué une seule fois au premier paiement
+      const { data: filleulPart } = await supabaseAdmin
+        .from('comptes_structures')
+        .select('id, partenaire_id, code_partenaire_id, bonus_filleul_partenaire_at, date_fin_abonnement')
+        .eq('id', id)
+        .single();
+
+      if (filleulPart?.partenaire_id && filleulPart.code_partenaire_id && !filleulPart.bonus_filleul_partenaire_at) {
+        const { data: codeP } = await supabaseAdmin
+          .from('codes_partenaires')
+          .select('mois_filleul')
+          .eq('id', filleulPart.code_partenaire_id)
+          .single();
+        const moisBonus = Number(codeP?.mois_filleul) || 0;
+        if (moisBonus > 0 && filleulPart.date_fin_abonnement) {
+          const nouvelleFin = new Date(filleulPart.date_fin_abonnement);
+          nouvelleFin.setMonth(nouvelleFin.getMonth() + moisBonus);
+          await supabaseAdmin
+            .from('comptes_structures')
+            .update({
+              date_fin_abonnement: nouvelleFin.toISOString(),
+              bonus_filleul_partenaire_at: new Date().toISOString(),
+            })
+            .eq('id', id);
+          data.date_fin_abonnement = nouvelleFin.toISOString();
+          bonus_partenaire_applique = true;
+        } else if (moisBonus === 0) {
+          // Pas de bonus mais on marque pour ne pas re-vérifier à chaque paiement
+          await supabaseAdmin
+            .from('comptes_structures')
+            .update({ bonus_filleul_partenaire_at: new Date().toISOString() })
+            .eq('id', id);
+        }
+      }
+
+      // 2) Création de la commission (idempotente sur date_paiement_filleul)
+      if (data.montant_paiement && data.date_paiement) {
+        try {
+          const r = await creerCommissionSiEligible({
+            filleul_compte_id: id,
+            montant_mad: Number(data.montant_paiement) || 0,
+            abonnement_type: data.abonnement,
+            date_paiement: data.date_paiement,
+          });
+          if (r.created) {
+            commission_creee = r.commission;
+            await logAdminAction({
+              request, admin,
+              action: 'partenaire.commission_creee_auto',
+              cibleType: 'commission',
+              cibleId: r.commission.id,
+              details: { filleul_compte_id: id, montant: r.commission.montant_commission_mad },
+            });
+            // Notifie le partenaire
+            const { data: part } = await supabaseAdmin
+              .from('comptes_partenaires')
+              .select('email, nom_complet')
+              .eq('id', r.commission.partenaire_id)
+              .single();
+            if (part?.email) {
+              sendEmail({
+                to: part.email,
+                subject: '💰 Nouvelle commission générée',
+                tag: 'commission_creee',
+                html: baseTemplate({
+                  titre: 'Nouvelle commission',
+                  contenu: `
+                    <p>Bonjour ${part.nom_complet},</p>
+                    <p>Une nouvelle commission de <strong>${Number(r.commission.montant_commission_mad).toFixed(2)} MAD</strong> a été générée suite au paiement d'un filleul.</p>
+                  `,
+                  ctaTexte: 'Voir mes commissions',
+                  ctaLien: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://chezmonami.ma'}/partenaire/dashboard/commissions`,
+                }),
+              }).catch(() => {});
+            }
+          }
+        } catch (e) {
+          console.error('commission auto error:', e);
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      compte: data,
+      parrainage_applique: !!parrainage_applique,
+      commission_creee: !!commission_creee,
+      bonus_partenaire_applique,
+    });
   } catch (error) {
     console.error('PATCH abonnement error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

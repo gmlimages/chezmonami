@@ -264,7 +264,9 @@ export default function ProfilEntreprise() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('profil_page.tel_responsable')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                {t('profil_page.tel_responsable')} <span className="text-xs text-gray-400">(WhatsApp)</span>
+              </label>
               <input
                 type="tel"
                 placeholder={t('profil_page.tel_placeholder')}

@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import bcrypt from 'bcryptjs';
 import { rateLimit } from '@/lib/rateLimit';
 import { sendEmail, baseTemplate, baseText } from '@/lib/email';
+import { verifierCodePartenaire } from '@/lib/partenaires';
 
 export async function POST(request) {
   try {
@@ -18,13 +19,18 @@ export async function POST(request) {
       );
     }
 
-    const { email, mot_de_passe, nom_contact, code_parrainage } = await request.json();
+    const { email, mot_de_passe, nom_contact, telephone, code_parrainage, code_partenaire } = await request.json();
 
-    if (!email || !mot_de_passe || !nom_contact) {
-      return NextResponse.json({ error: 'Tous les champs sont obligatoires' }, { status: 400 });
+    if (!email || !mot_de_passe || !nom_contact || !telephone || !String(telephone).trim()) {
+      return NextResponse.json({ error: 'Tous les champs sont obligatoires (nom, email, téléphone, mot de passe)' }, { status: 400 });
     }
     if (mot_de_passe.length < 8) {
       return NextResponse.json({ error: 'Le mot de passe doit contenir au moins 8 caractères' }, { status: 400 });
+    }
+    // Validation téléphone simple : au moins 6 chiffres
+    const telDigits = String(telephone).replace(/\D/g, '');
+    if (telDigits.length < 6) {
+      return NextResponse.json({ error: 'Numéro de téléphone invalide' }, { status: 400 });
     }
 
     // Email déjà utilisé ?
@@ -57,6 +63,22 @@ export async function POST(request) {
       codeParrainageRow = c;
     }
 
+    // ── Validation code partenaire (alternatif au parrainage entreprise) ──
+    let infoPartenaire = null;
+    if (code_partenaire && String(code_partenaire).trim()) {
+      if (codeParrainageRow) {
+        return NextResponse.json(
+          { error: 'Un seul code accepté : parrainage ou partenaire, pas les deux.' },
+          { status: 400 }
+        );
+      }
+      const r = await verifierCodePartenaire(code_partenaire);
+      if (!r.valid) {
+        return NextResponse.json({ error: 'Code partenaire invalide ou expiré' }, { status: 400 });
+      }
+      infoPartenaire = r;
+    }
+
     // Contacts par défaut depuis config_coordination
     const { data: config } = await supabaseAdmin
       .from('config_coordination')
@@ -66,16 +88,20 @@ export async function POST(request) {
     // Hash du mot de passe
     const hash = await bcrypt.hash(mot_de_passe, 12);
 
-    // Créer le compte
+    // Créer le compte (avec lien partenaire si applicable)
     const { data: compte, error } = await supabaseAdmin
       .from('comptes_structures')
       .insert({
         email: email.toLowerCase().trim(),
         mot_de_passe: hash,
         nom_contact: nom_contact.trim(),
+        telephone: telephone ? String(telephone).trim() : null,
         telephone_contact: config?.telephone || '',
         email_contact: config?.email || '',
         statut: 'en_attente',
+        partenaire_id: infoPartenaire?.partenaire_id || null,
+        code_partenaire_id: infoPartenaire?.code_id || null,
+        code_partenaire_utilise: infoPartenaire ? (code_partenaire || '').toUpperCase().trim() : null,
       })
       .select('id, email, nom_contact, statut')
       .single();

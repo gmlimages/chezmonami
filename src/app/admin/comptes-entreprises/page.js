@@ -55,6 +55,7 @@ export default function AdminComptesEntreprises() {
   const [comptes, setComptes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtreStatut, setFiltreStatut] = useState('tous');
+  const [filtrePartenaire, setFiltrePartenaire] = useState('tous'); // 'tous' | 'sans' | id partenaire
   const [recherche, setRecherche] = useState('');
   const [compteSelectionne, setCompteSelectionne] = useState(null);
   const [modalOuvert, setModalOuvert] = useState(false);
@@ -127,9 +128,16 @@ export default function AdminComptesEntreprises() {
           date_fin_abonnement,
           montant_paiement,
           notes_abonnement,
+          partenaire_id,
+          code_partenaire_utilise,
           structures (
             id,
             nom
+          ),
+          partenaire:comptes_partenaires!comptes_structures_partenaire_id_fkey (
+            id,
+            nom_complet,
+            email
           )
         `)
         .order('date_inscription', { ascending: false });
@@ -421,13 +429,29 @@ export default function AdminComptesEntreprises() {
 
   const comptesFiltres = comptes.filter((c) => {
     const matchStatut = filtreStatut === 'tous' || c.statut === filtreStatut;
+    const r = recherche.toLowerCase();
     const matchRecherche =
       recherche === '' ||
-      (c.nom_contact || '').toLowerCase().includes(recherche.toLowerCase()) ||
-      (c.email || '').toLowerCase().includes(recherche.toLowerCase()) ||
-      (c.structures?.nom || '').toLowerCase().includes(recherche.toLowerCase());
-    return matchStatut && matchRecherche;
+      (c.nom_contact || '').toLowerCase().includes(r) ||
+      (c.email || '').toLowerCase().includes(r) ||
+      (c.structures?.nom || '').toLowerCase().includes(r) ||
+      (c.partenaire?.nom_complet || '').toLowerCase().includes(r) ||
+      (c.code_partenaire_utilise || '').toLowerCase().includes(r);
+    const matchPartenaire =
+      filtrePartenaire === 'tous' ||
+      (filtrePartenaire === 'sans' && !c.partenaire_id) ||
+      c.partenaire_id === filtrePartenaire;
+    return matchStatut && matchRecherche && matchPartenaire;
   });
+
+  // Liste unique des partenaires apparaissant dans les comptes (pour le select)
+  const partenairesUniques = Array.from(
+    new Map(
+      comptes
+        .filter(c => c.partenaire)
+        .map(c => [c.partenaire.id, c.partenaire])
+    ).values()
+  ).sort((a, b) => (a.nom_complet || '').localeCompare(b.nom_complet || ''));
 
   const nbEnAttente = comptes.filter((c) => c.statut === 'en_attente').length;
   const nbSuppression = comptes.filter((c) => c.demande_suppression).length;
@@ -503,49 +527,69 @@ export default function AdminComptesEntreprises() {
       )}
 
       {/* Filtres & Recherche */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <input
-          type="text"
-          placeholder="Rechercher par nom, email, structure..."
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-        <div className="flex gap-2 flex-wrap">
-          {STATUTS.map((s) => (
-            <button
-              key={s.value}
-              onClick={() => setFiltreStatut(s.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                filtreStatut === s.value
-                  ? 'bg-primary text-white shadow'
-                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {s.label}
-              {s.value === 'en_attente' && nbEnAttente > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">
-                  {nbEnAttente}
-                </span>
-              )}
-            </button>
-          ))}
+      <div className="flex flex-col gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            placeholder="Rechercher par nom, email, structure, partenaire, code..."
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <select
+            value={filtrePartenaire}
+            onChange={(e) => setFiltrePartenaire(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+          >
+            <option value="tous">🤝 Tous les partenaires</option>
+            <option value="sans">— Sans partenaire</option>
+            {partenairesUniques.map(p => (
+              <option key={p.id} value={p.id}>{p.nom_complet}</option>
+            ))}
+          </select>
         </div>
-        <BoutonExportCSV
-          filename={`comptes-entreprises-${new Date().toISOString().slice(0, 10)}.csv`}
-          rows={comptesFiltres}
-          columns={[
-            { key: 'nom_contact', label: 'Nom contact' },
-            { key: 'email', label: 'Email' },
-            { key: 'telephone', label: 'Téléphone' },
-            { key: 'structures.nom', label: 'Structure' },
-            { key: 'statut', label: 'Statut' },
-            { key: 'badge_verifie', label: 'Vérifié', format: (v) => (v ? 'Oui' : 'Non') },
-            { key: 'type_abonnement', label: 'Abonnement' },
-            { key: 'date_paiement', label: 'Date paiement' },
-            { key: 'created_at', label: 'Créé le', format: (v) => (v ? new Date(v).toLocaleDateString('fr-FR') : '') },
-          ]}
-        />
+        <div className="flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex gap-2 flex-wrap">
+            {STATUTS.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => setFiltreStatut(s.value)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  filtreStatut === s.value
+                    ? 'bg-primary text-white shadow'
+                    : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {s.label}
+                {s.value === 'en_attente' && nbEnAttente > 0 && (
+                  <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">
+                    {nbEnAttente}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          <BoutonExportCSV
+            filename={`comptes-entreprises-${new Date().toISOString().slice(0, 10)}.csv`}
+            rows={comptesFiltres}
+            columns={[
+              { key: 'nom_contact', label: 'Nom contact' },
+              { key: 'email', label: 'Email' },
+              { key: 'telephone', label: 'Téléphone' },
+              { key: 'structures.nom', label: 'Structure' },
+              { key: 'statut', label: 'Statut' },
+              { key: 'badge_verifie', label: 'Vérifié', format: (v) => (v ? 'Oui' : 'Non') },
+              { key: 'abonnement', label: 'Abonnement' },
+              { key: 'montant_paiement', label: 'Montant paiement' },
+              { key: 'date_paiement', label: 'Date paiement', format: (v) => (v ? new Date(v).toLocaleDateString('fr-FR') : '') },
+              { key: 'date_fin_abonnement', label: 'Date fin', format: (v) => (v ? new Date(v).toLocaleDateString('fr-FR') : '') },
+              { key: 'partenaire.nom_complet', label: 'Partenaire' },
+              { key: 'partenaire.email', label: 'Email partenaire' },
+              { key: 'code_partenaire_utilise', label: 'Code utilisé' },
+              { key: 'date_inscription', label: 'Inscrit le', format: (v) => (v ? new Date(v).toLocaleDateString('fr-FR') : '') },
+            ]}
+          />
+        </div>
       </div>
 
       {/* Contenu */}
@@ -845,6 +889,24 @@ export default function AdminComptesEntreprises() {
                       <p>
                         <span className="text-gray-500">📞 Tél. responsable :</span>{' '}
                         <strong className="text-gray-800">{compteSelectionne.telephone}</strong>
+                        <a
+                          href={`https://wa.me/${compteSelectionne.telephone.replace(/[^\d]/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold hover:bg-green-200"
+                          title="Ouvrir dans WhatsApp"
+                        >
+                          💬 WhatsApp
+                        </a>
+                      </p>
+                    )}
+                    {compteSelectionne.partenaire && (
+                      <p>
+                        <span className="text-gray-500">🤝 Partenaire :</span>{' '}
+                        <strong className="text-gray-800">{compteSelectionne.partenaire.nom_complet}</strong>
+                        {compteSelectionne.code_partenaire_utilise && (
+                          <span className="ml-2 text-xs font-mono text-gray-500">({compteSelectionne.code_partenaire_utilise})</span>
+                        )}
                       </p>
                     )}
                   </div>

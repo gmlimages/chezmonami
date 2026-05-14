@@ -21,48 +21,20 @@ export default function Newsletter() {
     setMessage({ type: '', text: '' });
 
     try {
-      // Vérifier si email existe déjà
-      const { data: existing } = await supabase
-        .from('newsletter_abonnes')
-        .select('id, actif')
-        .eq('email', email)
-        .single();
+      const res = await fetch('/api/newsletter/inscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, nom: nom || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur');
 
-      if (existing) {
-        if (existing.actif) {
-          setMessage({ 
-            type: 'info', 
-            text: 'Vous êtes déjà abonné à notre newsletter !' 
-          });
-        } else {
-          // Réactiver l'abonnement
-          await supabase
-            .from('newsletter_abonnes')
-            .update({ actif: true })
-            .eq('id', existing.id);
-          
-          setMessage({ 
-            type: 'success', 
-            text: 'Votre abonnement a été réactivé avec succès !' 
-          });
-        }
+      if (data.deja_abonne) {
+        setMessage({ type: 'info', text: 'Vous êtes déjà abonné à notre newsletter !' });
+      } else if (data.reactive) {
+        setMessage({ type: 'success', text: 'Votre abonnement a été réactivé avec succès !' });
       } else {
-        // Nouvel abonnement
-        const { error } = await supabase
-          .from('newsletter_abonnes')
-          .insert({
-            email,
-            nom: nom || null,
-            actif: true,
-            date_confirmation: new Date().toISOString()
-          });
-
-        if (error) throw error;
-
-        setMessage({ 
-          type: 'success', 
-          text: '🎉 Merci ! Vous êtes maintenant abonné à notre newsletter.' 
-        });
+        setMessage({ type: 'success', text: '🎉 Merci ! Vous êtes maintenant abonné à notre newsletter.' });
         setEmail('');
         setNom('');
       }

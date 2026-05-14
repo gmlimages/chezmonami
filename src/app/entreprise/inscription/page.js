@@ -17,15 +17,18 @@ function EntrepriseInscription() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const refFromUrl = searchParams?.get('ref') || '';
+  const partFromUrl = searchParams?.get('part') || '';
   const [form, setForm] = useState({
-    email: '', mot_de_passe: '', confirmer_mdp: '', nom_contact: '',
+    email: '', mot_de_passe: '', confirmer_mdp: '', nom_contact: '', telephone: '',
     code_parrainage: refFromUrl.toUpperCase(),
+    code_partenaire: partFromUrl.toUpperCase(),
   });
   const [erreur, setErreur] = useState('');
   const [succes, setSucces] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [codeCheck, setCodeCheck] = useState(null); // { valid, parrain_nom?, raison? } | null
+  const [codeCheck, setCodeCheck] = useState(null);
+  const [partCheck, setPartCheck] = useState(null);
 
   useEffect(() => {
     const auth = localStorage.getItem('entrepriseAuth');
@@ -50,6 +53,23 @@ function EntrepriseInscription() {
     return () => clearTimeout(t);
   }, [form.code_parrainage]);
 
+  // Vérification live du code partenaire (debounced)
+  useEffect(() => {
+    const code = (form.code_partenaire || '').trim();
+    if (!code) { setPartCheck(null); return; }
+    const tm = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/partenaires/verifier-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        setPartCheck(await res.json());
+      } catch { setPartCheck(null); }
+    }, 400);
+    return () => clearTimeout(tm);
+  }, [form.code_partenaire]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErreur('');
@@ -73,7 +93,9 @@ function EntrepriseInscription() {
           email: form.email,
           mot_de_passe: form.mot_de_passe,
           nom_contact: form.nom_contact,
+          telephone: (form.telephone || '').trim() || undefined,
           code_parrainage: (form.code_parrainage || '').trim() || undefined,
+          code_partenaire: (form.code_partenaire || '').trim() || undefined,
         }),
       });
 
@@ -171,6 +193,23 @@ function EntrepriseInscription() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Téléphone (WhatsApp) *
+              </label>
+              <input
+                type="tel"
+                required
+                placeholder="+212 6 12 34 56 78"
+                className="input-field w-full"
+                value={form.telephone}
+                onChange={e => setForm({ ...form, telephone: e.target.value })}
+                disabled={loading}
+                autoComplete="tel"
+              />
+              <p className="text-xs text-gray-400 mt-1">Utilisé pour vous contacter rapidement via WhatsApp si besoin.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 {t('form.mot_de_passe_required')} <span className="text-xs text-gray-400">{t('form.min_8_car')}</span>
               </label>
               <div className="relative">
@@ -229,6 +268,30 @@ function EntrepriseInscription() {
                     : `✗ ${codeCheck.raison || 'Code invalide'}`}
                 </p>
               )}
+            </div>
+
+            {/* Code partenaire (optionnel, alternatif au parrainage) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Code partenaire <span className="text-xs text-gray-400">(optionnel)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="PART-XXXXXXXX ou CAMP-XXXXXXXX"
+                className="input-field w-full uppercase tracking-widest font-mono"
+                value={form.code_partenaire}
+                onChange={e => setForm({ ...form, code_partenaire: e.target.value.toUpperCase().replace(/\s/g, '') })}
+                disabled={loading || !!(form.code_parrainage && codeCheck?.valid)}
+                maxLength={20}
+              />
+              {form.code_partenaire && partCheck && (
+                <p className={`text-xs mt-1 ${partCheck.valid ? 'text-green-700' : 'text-red-600'}`}>
+                  {partCheck.valid
+                    ? `✓ Code ${partCheck.type === 'permanent' ? 'permanent' : 'campagne'} valide${partCheck.partenaire_nom ? ` — partenaire ${partCheck.partenaire_nom}` : ''}.${partCheck.mois_filleul > 0 ? ` +${partCheck.mois_filleul} mois offerts.` : ''}${partCheck.reduction_filleul_pct > 0 ? ` -${partCheck.reduction_filleul_pct}% de réduction.` : ''}`
+                    : `✗ ${partCheck.raison || 'Code invalide'}`}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-1">Un seul code accepté : parrainage OU partenaire.</p>
             </div>
 
             {/* Info contacts par défaut */}

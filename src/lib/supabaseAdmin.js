@@ -82,6 +82,35 @@ export async function getCompteFromToken(token) {
   };
 }
 
+/**
+ * Valide un token de session partenaire.
+ * Retourne le compte_partenaire ou null.
+ */
+export async function getPartenaireFromToken(token) {
+  if (!token) return null;
+  const { data: session } = await supabaseAdmin
+    .from('comptes_partenaires_sessions')
+    .select(`
+      id, expires_at,
+      comptes_partenaires (
+        id, email, nom_complet, telephone,
+        pourcentage_commission, commissions_actives,
+        coordonnees_paiement, actif, supprime,
+        email_verifie, derniere_connexion, created_at
+      )
+    `)
+    .eq('token', token)
+    .single();
+  if (!session) return null;
+  if (new Date(session.expires_at) < new Date()) {
+    await supabaseAdmin.from('comptes_partenaires_sessions').delete().eq('id', session.id);
+    return null;
+  }
+  const p = session.comptes_partenaires;
+  if (!p || p.supprime || !p.actif) return null;
+  return p;
+}
+
 // Helper : true si le compte courant est une session d'impersonation
 export function isImpersonating(compte) {
   return !!(compte && compte._impersonation);
